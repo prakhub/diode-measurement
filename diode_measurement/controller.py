@@ -126,6 +126,7 @@ class Controller(QtCore.QObject):
 
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
         self.view.generalWidget.elmCheckBox.toggled.connect(self.onToggleElm)
+        self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
@@ -320,11 +321,18 @@ class Controller(QtCore.QObject):
 
         settings.endGroup()
 
+    @handle_exception
     def onStart(self):
         self.view.lock()
         self.view.clear()
 
-        self.state.update(self.prepareState())
+        state = self.prepareState()
+
+        if not state.get("source"):
+            self.view.unlock()
+            raise RuntimeError("No source instrument selected.")
+
+        self.state.update(state)
         self.state.update({"stop_requested": False})
 
         measurement = {
@@ -476,6 +484,9 @@ class Controller(QtCore.QObject):
         self.view.ivPlotWidget.elmSeries.setVisible(state)
         self.view.itPlotWidget.elmSeries.setVisible(state)
         self.view.elmGroupBox.setEnabled(state)
+
+    def onToggleLcr(self, state):
+        self.view.lcrGroupBox.setEnabled(state)
 
     def onOutputEditingFinished(self):
         if not self.view.generalWidget.outputLineEdit.text().strip():

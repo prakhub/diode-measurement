@@ -131,12 +131,14 @@ class IVPlotWidget(PlotWidget):
         self.iDynamicAxis.setTitleText("Current")
         self.iDynamicAxis.setRange(0, 1)
         self.iDynamicAxis.setTickCount(9)
+        self.iDynamicAxis.setProperty("locked", False)
         self.chart.addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
         def updateDynamicAxis(minimum, maximum):
-            value = max(abs(minimum), abs(maximum))
-            scale, prefix, _ = auto_scale(value)
-            self.iDynamicAxis.setRange(minimum * (1 / scale), maximum * (1 / scale))
-            self.iDynamicAxis.setLabelFormat(f"%g {prefix}A")
+            if not self.iDynamicAxis.property("locked"):
+                value = max(abs(minimum), abs(maximum))
+                scale, prefix, _ = auto_scale(value)
+                self.iDynamicAxis.setRange(minimum * (1 / scale), maximum * (1 / scale))
+                self.iDynamicAxis.setLabelFormat(f"%g {prefix}A")
         self.iAxis.rangeChanged.connect(updateDynamicAxis)
         self.iAxis.setRange(0, 0.0000002)
 
@@ -177,10 +179,12 @@ class IVPlotWidget(PlotWidget):
         if self.isReverse():
             minimum, maximum = maximum, minimum
         self.vAxis.setRange(minimum, maximum)
+        self.iDynamicAxis.setProperty("locked", True)
         if self.iMin == self.iMax:
             self.iAxis.setRange(self.iMin, self.iMax + 0.1)
         else:
             self.iAxis.setRange(self.iMin, self.iMax)
+        self.iDynamicAxis.setProperty("locked", False)
         self.iAxis.applyNiceNumbers()
 
     def append(self, name, x, y):
@@ -220,12 +224,14 @@ class ItPlotWidget(PlotWidget):
         self.iDynamicAxis.setTitleText("Current")
         self.iDynamicAxis.setRange(0, 1)
         self.iDynamicAxis.setTickCount(9)
+        self.iDynamicAxis.setProperty("locked", False)
         self.chart.addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
         def updateDynamicAxis(minimum, maximum):
-            value = max(abs(minimum), abs(maximum))
-            scale, prefix, _ = auto_scale(value)
-            self.iDynamicAxis.setRange(minimum * (1/scale), maximum * (1/scale))
-            self.iDynamicAxis.setLabelFormat(f"%g {prefix}A")
+            if not self.iDynamicAxis.property("locked"):
+                value = max(abs(minimum), abs(maximum))
+                scale, prefix, _ = auto_scale(value)
+                self.iDynamicAxis.setRange(minimum * (1/scale), maximum * (1/scale))
+                self.iDynamicAxis.setLabelFormat(f"%g {prefix}A")
         self.iAxis.rangeChanged.connect(updateDynamicAxis)
         self.iAxis.setRange(0, 0.0000002)
 
@@ -261,10 +267,12 @@ class ItPlotWidget(PlotWidget):
         self.tAxis.setRange(t0, t1)
         self.iMin = min(self.iMin, y)
         self.iMax = max(self.iMax, y)
+        self.iDynamicAxis.setProperty("locked", True)
         if self.iMin == self.iMax:
             self.iAxis.setRange(self.iMin, self.iMax + 0.1)
         else:
             self.iAxis.setRange(self.iMin, self.iMax)
+        self.iDynamicAxis.setProperty("locked", False)
         self.iAxis.applyNiceNumbers()
 
     def append(self, name, x, y):

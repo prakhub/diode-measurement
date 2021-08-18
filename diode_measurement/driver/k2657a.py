@@ -14,7 +14,7 @@ class K2657A(SourceMeter):
         self._write('status.reset()')
 
     def error_state(self) -> tuple:
-        code, message, *_ = self._print('errorqueue.next()').split()
+        code, message, *_ = self._print('errorqueue.next()').split('\t')
         code = int(float(code))
         message = message.strip().strip('"')
         return code, message

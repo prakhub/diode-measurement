@@ -53,7 +53,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.contentsAction.setStatusTip("Open the user manual")
         self.contentsAction.setShortcut(QtGui.QKeySequence('F1'))
         self.contentsAction.triggered.connect(self.showContents)
-        self.contentsAction.setEnabled(False) # TODO
 
         self.aboutQtAction = QtWidgets.QAction("About &Qt")
         self.aboutQtAction.setStatusTip("About the used Qt framework")
