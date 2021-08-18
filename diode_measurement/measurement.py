@@ -1,0 +1,401 @@
+import time
+import contextlib
+import logging
+
+from PyQt5 import QtCore
+
+from .resource import Resource, ResourceError
+
+from .driver.k237 import K237
+from .driver.k595 import K595
+from .driver.k2410 import K2410
+from .driver.k2470 import K2470
+from .driver.k2657a import K2657A
+from .driver.k6514 import K6514
+from .driver.k6517 import K6517
+from .driver.e4980a import E4980A
+
+from .functions import LinearRange
+from .estimate import Estimate
+
+logger = logging.getLogger(__name__)
+
+DRIVERS = {
+    'K237': K237,
+    'K595': K595,
+    'K2410': K2410,
+    'K2470': K2470,
+    'K2657A': K2657A,
+    'K6514': K6514,
+    'K6517': K6517,
+    'E4980A': E4980A
+}
+
+class Measurement(QtCore.QObject):
+
+    started = QtCore.pyqtSignal()
+    finished = QtCore.pyqtSignal()
+    update = QtCore.pyqtSignal(dict)
+
+    def __init__(self, state):
+        super().__init__()
+        self.state = state
+        self.contexts = {}
+        self._registered = {}
+
+    def registerInstrument(self, name, cls, resource):
+        self._registered[name] = cls, resource
+
+    def prepareDriver(self, name):
+        if not self.state.get(name, {}).get("enabled"):
+            return None
+        model =  self.state.get(f'{name}_model')
+        resource_name = self.state.get(f'{name}_resource_name')
+        visa_library = self.state.get(f'{name}_visa_library')
+        termination = self.state.get(f'{name}_termination')
+        timeout = self.state.get(f'{name}_timeout') * 1000 # in millisecs
+        cls = DRIVERS.get(model)
+        if not cls:
+            logger.warning("No such driver: %s", model)
+            return None
+        resource = Resource(
+            resource_name=resource_name,
+            visa_library=visa_library,
+            read_termination=termination,
+            write_termination=termination,
+            timeout=timeout
+        )
+        self.registerInstrument(name, cls, resource)
+
+    def _check_error_state(self, context):
+        code, message = context.error_state()
+        if code:
+            raise RuntimeError(f"Instrument Error: {code}: {message}")
+
+    def initialize(self):
+        pass
+
+    def measure(self):
+        pass
+
+    def finalize(self):
+        pass
+
+    def run(self):
+        try:
+            self.started.emit()
+            self.contexts.clear()
+            with contextlib.ExitStack() as stack:
+                for key, value in self._registered.items():
+                    cls, resource = value
+                    context = cls(stack.enter_context(resource))
+                    self.contexts[key] = context
+                try:
+                    self.initialize()
+                    self.measure()
+                finally:
+                    self.finalize()
+        finally:
+            self.contexts.clear()
+            self.finished.emit()
+
+class RangeMeasurement(Measurement):
+
+    def __init__(self, state):
+        super().__init__(state)
+
+    def get_source_output_state(self):
+        return self.source_instrument.get_output_enabled()
+
+    def set_source_output_state(self, state):
+        logger.info("Source output state: %s", state)
+        self.source_instrument.set_output_enabled(state)
+        self.update.emit({'source_output_state': (state == True)})
+        self.state['source_output_state'] = (state == True)
+
+    def get_source_voltage(self):
+        return self.source_instrument.get_voltage_level()
+
+    def set_source_voltage(self, voltage):
+        logger.info("Source voltage level: %gV", voltage)
+        self.source_instrument.set_voltage_level(voltage)
+        self.update.emit({'source_voltage': voltage})
+        self.state['source_voltage'] = voltage
+
+    def check_current_compliance(self):
+        """Raise exception if current compliance tripped and continue in
+        compliance option is not active.
+        """
+        if not self.state.get('continue_in_compliance', False):
+            if self.source_instrument.compliance_tripped():
+                raise RuntimeError("Source compliance tripped!")
+
+    def update_current_compliance(self):
+        """Update current compliance if value changed."""
+        current_compliance = self.state.get('current_compliance', 0.0)
+        if self.current_compliance != current_compliance:
+            self.current_compliance = current_compliance
+            self.set_source_compliance(self.current_compliance)
+            self._check_error_state(self.source_instrument)
+
+    def set_source_compliance(self, compiance):
+        logger.info("Source current compliance level: %gA", compiance)
+        self.source_instrument.set_current_compliance_level(compiance)
+
+    def apply_waiting_time(self):
+        waiting_time = self.state.get('waiting_time', 1.0)
+        logger.info("Waiting for %.2f sec", waiting_time)
+        time.sleep(waiting_time)
+
+    def apply_waiting_time_continuous(self):
+        waiting_time = self.state.get('waiting_time_continuous', 1.0)
+        logger.info("Waiting for %.2f sec", waiting_time)
+        interval = 1.0
+        if waiting_time < interval:
+            time.sleep(waiting_time)
+        else:
+            now = time.time()
+            threshold = now + waiting_time
+            while now < threshold:
+                if self.state.get('stop_requested'):
+                    self.update.emit({"message": "Stopping..."})
+                    break
+                remaining = round(threshold - now)
+                self.update.emit({"message": f"Next reading in {remaining:d} sec..."})
+                time.sleep(interval)
+                now = time.time()
+
+    def initialize(self):
+        source = self.state.get('source')
+        if source in self.contexts:
+            self.source_instrument = self.contexts.get(source)
+        else:
+            raise RuntimeError("No source instrument set")
+
+        for key, context in self.contexts.items():
+            logging.info("%s IDN: %s", key.upper(), context.identity())
+
+        source_output_state = self.get_source_output_state()
+
+        if source_output_state:
+            self.rampZero()
+        else:
+            self.set_source_voltage(0.0)
+
+        # Reset (optional)
+        if self.state.get('reset'):
+            for key, context in self.contexts.items():
+                logging.info("Reset %s...", key.upper())
+                context.reset()
+
+        # Clear state
+        for key, context in self.contexts.items():
+            logging.info("Clear %s...", key.upper())
+            context.clear()
+
+        # Configure
+        for key, context in self.contexts.items():
+            logging.info("%s IDN: %s", key.upper(), context.identity())
+            context.configure()
+            self._check_error_state(context)
+
+        # Compliance
+        self.current_compliance = self.state.get('current_compliance', 0.0)
+        self.set_source_compliance(self.current_compliance)
+        self._check_error_state(self.source_instrument)
+
+        # Enable output
+        self.set_source_output_state(True)
+
+        self.rampBegin()
+
+        # Wait after output enable/ramp
+        time.sleep(1.0)
+
+    def measure(self):
+        ramp = LinearRange(
+            self.state.get('voltage_begin'),
+            self.state.get('voltage_end'),
+            self.state.get('voltage_step')
+        )
+
+        self.update.emit({"message": f"Ramp to {ramp.end} V"})
+        current_step = 0
+        estimate = Estimate(len(ramp))
+        for step, voltage in enumerate(ramp):
+            elapsed_time = format(estimate.elapsed).split('.')[0]
+            remaining_time = format(estimate.remaining).split('.')[0]
+            self.update.emit({"message": f"Ramp to {ramp.end} V | Elapsed {elapsed_time} | Remaining {remaining_time}"})
+            self.update.emit({"progress": (0, len(ramp), step)})
+
+            if self.state.get('stop_requested'):
+                self.update.emit({"message": "Stopping..."})
+                return
+            self.set_source_voltage(voltage)
+
+            self.apply_waiting_time()
+
+            self.acquireReading()
+            self.check_current_compliance()
+            self.update_current_compliance()
+
+            estimate.advance()
+
+        self.update.emit({"message": ""})
+
+        if self.state.get('stop_requested'):
+            self.update.emit({"message": "Stopping..."})
+            return
+
+        if self.state.get('continuous'):
+            self.update.emit({"message": "Continuous measurement..."})
+            self.acquireContinuousReading()
+
+    def finalize(self):
+        try:
+            self.rampZero()
+        finally:
+            self.set_source_output_state(False)
+            self.update.emit({
+                'source_voltage': None,
+                'smu_current': None,
+                'elm_current': None,
+                'lcr_capacity': None
+            })
+
+    def acquireReading(self):
+        pass
+
+    def acquireContinuousReading(self):
+        pass
+
+    def rampBegin(self):
+        voltage_begin = self.state.get('voltage_begin', 0.0)
+        ramp = LinearRange(
+            self.state.get('source_voltage', 0.0),
+            voltage_begin,
+            5.0
+        )
+        estimate = Estimate(len(ramp))
+        for step, voltage in enumerate(ramp):
+            elapsed_time = format(estimate.elapsed).split('.')[0]
+            remaining_time = format(estimate.remaining).split('.')[0]
+            self.update.emit({"message": f"Ramp to {voltage_begin} V | Elapsed {elapsed_time} | Remaining {remaining_time}"})
+            self.update.emit({"progress": (0, len(ramp), step)})
+
+            if self.state.get('stop_requested'):
+                break
+            self.set_source_voltage(voltage)
+            time.sleep(.250)
+            estimate.advance()
+
+        self.set_source_voltage(voltage_begin)
+
+    def rampZero(self):
+        source_voltage = self.state.get('source_voltage', 0.0)
+        self.update.emit({
+            'smu_current': None,
+            'elm_current': None,
+            'lcr_capacity': None
+        })
+        ramp = LinearRange(source_voltage, 0.0, 5.0)
+        estimate = Estimate(len(ramp))
+        for step, voltage in enumerate(ramp):
+            elapsed_time = format(estimate.elapsed).split('.')[0]
+            remaining_time = format(estimate.remaining).split('.')[0]
+            self.update.emit({"message": f"Ramp to zero | Elapsed {elapsed_time} | Remaining {remaining_time}"})
+            self.update.emit({"progress": (0, len(ramp), step)})
+
+            self.set_source_voltage(voltage)
+            time.sleep(.250)
+            estimate.advance()
+
+        self.set_source_voltage(0.0)
+
+class IVMeasurement(RangeMeasurement):
+
+    ivReading = QtCore.pyqtSignal(dict)
+    itReading = QtCore.pyqtSignal(dict)
+
+    def __init__(self, state):
+        super().__init__(state)
+
+    def measure(self):
+        super().measure()
+        if self.state.get('continuous'):
+            self.acquireContinuousReading()
+
+    def acquireReadingData(self):
+        smu = self.contexts.get('smu')
+        elm = self.contexts.get('elm')
+        voltage = self.get_source_voltage()
+        if smu:
+            i_smu = smu.read_current()
+        else:
+            i_smu = float('NaN')
+        if elm:
+            i_elm = elm.read_current()
+        else:
+            i_elm = float('NaN')
+        return {
+            'timestamp': time.time(),
+            'voltage': voltage,
+            'i_smu': i_smu,
+            'i_elm': i_elm
+        }
+
+    def acquireReading(self):
+        reading = self.acquireReadingData()
+        logging.info(reading)
+        self.ivReading.emit(reading)
+        self.update.emit({
+            'smu_current': reading.get('i_smu'),
+            'elm_current': reading.get('i_elm')
+        })
+
+    def acquireContinuousReading(self):
+        voltage = self.state.get('voltage_end', 0.0)
+        while not self.state.get('stop_requested'):
+            self.update.emit({"message": "Reading..."})
+            self.update.emit({"progress": (0, 0, 0)})
+            reading = self.acquireReadingData()
+            logging.info(reading)
+            self.itReading.emit(reading)
+            self.update.emit({
+                'smu_current': reading.get('i_smu'),
+                'elm_current': reading.get('i_elm')
+            })
+
+            self.check_current_compliance()
+            self.update_current_compliance()
+
+            self.apply_waiting_time_continuous()
+
+class CVMeasurement(RangeMeasurement):
+
+    cvReading = QtCore.pyqtSignal(dict)
+
+    def __init__(self, state):
+        super().__init__(state)
+
+    def acquireReadingData(self):
+        lcr = self.contexts.get('lcr')
+        voltage = self.get_source_voltage()
+        if lcr:
+            c_lcr = lcr.read_capacity()
+        else:
+            c_lcr = float('NaN')
+        return {
+            'timestamp': time.time(),
+            'voltage': voltage,
+            'c_lcr': c_lcr
+        }
+
+    def acquireReading(self):
+        reading = self.acquireReadingData()
+        self.cvReading.emit(reading)
+        self.update.emit({
+                'smu_current': reading.get('i_smu'),
+                'elm_current': reading.get('i_elm'),
+                'lcr_capacity': reading.get('c_lcr')
+            })
