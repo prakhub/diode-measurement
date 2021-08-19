@@ -157,7 +157,7 @@ class IVPlotWidget(PlotWidget):
         self.series['elm'] = self.elmSeries
 
     def updateLimits(self, x, y):
-        if max(self.smuSeries.count(), self.elmSeries.count()) > 1:
+        if max(self.smuSeries.count(), self.elmSeries.count()) > 0:
             self.iMin = min(self.iMin, y)
             self.iMax = max(self.iMax, y)
         else:

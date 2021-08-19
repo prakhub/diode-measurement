@@ -31,7 +31,9 @@ from .ui.widgets import showException
 from .measurement import IVMeasurement
 from .measurement import CVMeasurement
 
+from .reader import Reader
 from .writer import Writer
+
 from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
@@ -95,6 +97,8 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("Temperature")
 
         self.state = {}
+
+        self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
         self.view.startAction.triggered.connect(lambda: self.onStart())
         self.view.startButton.clicked.connect(lambda: self.onStart())
@@ -322,15 +326,60 @@ class Controller(QtCore.QObject):
         settings.endGroup()
 
     @handle_exception
-    def onStart(self):
-        self.view.lock()
-        self.view.clear()
+    def onImportFile(self):
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.view,
+            "Select measurement file",
+            self.view.generalWidget.outputDir(),
+            "Text (*.txt);;All (*);;"
+        )
+        if filename:
+            self.view.clear()
+            with open(filename) as fp:
+                reader = Reader(fp)
+                meta = reader.read_meta()
+                data = reader.read_data()
+                continuousData = reader.read_data()
+            # Meta
+            self.view.generalWidget.measurementComboBox.setCurrentIndex(-1)
+            if meta.get("measurement_type"):
+                for index in range(self.view.generalWidget.measurementComboBox.count()):
+                    spec = self.view.generalWidget.measurementComboBox.itemData(index)
+                    if spec["type"] == meta.get("measurement_type"):
+                        self.view.generalWidget.measurementComboBox.setCurrentIndex(index)
+                        break
+            if meta.get("voltage_begin"):
+                self.view.generalWidget.setBeginVoltage(meta.get("voltage_begin"))
+            if meta.get("voltage_end"):
+                self.view.generalWidget.setEndVoltage(meta.get("voltage_end"))
+            if meta.get("voltage_step"):
+                self.view.generalWidget.setStepVoltage(meta.get("voltage_step"))
+            if meta.get("waiting_time"):
+                self.view.generalWidget.setWaitingTime(meta.get("waiting_time"))
+            if meta.get("waiting_time_continuous"):
+                self.view.generalWidget.setWaitingTimeContinuous(meta.get("waiting_time_continuous"))
+            if meta.get("current_compliance"):
+                self.view.generalWidget.setCurrentCompliance(meta.get("current_compliance"))
+            # Data
+            if meta.get("measurement_type") == "iv":
+                for row in data:
+                    self.onIVReading(row)
+                for row in continuousData:
+                    self.onItReading(row)
+            if meta.get("measurement_type") == "cv":
+                for row in data:
+                    self.onCVReading(row)
 
+    @handle_exception
+    def onStart(self):
         state = self.prepareState()
 
         if not state.get("source"):
             self.view.unlock()
             raise RuntimeError("No source instrument selected.")
+
+        self.view.lock()
+        self.view.clear()
 
         self.state.update(state)
         self.state.update({"stop_requested": False})

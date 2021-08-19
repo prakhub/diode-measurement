@@ -17,12 +17,13 @@ class Writer:
             self.measurement.ivReading.connect(lambda reading: self.write_row([
                 safe_format(reading.get('timestamp'), '.2f'),
                 safe_format(reading.get('voltage'), '+.3E'),
-                safe_format(reading.get('i_smu', 0.0), '+.3E'),
-                safe_format(reading.get('i_elm', 0.0), '+.3E'),
+                safe_format(reading.get('i_smu'), '+.3E'),
+                safe_format(reading.get('i_elm'), '+.3E'),
             ]))
             self.measurement.itReading.connect(lambda reading: self.write_continuous_row([
                 safe_format(reading.get('timestamp'), '.2f'),
                 safe_format(reading.get('i_smu'), '+.3E'),
+                safe_format(reading.get('i_elm'), '+.3E'),
             ]))
         elif measurement_type == 'cv':
             self.measurement.cvReading.connect(lambda reading: self.write_row([
@@ -69,5 +70,5 @@ class Writer:
     def write_continuous_row(self, items):
         if self.current_table != 'continous':
             self.current_table = 'continous'
-            self.write_header(["timestamp[s]", "i_smu[A]"])
+            self.write_header(["timestamp[s]", "i_smu[A]", "i_elm[A]"])
         self.write_line("\t".join([format(item) for item in items]))

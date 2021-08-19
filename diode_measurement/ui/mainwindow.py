@@ -30,6 +30,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._createDialogs()
 
     def _createActions(self):
+        self.importAction = QtWidgets.QAction("&Import File...")
+        self.importAction.setStatusTip("Import measurement data")
+
         self.quitAction = QtWidgets.QAction("&Quit")
         self.quitAction.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
         self.quitAction.setStatusTip("Quit the application")
@@ -64,6 +67,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _createMenus(self):
         self.fileMenu = self.menuBar().addMenu("&File")
+        self.fileMenu.addAction(self.importAction)
+        self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.quitAction)
 
         self.viewMenu = self.menuBar().addMenu("&View")
@@ -293,9 +298,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def clear(self):
         """Clear displayed data in plots and inputs."""
         self.ivPlotWidget.clear()
+        self.ivPlotWidget.reset()
         self.itPlotWidget.clear()
+        self.itPlotWidget.reset()
         self.cvPlotWidget.clear()
+        self.cvPlotWidget.reset()
         self.cv2PlotWidget.clear()
+        self.cv2PlotWidget.reset()
         self.smuVoltageLineEdit.setText("---")
         self.smuCurrentLineEdit.setText("---")
         self.smuOutputStateLineEdit.setText("---")
@@ -308,6 +317,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def lock(self):
         self.setProperty("locked", True)
+        self.importAction.setEnabled(False)
         self.startAction.setEnabled(False)
         self.stopAction.setEnabled(True)
         self.continuousAction.setEnabled(False)
@@ -322,6 +332,7 @@ class MainWindow(QtWidgets.QMainWindow):
             role.lock()
 
     def unlock(self):
+        self.importAction.setEnabled(True)
         self.startAction.setEnabled(True)
         self.stopAction.setEnabled(False)
         self.continuousAction.setEnabled(True)
