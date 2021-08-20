@@ -242,6 +242,9 @@ class ItPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.tAxis)
         self.elmSeries.attachAxis(self.tAxis)
 
+        self.tMin = 0
+        self.tMax = 0
+
         self.iMin = 0
         self.iMax = 0
 
@@ -250,23 +253,25 @@ class ItPlotWidget(PlotWidget):
 
     def updateLimits(self, x, y):
         if max(self.smuSeries.count(), self.elmSeries.count()) > 1:
+            self.tMin = min(self.tMin, x)
+            self.tMax = max(self.tMax, x)
             self.iMin = min(self.iMin, y)
             self.iMax = max(self.iMax, y)
         else:
+            self.tMin = x
+            self.tMax = x
             self.iMin = y
             self.iMax = y
 
-    def fit(self, x, y):
+    def fit(self):
         if self.chart.isZoomed(): return
         minimum = []
         for series in self.series.values():
             if series.count():
                 minimum.append(series.at(0).x())
-        t0 = QtCore.QDateTime.fromMSecsSinceEpoch(min(minimum))
-        t1 = QtCore.QDateTime.fromMSecsSinceEpoch(x * 1e3)
+        t0 = QtCore.QDateTime.fromMSecsSinceEpoch(self.tMin * 1e3)
+        t1 = QtCore.QDateTime.fromMSecsSinceEpoch(self.tMax * 1e3)
         self.tAxis.setRange(t0, t1)
-        self.iMin = min(self.iMin, y)
-        self.iMax = max(self.iMax, y)
         self.iDynamicAxis.setProperty("locked", True)
         if self.iMin == self.iMax:
             self.iAxis.setRange(self.iMin, self.iMax + 0.1)
@@ -282,7 +287,7 @@ class ItPlotWidget(PlotWidget):
             if series.count() > self.MAX_POINTS:
                 series.remove(0)
             self.updateLimits(x, y)
-            self.fit(x, y)
+            self.fit()
 
 class CVPlotWidget(PlotWidget):
 

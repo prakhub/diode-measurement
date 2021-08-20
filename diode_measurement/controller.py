@@ -334,41 +334,52 @@ class Controller(QtCore.QObject):
             "Text (*.txt);;All (*);;"
         )
         if filename:
+            self.view.lock()
             self.view.clear()
-            with open(filename) as fp:
-                reader = Reader(fp)
-                meta = reader.read_meta()
-                data = reader.read_data()
-                continuousData = reader.read_data()
-            # Meta
-            self.view.generalWidget.measurementComboBox.setCurrentIndex(-1)
-            if meta.get("measurement_type"):
-                for index in range(self.view.generalWidget.measurementComboBox.count()):
-                    spec = self.view.generalWidget.measurementComboBox.itemData(index)
-                    if spec["type"] == meta.get("measurement_type"):
-                        self.view.generalWidget.measurementComboBox.setCurrentIndex(index)
-                        break
-            if meta.get("voltage_begin"):
-                self.view.generalWidget.setBeginVoltage(meta.get("voltage_begin"))
-            if meta.get("voltage_end"):
-                self.view.generalWidget.setEndVoltage(meta.get("voltage_end"))
-            if meta.get("voltage_step"):
-                self.view.generalWidget.setStepVoltage(meta.get("voltage_step"))
-            if meta.get("waiting_time"):
-                self.view.generalWidget.setWaitingTime(meta.get("waiting_time"))
-            if meta.get("waiting_time_continuous"):
-                self.view.generalWidget.setWaitingTimeContinuous(meta.get("waiting_time_continuous"))
-            if meta.get("current_compliance"):
-                self.view.generalWidget.setCurrentCompliance(meta.get("current_compliance"))
-            # Data
-            if meta.get("measurement_type") == "iv":
-                for row in data:
-                    self.onIVReading(row)
-                for row in continuousData:
-                    self.onItReading(row)
-            if meta.get("measurement_type") == "cv":
-                for row in data:
-                    self.onCVReading(row)
+            try:
+                # Open in binary mode!
+                with open(filename, 'rb') as fp:
+                    reader = Reader(fp)
+                    meta = reader.read_meta()
+                    data = reader.read_data()
+                    continuousData = reader.read_data()
+                # Meta
+                self.view.generalWidget.measurementComboBox.setCurrentIndex(-1)
+                if meta.get("measurement_type"):
+                    for index in range(self.view.generalWidget.measurementComboBox.count()):
+                        spec = self.view.generalWidget.measurementComboBox.itemData(index)
+                        if spec["type"] == meta.get("measurement_type"):
+                            self.view.generalWidget.measurementComboBox.setCurrentIndex(index)
+                            break
+                if meta.get("voltage_begin"):
+                    self.view.generalWidget.setBeginVoltage(meta.get("voltage_begin"))
+                if meta.get("voltage_end"):
+                    self.view.generalWidget.setEndVoltage(meta.get("voltage_end"))
+                if meta.get("voltage_step"):
+                    self.view.generalWidget.setStepVoltage(meta.get("voltage_step"))
+                if meta.get("waiting_time"):
+                    self.view.generalWidget.setWaitingTime(meta.get("waiting_time"))
+                if meta.get("waiting_time_continuous"):
+                    self.view.generalWidget.setWaitingTimeContinuous(meta.get("waiting_time_continuous"))
+                if meta.get("current_compliance"):
+                    self.view.generalWidget.setCurrentCompliance(meta.get("current_compliance"))
+                # Data
+                if meta.get("measurement_type") == "iv":
+                    for row in data:
+                        self.onIVReading(row)
+                    limit = 1024
+                    self.onItReadings(continuousData[:limit])
+                    if len(continuousData) >= limit:
+                        QtWidgets.QMessageBox.warning(
+                            self.view,
+                            "Too many readings",
+                            f"Exceeded liit of {limit} continuous readings, skipped {len(continuousData) - limit} readings."
+                        )
+                if meta.get("measurement_type") == "cv":
+                    for row in data:
+                        self.onCVReading(row)
+            finally:
+                self.view.unlock()
 
     @handle_exception
     def onStart(self):
@@ -440,7 +451,7 @@ class Controller(QtCore.QObject):
         if isFinite(i_elm):
             self.view.ivPlotWidget.append('elm', voltage, i_elm)
 
-    def onItReading(self, reading):
+    def onItReading(self, reading, fit=True):
         timestamp = reading.get('timestamp')
         i_smu = reading.get('i_smu')
         i_elm = reading.get('i_elm')
@@ -448,6 +459,13 @@ class Controller(QtCore.QObject):
             self.view.itPlotWidget.append('smu', timestamp, i_smu)
         if isFinite(i_elm):
             self.view.itPlotWidget.append('elm', timestamp, i_elm)
+        if fit:
+            self.view.itPlotWidget.fit()
+
+    def onItReadings(self, readings):
+        for reading in readings:
+            self.onItReading(reading, fit=False)
+        self.view.itPlotWidget.fit()
 
     def onCVReading(self, reading):
         voltage = reading.get('voltage')
@@ -570,7 +588,7 @@ class Controller(QtCore.QObject):
             if not os.path.exists(path):
                 os.makedirs(path)
             with contextlib.ExitStack() as stack:
-                fp = stack.enter_context(open(filename, "w"))
+                fp = stack.enter_context(open(filename, 'w', newline=''))
                 writer = Writer(measurement, fp)
                 measurement.run()
         except Exception as exc:

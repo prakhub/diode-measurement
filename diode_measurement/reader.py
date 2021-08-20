@@ -10,15 +10,23 @@ class Reader:
     def __init__(self, fp):
         self.fp = fp
 
-    def read_meta(self):
-        meta = {}
+    def block(self):
+        """Return a block of lines, stopping at an empty line."""
         for line in self.fp:
-            line = line.strip()
+            line = line.decode().strip()
             if not line:
                 break
-            m = re.match(r'(\w+)(?:\[(\w+)\])?\:\s*(.*)\s*', line)
+            yield line
+
+    def read_meta(self):
+        r = csv.reader(self.block())
+        meta = {}
+        for row in r:
+            if not row:
+                break
+            m = re.match(r'(\w+)(?:\[(\w+)\])?\:\s*(.*)\s*', row[0])
             if not m:
-                raise RuntimeError(f"Invalid meta entry: {line}")
+                raise RuntimeError(f"Invalid meta entry: {row[0]}")
             key = m.group(1)
             if key in meta:
                 raise RuntimeError(f"Duplicate meta entry: {key}")
@@ -30,21 +38,14 @@ class Reader:
         return meta
 
     def read_data(self):
-        def source():
-            for line in self.fp:
-                line = line.strip()
-                if not line:
-                    break
-                yield line
-        reader = csv.DictReader(source(), delimiter='\t')
+        reader = csv.reader(self.block(), delimiter='\t')
+        for row in reader:
+            header = [key.split('[')[0] for key in row]
+            break
         data = []
         for row in reader:
-            if not ''.join(row):
-                break # newline
-            item = {}
-            for key, value in row.items():
-                # Strip units
-                key = key.split('[')[0]
-                item[key] = float(value)
-            data.append(item)
+            if not row:
+                break
+            values = [float(value) for value in row]
+            data.append(dict(zip(header, values)))
         return data
