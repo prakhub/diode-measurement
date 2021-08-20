@@ -1,6 +1,15 @@
 import re
 import pint
 
+__all__ = [
+    'ureg',
+    'safe_filename',
+    'auto_scale',
+    'format_metric',
+    'format_switch',
+    'limits'
+]
+
 ureg = pint.UnitRegistry()
 
 def get_resource(resource_name):
@@ -69,3 +78,18 @@ def format_switch(value, default=None):
     'OFF'
     """
     return {False: "OFF", True: "ON"}.get(value) or default
+
+def limits(iterable) -> tuple:
+    """Calculate limits of 2D point series."""
+    limits = tuple()
+    for x, y in iterable:
+        if not limits:
+            limits = (x, x, y, y)
+        else:
+            limits = (
+                min(x, limits[0]),
+                max(x, limits[1]),
+                min(y, limits[2]),
+                max(y, limits[3])
+            )
+    return limits

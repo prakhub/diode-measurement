@@ -174,6 +174,8 @@ class IVPlotWidget(PlotWidget):
             if series.count():
                 minimum.append(series.at(0).x())
                 maximum.append(series.at(series.count() - 1).x())
+        if not minimum: return
+        if not maximum: return
         minimum = min(minimum)
         maximum = max(maximum)
         if self.isReverse():
@@ -317,27 +319,41 @@ class CVPlotWidget(PlotWidget):
         self.lcrSeries.attachAxis(self.vAxis)
 
         self.cMin = 0
-        self.cMax = 0
+        self.cMax = 2e-16
+
+        self.vMin = 0
+        self.vMax = 1
 
         self.series['lcr'] = self.lcrSeries
 
-    def fit(self, x, y):
+    def updateLimits(self, x, y):
+        if max(series.count() for series in self.series.values()) > 1:
+            self.vMin = min(self.vMin, x)
+            self.vMax = max(self.vMax, x)
+            self.cMin = min(self.cMin, y)
+            self.cMax = max(self.cMax, y)
+        else:
+            self.vMin = x
+            self.vMax = x
+            self.cMin = y
+            self.cMax = y
+
+    def fit(self):
         if self.chart.isZoomed(): return
-        minimum, maximum = min(series.at(0).x() for series in self.chart.series() if series.count()), x
+        minimum, maximum = self.vMin, self.vMax
         self.vAxis.setReverse(minimum > maximum)
         minimum, maximum = sorted((minimum, maximum))
         self.vAxis.setRange(minimum, maximum)
-        self.cMin = min(self.cMin, y)
-        self.cMax = max(self.cMax, y)
         self.cAxis.setRange(self.cMin, self.cMax)
         self.cAxis.applyNiceNumbers()
-        self.cAxis.setTickCount(7)
+        self.cAxis.setTickCount(9)
 
     def append(self, name, x, y):
         series = self.series.get(name)
         if series is not None:
             series.append(x, y)
-            self.fit(x, y)
+            self.updateLimits(x, y)
+            self.fit()
 
 class CV2PlotWidget(CVPlotWidget):
 

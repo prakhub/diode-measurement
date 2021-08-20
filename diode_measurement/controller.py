@@ -37,6 +37,7 @@ from .writer import Writer
 from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
+from .utils import limits
 
 from .settings import SPECS
 
@@ -343,6 +344,7 @@ class Controller(QtCore.QObject):
                     meta = reader.read_meta()
                     data = reader.read_data()
                     continuousData = reader.read_data()
+
                 # Meta
                 self.view.generalWidget.measurementComboBox.setCurrentIndex(-1)
                 if meta.get("measurement_type"):
@@ -363,21 +365,13 @@ class Controller(QtCore.QObject):
                     self.view.generalWidget.setWaitingTimeContinuous(meta.get("waiting_time_continuous"))
                 if meta.get("current_compliance"):
                     self.view.generalWidget.setCurrentCompliance(meta.get("current_compliance"))
+
                 # Data
                 if meta.get("measurement_type") == "iv":
-                    for row in data:
-                        self.onIVReading(row)
-                    limit = 1024
-                    self.onItReadings(continuousData[:limit])
-                    if len(continuousData) >= limit:
-                        QtWidgets.QMessageBox.warning(
-                            self.view,
-                            "Too many readings",
-                            f"Exceeded liit of {limit} continuous readings, skipped {len(continuousData) - limit} readings."
-                        )
+                    self.onLoadIVReadings(data)
+                    self.onLoadItReadings(continuousData)
                 if meta.get("measurement_type") == "cv":
-                    for row in data:
-                        self.onCVReading(row)
+                    self.onLoadCVReadings(data)
             finally:
                 self.view.unlock()
 
@@ -451,6 +445,37 @@ class Controller(QtCore.QObject):
         if isFinite(i_elm):
             self.view.ivPlotWidget.append('elm', voltage, i_elm)
 
+    def onLoadIVReadings(self, readings):
+        smuPoints = []
+        elmPoints = []
+        aggregate = []
+        widget = self.view.ivPlotWidget
+        for reading in readings:
+            voltage = reading.get('voltage')
+            i_smu = reading.get('i_smu')
+            i_elm = reading.get('i_elm')
+            if isFinite(i_smu):
+                smuPoints.append(QtCore.QPointF(voltage, i_smu))
+                aggregate.append((voltage, i_smu))
+            if isFinite(i_elm):
+                elmPoints.append(QtCore.QPointF(voltage, i_elm))
+                aggregate.append((voltage, i_elm))
+        widget.series.get('smu').replace(smuPoints)
+        widget.series.get('elm').replace(elmPoints)
+        aggregateLimits = limits(aggregate)
+        if aggregateLimits:
+            xmin, xmax, ymin, ymax = aggregateLimits
+            widget.tMin = xmin
+            widget.tMax = xmax
+            widget.iMin = ymin
+            widget.iMax = ymax
+        else:
+            widget.tMin = 0
+            widget.tMax = 100
+            widget.iMin = 0.0
+            widget.iMax = 0.0001
+        widget.fit()
+
     def onItReading(self, reading, fit=True):
         timestamp = reading.get('timestamp')
         i_smu = reading.get('i_smu')
@@ -462,10 +487,36 @@ class Controller(QtCore.QObject):
         if fit:
             self.view.itPlotWidget.fit()
 
-    def onItReadings(self, readings):
+    def onLoadItReadings(self, readings):
+        smuPoints = []
+        elmPoints = []
+        aggregate = []
+        widget = self.view.itPlotWidget
         for reading in readings:
-            self.onItReading(reading, fit=False)
-        self.view.itPlotWidget.fit()
+            timestamp = reading.get('timestamp')
+            i_smu = reading.get('i_smu')
+            i_elm = reading.get('i_elm')
+            if isFinite(i_smu):
+                smuPoints.append(QtCore.QPointF(timestamp * 1e3, i_smu))
+                aggregate.append((timestamp, i_smu))
+            if isFinite(i_elm):
+                elmPoints.append(QtCore.QPointF(timestamp * 1e3, i_elm))
+                aggregate.append((timestamp, i_elm))
+        widget.series.get('smu').replace(smuPoints)
+        widget.series.get('elm').replace(elmPoints)
+        aggregateLimits = limits(aggregate)
+        if aggregateLimits:
+            xmin, xmax, ymin, ymax = aggregateLimits
+            widget.tMin = xmin
+            widget.tMax = xmax
+            widget.iMin = ymin
+            widget.iMax = ymax
+        else:
+            widget.tMin = 0
+            widget.tMax = 1
+            widget.iMin = 0.0
+            widget.iMax = 0.0001
+        widget.fit()
 
     def onCVReading(self, reading):
         voltage = reading.get('voltage')
@@ -475,6 +526,51 @@ class Controller(QtCore.QObject):
         if isFinite(c_lcr):
             self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
             self.view.cv2PlotWidget.append('lcr', voltage, 1 / c_lcr ** 2)
+
+    def onLoadCVReadings(self, readings):
+        lcrPoints = []
+        lcr2Points = []
+        aggregate = []
+        aggregate2 = []
+        widget = self.view.cvPlotWidget
+        widget2 = self.view.cv2PlotWidget
+        for reading in readings:
+            voltage = reading.get('voltage')
+            c_lcr = reading.get('c_lcr')
+            c_lcr2 = 1 / c_lcr ** 2
+            if isFinite(c_lcr):
+                lcrPoints.append(QtCore.QPointF(voltage, c_lcr))
+                lcr2Points.append(QtCore.QPointF(voltage, c_lcr2))
+                aggregate.append((voltage, c_lcr))
+                aggregate2.append((voltage, c_lcr2))
+        widget.series.get('lcr').replace(lcrPoints)
+        aggregateLimits = limits(aggregate)
+        if aggregateLimits:
+            xmin, xmax, ymin, ymax = aggregateLimits
+            widget.vMin = xmin
+            widget.vMax = xmax
+            widget.cMin = ymin
+            widget.cMax = ymax
+        else:
+            widget.vMin = 0
+            widget.vMax = -100
+            widget.cMin = 0.0
+            widget.cMax = 0.0001
+        widget2.series.get('lcr').replace(lcr2Points)
+        aggregate2Limits = limits(aggregate2)
+        if aggregate2Limits:
+            xmin, xmax, ymin, ymax = aggregate2Limits
+            widget2.vMin = xmin
+            widget2.vMax = xmax
+            widget2.cMin = ymin
+            widget2.cMax = ymax
+        else:
+            widget2.vMin = 0
+            widget2.vMax = -100
+            widget2.cMin = 0.0
+            widget2.cMax = 0.0001
+        widget.fit()
+        widget2.fit()
 
     def onContinuousToggled(self, checked):
         self.view.setContinuous(checked)

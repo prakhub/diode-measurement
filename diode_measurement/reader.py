@@ -1,7 +1,10 @@
-import re
 import csv
+import logging
+import re
 
 from .utils import ureg
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['Reader']
 
@@ -19,9 +22,9 @@ class Reader:
             yield line
 
     def read_meta(self):
-        r = csv.reader(self.block())
+        reader = csv.reader(self.block())
         meta = {}
-        for row in r:
+        for row in reader:
             if not row:
                 break
             m = re.match(r'(\w+)(?:\[(\w+)\])?\:\s*(.*)\s*', row[0])
@@ -46,6 +49,6 @@ class Reader:
         for row in reader:
             if not row:
                 break
-            values = [float(value) for value in row]
+            values = (float(value) for value in row)
             data.append(dict(zip(header, values)))
         return data

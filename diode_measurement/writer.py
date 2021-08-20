@@ -23,6 +23,7 @@ class Writer:
             ]))
             self.measurement.itReading.connect(lambda reading: self.write_continuous_row([
                 safe_format(reading.get('timestamp'), '.2f'),
+                safe_format(reading.get('voltage'), '+.3E'),
                 safe_format(reading.get('i_smu'), '+.3E'),
                 safe_format(reading.get('i_elm'), '+.3E'),
             ]))
@@ -30,7 +31,9 @@ class Writer:
             self.measurement.cvReading.connect(lambda reading: self.write_row([
                 safe_format(reading.get('timestamp'), '.2f'),
                 safe_format(reading.get('voltage'), '+.3E'),
-                safe_format(reading.get('c_lcr'), '+.3E')
+                safe_format(reading.get('i_smu'), '+.3E'),
+                safe_format(reading.get('c_lcr'), '+.3E'),
+                safe_format(reading.get('c_lcr_2'), '+.3E')
             ]))
         self.fp = fp
         self._writer = csv.writer(self.fp, delimiter='\t')
@@ -63,11 +66,11 @@ class Writer:
         elif measurement_type == 'cv':
             if self.current_table != 'ramp':
                 self.current_table = 'ramp'
-                self.write_header(["timestamp[s]", "voltage[V]", "c_lcr[F]"])
+                self.write_header(["timestamp[s]", "voltage[V]", "i_smu[A]", "c_lcr[F]", "c_lcr_2[F]"])
             self._writer.writerow(items)
 
     def write_continuous_row(self, items):
         if self.current_table != 'continous':
             self.current_table = 'continous'
-            self.write_header(["timestamp[s]", "i_smu[A]", "i_elm[A]"])
+            self.write_header(["timestamp[s]", "voltage[V]", "i_smu[A]", "i_elm[A]"])
         self._writer.writerow(items)

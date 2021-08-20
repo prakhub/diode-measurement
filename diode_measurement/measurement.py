@@ -379,15 +379,21 @@ class CVMeasurement(RangeMeasurement):
         super().__init__(state)
 
     def acquireReadingData(self):
+        smu = self.contexts.get('smu')
         lcr = self.contexts.get('lcr')
         voltage = self.get_source_voltage()
         if lcr:
             c_lcr = lcr.read_capacity()
         else:
             c_lcr = float('NaN')
+        if smu:
+            i_smu = smu.read_current()
+        else:
+            i_smu = float('NaN')
         return {
             'timestamp': time.time(),
             'voltage': voltage,
+            'i_smu': i_smu,
             'c_lcr': c_lcr
         }
 

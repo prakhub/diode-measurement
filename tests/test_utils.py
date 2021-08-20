@@ -30,3 +30,10 @@ class UtilsTest(unittest.TestCase):
     def test_format_switch(self):
         self.assertEqual(utils.format_switch(0), 'OFF')
         self.assertEqual(utils.format_switch(1), 'ON')
+
+    def test_limits(self):
+        self.assertEqual(utils.limits([]), tuple())
+        self.assertEqual(utils.limits([[4, 2]]), (4, 4, 2, 2))
+        self.assertEqual(utils.limits([[4, 5], [4, 3], [-1, 2]]), (-1, 4, 2, 5))
+        self.assertEqual(utils.limits([[-1, 2], [4, 5], [4, 3]]), (-1, 4, 2, 5))
+        self.assertEqual(utils.limits([[1, -2], [4, -5], [4, -3]]), (1, 4, -5, -2))
