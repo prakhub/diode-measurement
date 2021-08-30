@@ -47,13 +47,16 @@ class Measurement(QtCore.QObject):
         self._registered[name] = cls, resource
 
     def prepareDriver(self, name):
-        if not self.state.get(name, {}).get("enabled"):
+        role = self.state.get(name, {})
+        if not role.get("enabled"):
             return None
-        model =  self.state.get(f'{name}_model')
-        resource_name = self.state.get(f'{name}_resource_name')
-        visa_library = self.state.get(f'{name}_visa_library')
-        termination = self.state.get(f'{name}_termination')
-        timeout = self.state.get(f'{name}_timeout') * 1000 # in millisecs
+        model =  role.get('model')
+        resource_name = role.get('resource_name')
+        if not resource_name.strip():
+            raise ValueError(f"Empty resource name not allowed for {name.upper()} ({model}).")
+        visa_library = role.get('visa_library')
+        termination = role.get('termination')
+        timeout = role.get('timeout') * 1000 # in millisecs
         cls = DRIVERS.get(model)
         if not cls:
             logger.warning("No such driver: %s", model)

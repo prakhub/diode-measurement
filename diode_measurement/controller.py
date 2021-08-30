@@ -157,12 +157,15 @@ class Controller(QtCore.QObject):
             key = role.name().lower()
             resource = role.resourceWidget.resourceName()
             resource_name, visa_library = get_resource(resource)
-            state[f"{key}_resource_name"] = resource_name
-            state[f"{key}_visa_library"] = visa_library
-            state[f"{key}_model"] = role.resourceWidget.model()
-            state[f"{key}_termination"] = role.resourceWidget.termination()
-            state[f"{key}_timeout"] = role.resourceWidget.timeout()
-            state.update({key: role.config()})
+            state.setdefault(key, {})
+            state.get(key).update({
+                "resource_name": resource_name,
+                "visa_library": visa_library,
+                "model": role.resourceWidget.model(),
+                "termination": role.resourceWidget.termination(),
+                "timeout": role.resourceWidget.timeout()
+            })
+            state.get(key).update(role.config())
 
         if self.view.generalWidget.isSMUEnabled():
             state["source"] = "smu"
@@ -171,9 +174,9 @@ class Controller(QtCore.QObject):
         elif self.view.generalWidget.isLCREnabled():
             state["source"] = "lcr"
 
-        state.setdefault("smu", {}).update({"enabled": self.view.generalWidget.isSMUEnabled()})
-        state.setdefault("elm", {}).update({"enabled": self.view.generalWidget.isELMEnabled()})
-        state.setdefault("lcr", {}).update({"enabled": self.view.generalWidget.isLCREnabled()})
+        state.get("smu").update({"enabled": self.view.generalWidget.isSMUEnabled()})
+        state.get("elm").update({"enabled": self.view.generalWidget.isELMEnabled()})
+        state.get("lcr").update({"enabled": self.view.generalWidget.isLCREnabled()})
 
         for key, value in state.items():
             logger.info('> %s: %s', key, value)
@@ -380,7 +383,6 @@ class Controller(QtCore.QObject):
         state = self.prepareState()
 
         if not state.get("source"):
-            self.view.unlock()
             raise RuntimeError("No source instrument selected.")
 
         self.view.lock()
@@ -676,8 +678,8 @@ class Controller(QtCore.QObject):
 
     def runMeasurement(self, measurement):
         try:
-            for name in ("smu", "lcr", "elm"):
-                measurement.prepareDriver(name)
+            for role in self.view.roles():
+                measurement.prepareDriver(role.name().lower())
 
             filename = self.createFilename()
             path = os.path.dirname(filename)
