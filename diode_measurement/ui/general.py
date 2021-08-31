@@ -3,11 +3,14 @@ from PyQt5 import QtWidgets
 
 from ..utils import ureg
 
+__all__ = ['GeneralWidget']
+
 class GeneralWidget(QtWidgets.QWidget):
 
     currentComplianceChanged = QtCore.pyqtSignal(float)
     continueInComplianceChanged = QtCore.pyqtSignal(bool)
     waitingTimeContinuousChanged = QtCore.pyqtSignal(float)
+    changeVoltageContinuousRequested = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -79,6 +82,14 @@ class GeneralWidget(QtWidgets.QWidget):
             lambda: self.waitingTimeContinuousChanged.emit(self.waitingTimeContinuous())
         )
 
+        self.changeVoltageButton = QtWidgets.QToolButton()
+        self.changeVoltageButton.setText("Change Voltage...")
+        self.changeVoltageButton.setEnabled(False)
+        self.changeVoltageButton.clicked.connect(
+            lambda: (self.changeVoltageContinuousRequested.emit(),
+                self.changeVoltageButton.setEnabled(False))
+        )
+
         self.measurementGroupBox = QtWidgets.QGroupBox()
         self.measurementGroupBox.setTitle("Measurement")
 
@@ -134,6 +145,7 @@ class GeneralWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self.continuousGroupBox)
         layout.addWidget(QtWidgets.QLabel("Waiting Time"))
         layout.addWidget(self.waitingTimeContinuousSpinBox)
+        layout.addWidget(self.changeVoltageButton)
         layout.addStretch()
 
         layout = QtWidgets.QHBoxLayout(self)
@@ -158,6 +170,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.endVoltageSpinBox.setEnabled(False)
         self.stepVoltageSpinBox.setEnabled(False)
         self.waitingTimeSpinBox.setEnabled(False)
+        self.changeVoltageButton.setEnabled(False)
 
     def unlock(self):
         self.measurementComboBox.setEnabled(True)
@@ -169,6 +182,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.endVoltageSpinBox.setEnabled(True)
         self.stepVoltageSpinBox.setEnabled(True)
         self.waitingTimeSpinBox.setEnabled(True)
+        self.changeVoltageButton.setEnabled(False)
 
     def addMeasurement(self, spec):
         self.measurementComboBox.addItem(spec.get("title"), spec)

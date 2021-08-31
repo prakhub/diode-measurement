@@ -27,6 +27,7 @@ from .ui.panels import E4285Panel
 from .ui.panels import E4980APanel
 
 from .ui.widgets import showException
+from .ui.dialogs import ChangeVoltageDialog
 
 from .measurement import IVMeasurement
 from .measurement import CVMeasurement
@@ -65,11 +66,12 @@ class Controller(QtCore.QObject):
     update = QtCore.pyqtSignal(dict)
     ivReading = QtCore.pyqtSignal(dict)
     itReading = QtCore.pyqtSignal(dict)
+    itChangeVoltageReady = QtCore.pyqtSignal()
     cvReading = QtCore.pyqtSignal(dict)
 
     def __init__(self, view):
         super().__init__()
-        self.thread = None
+        self.measurementThread: threading.Thread = None
 
         self.view = view
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
@@ -118,6 +120,7 @@ class Controller(QtCore.QObject):
         self.view.generalWidget.currentComplianceChanged.connect(self.onCurrentComplianceChanged)
         self.view.generalWidget.continueInComplianceChanged.connect(self.onContinueInComplianceChanged)
         self.view.generalWidget.waitingTimeContinuousChanged.connect(self.onWaitingTimeContinuousChanged)
+        self.view.generalWidget.changeVoltageContinuousRequested.connect(self.onChangeVoltageRequested)
 
         self.view.unlock()
         self.onMeasurementChanged(0)
@@ -127,6 +130,7 @@ class Controller(QtCore.QObject):
         self.update.connect(self.onUpdate)
         self.ivReading.connect(self.onIVReading)
         self.itReading.connect(self.onItReading)
+        self.itChangeVoltageReady.connect(self.onChangeVoltageReady)
         self.cvReading.connect(self.onCVReading)
 
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
@@ -391,21 +395,10 @@ class Controller(QtCore.QObject):
         self.state.update(state)
         self.state.update({"stop_requested": False})
 
-        measurement = {
-            "iv": IVMeasurement,
-            "cv": CVMeasurement,
-        }.get(self.state.get("measurement_type"))(self.state)
+        measurement = self.createMeasurement()
 
-        measurement.update.connect(lambda data: self.update.emit(data))
-
-        if isinstance(measurement, IVMeasurement):
-            measurement.ivReading.connect(lambda reading: self.ivReading.emit(reading))
-            measurement.itReading.connect(lambda reading: self.itReading.emit(reading))
-        elif isinstance(measurement, CVMeasurement):
-            measurement.cvReading.connect(lambda reading: self.cvReading.emit(reading))
-
-        self.thread = threading.Thread(target=self.runMeasurement, args=[measurement])
-        self.thread.start()
+        self.measurementThread = threading.Thread(target=self.runMeasurement, args=[measurement])
+        self.measurementThread.start()
 
     def onStop(self):
         self.state.update({"stop_requested": True})
@@ -669,12 +662,53 @@ class Controller(QtCore.QObject):
         logging.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
         self.state.update({"waiting_time_continuous": value})
 
+    def onChangeVoltageReady(self):
+        self.view.generalWidget.changeVoltageButton.setEnabled(True)
+
+    def onChangeVoltageRequested(self):
+        dialog = ChangeVoltageDialog(self.view)
+        dialog.setEndVoltage(self.sourceVoltage())
+        dialog.setStepVoltage(self.view.generalWidget.stepVoltage())
+        dialog.setWaitingTime(self.view.generalWidget.waitingTime())
+        dialog.exec()
+        if dialog.result() == dialog.Accepted:
+            logging.info("updated change_voltage_continuous: %s", format_metric(dialog.endVoltage(), 'V'))
+            self.state.update({"change_voltage_continuous": {
+                "end_voltage": dialog.endVoltage(),
+                "step_voltage": dialog.stepVoltage(),
+                "waiting_time": dialog.waitingTime()
+            }})
+
+    def sourceVoltage(self):
+        if self.state.get('source_voltage') is not None:
+            return self.state.get('source_voltage')
+        return self.view.generalWidget.endVoltage()
+
     def createFilename(self):
         path = self.view.generalWidget.outputDir()
         sample = self.state.get('sample')
         timestamp = datetime.fromtimestamp(self.state.get('timestamp', 0)).strftime("%Y-%m-%dT%H-%M-%S")
         filename = safe_filename(f"{sample}-{timestamp}.txt")
         return os.path.join(path, filename)
+
+    def createMeasurement(self):
+        measurements = {
+            "iv": IVMeasurement,
+            "cv": CVMeasurement,
+        }
+        measurementType = self.state.get("measurement_type")
+        measurement = measurements.get(measurementType)(self.state)
+
+        measurement.update.connect(lambda data: self.update.emit(data))
+
+        if isinstance(measurement, IVMeasurement):
+            measurement.ivReading.connect(lambda reading: self.ivReading.emit(reading))
+            measurement.itReading.connect(lambda reading: self.itReading.emit(reading))
+            measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+        elif isinstance(measurement, CVMeasurement):
+            measurement.cvReading.connect(lambda reading: self.cvReading.emit(reading))
+
+        return measurement
 
     def runMeasurement(self, measurement):
         try:

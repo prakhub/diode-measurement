@@ -38,6 +38,9 @@ class Writer:
         self.fp = fp
         self._writer = csv.writer(self.fp, delimiter='\t')
 
+    def flush(self):
+        self.fp.flush()
+
     def write_meta(self):
         self.write_tag("sample", self.measurement.state.get('sample'))
         self.write_tag("measurement_type", self.measurement.state.get('measurement_type'))
@@ -46,6 +49,7 @@ class Writer:
         self.write_tag("voltage_step[V]", safe_format(self.measurement.state.get('voltage_step'), '+.3E'))
         self.write_tag("waiting_time[s]", safe_format(self.measurement.state.get('waiting_time'), '+.3E'))
         self.write_tag("current_compliance[A]", safe_format(self.measurement.state.get('current_compliance'), '+.3E'))
+        self.flush()
 
     def write_tag(self, key, value):
         key = key.strip()
@@ -68,9 +72,11 @@ class Writer:
                 self.current_table = 'ramp'
                 self.write_header(["timestamp[s]", "voltage[V]", "i_smu[A]", "c_lcr[F]", "c_lcr_2[F]"])
             self._writer.writerow(items)
+        self.flush()
 
     def write_continuous_row(self, items):
         if self.current_table != 'continous':
             self.current_table = 'continous'
             self.write_header(["timestamp[s]", "voltage[V]", "i_smu[A]", "i_elm[A]"])
         self._writer.writerow(items)
+        self.flush()

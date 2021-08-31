@@ -70,7 +70,7 @@ class Measurement(QtCore.QObject):
         )
         self.registerInstrument(name, cls, resource)
 
-    def _check_error_state(self, context):
+    def checkErrorState(self, context):
         code, message = context.error_state()
         if code:
             raise RuntimeError(f"Instrument Error: {code}: {message}")
@@ -139,7 +139,7 @@ class RangeMeasurement(Measurement):
         if self.current_compliance != current_compliance:
             self.current_compliance = current_compliance
             self.set_source_compliance(self.current_compliance)
-            self._check_error_state(self.source_instrument)
+            self.checkErrorState(self.source_instrument)
 
     def set_source_compliance(self, compiance):
         logger.info("Source current compliance level: %gA", compiance)
@@ -163,10 +163,19 @@ class RangeMeasurement(Measurement):
                 if self.state.get('stop_requested'):
                     self.update.emit({"message": "Stopping..."})
                     break
+                if self.state.get('change_voltage_continuous'):
+                    break
                 remaining = round(threshold - now)
                 self.update.emit({"message": f"Next reading in {remaining:d} sec..."})
                 time.sleep(interval)
                 now = time.time()
+
+    def apply_change_voltage(self):
+        params = self.state.get('change_voltage_continuous')
+        if params is not None:
+            del self.state['change_voltage_continuous']
+            self.rampToContinuous(params.get("end_voltage"), params.get("step_voltage"), params.get("waiting_time"))
+        self.itChangeVoltageReady.emit()
 
     def initialize(self):
         source = self.state.get('source')
@@ -200,12 +209,12 @@ class RangeMeasurement(Measurement):
         for key, context in self.contexts.items():
             logging.info("%s IDN: %s", key.upper(), context.identity())
             context.configure()
-            self._check_error_state(context)
+            self.checkErrorState(context)
 
         # Compliance
         self.current_compliance = self.state.get('current_compliance', 0.0)
         self.set_source_compliance(self.current_compliance)
-        self._check_error_state(self.source_instrument)
+        self.checkErrorState(self.source_instrument)
 
         # Enable output
         self.set_source_output_state(True)
@@ -292,8 +301,6 @@ class RangeMeasurement(Measurement):
             time.sleep(.250)
             estimate.advance()
 
-        self.set_source_voltage(voltage_begin)
-
     def rampZero(self):
         source_voltage = self.state.get('source_voltage', 0.0)
         self.update.emit({
@@ -313,12 +320,42 @@ class RangeMeasurement(Measurement):
             time.sleep(.250)
             estimate.advance()
 
-        self.set_source_voltage(0.0)
+    def rampToContinuous(self, end_voltage, step_voltage, waiting_time):
+        source_voltage = self.state.get('source_voltage', 0.0)
+
+        ramp = LinearRange(source_voltage, end_voltage, step_voltage)
+        estimate = Estimate(len(ramp))
+        for step, voltage in enumerate(ramp):
+            elapsed_time = format(estimate.elapsed).split('.')[0]
+            remaining_time = format(estimate.remaining).split('.')[0]
+            self.update.emit({"message": f"Ramp to {end_voltage} V | Elapsed {elapsed_time} | Remaining {remaining_time}"})
+            self.update.emit({"progress": (0, len(ramp), step)})
+
+            if self.state.get('stop_requested'):
+                self.update.emit({"message": "Stopping..."})
+                return
+            self.set_source_voltage(voltage)
+
+            time.sleep(waiting_time)
+
+            reading = self.acquireReadingData()
+            logging.info(reading)
+            self.itReading.emit(reading)
+            self.update.emit({
+                'smu_current': reading.get('i_smu'),
+                'elm_current': reading.get('i_elm')
+            })
+
+            self.check_current_compliance()
+            self.update_current_compliance()
+
+            estimate.advance()
 
 class IVMeasurement(RangeMeasurement):
 
     ivReading = QtCore.pyqtSignal(dict)
     itReading = QtCore.pyqtSignal(dict)
+    itChangeVoltageReady = QtCore.pyqtSignal()
 
     def __init__(self, state):
         super().__init__(state)
@@ -371,6 +408,8 @@ class IVMeasurement(RangeMeasurement):
 
             self.check_current_compliance()
             self.update_current_compliance()
+
+            self.apply_change_voltage()
 
             self.apply_waiting_time_continuous()
 
