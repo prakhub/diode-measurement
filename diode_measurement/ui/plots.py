@@ -13,6 +13,69 @@ __all__ = [
     "CV2PlotWidget"
 ]
 
+class DynamicValueAxis(QtChart.QValueAxis):
+
+    def __init__(self, axis, unit):
+        super().__init__(axis)
+        self.setProperty('axis', axis)
+        self.setUnit(unit)
+        self.setLocked(False)
+        self.setRange(axis.min(), axis.max())
+        axis.rangeChanged.connect(self.setRange)
+        axis.hide()
+
+    def axis(self):
+        return self.property('axis')
+
+    def unit(self):
+        return self.property('unit')
+
+    def setUnit(self, unit):
+        return self.setProperty('unit', unit)
+
+    def setLocked(self, state):
+        self.setProperty('locked', state)
+
+    def setRange(self, minimum, maximum):
+        if not self.property('locked'):
+            unit = self.unit()
+            scale, prefix, _ = auto_scale(max(minimum, maximum))
+            self.setLabelFormat(f'%G {prefix}{unit}')
+            minimum *= 1 / scale
+            maximum *= 1 / scale
+            super().setRange(minimum, maximum)
+
+class LimitsAggregator(QtCore.QObject):
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._minimum: float = 0.
+        self._maximum: float = 0.
+        self._valid: bool = False
+
+    def isValid(self) -> bool:
+        return self._valid
+
+    def clear(self) -> None:
+        self._minimum = 0.
+        self._maximum = 0.
+        self._valid = False
+
+    def append(self, value: float) -> None:
+        if self._valid:
+            self._minimum = min(self.minimum(), value)
+            self._maximum = max(self.maximum(), value)
+        else:
+            self._minimum = value
+            self._maximum = value
+        self._valid = True
+
+    def minimum(self) -> float:
+        return self._minimum
+
+    def maximum(self) -> float:
+        return self._maximum
+
 class PlotToolButton(QtWidgets.QPushButton):
 
     def __init__(self, parent=None):
@@ -121,26 +184,15 @@ class IVPlotWidget(PlotWidget):
         self.chart.addSeries(self.elmSeries)
 
         self.iAxis = QtChart.QValueAxis()
-        self.iAxis.setRange(0, 200)
-        self.iAxis.hide()
         self.chart.addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
-        self.iDynamicAxis = QtChart.QValueAxis()
+        self.iDynamicAxis = DynamicValueAxis(self.iAxis, 'A')
         self.iDynamicAxis.setTitleText("Current")
-        self.iDynamicAxis.setRange(0, 1)
         self.iDynamicAxis.setTickCount(9)
-        self.iDynamicAxis.setProperty("locked", False)
         self.chart.addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
-        def updateDynamicAxis(minimum, maximum):
-            if not self.iDynamicAxis.property("locked"):
-                value = max(abs(minimum), abs(maximum))
-                scale, prefix, _ = auto_scale(value)
-                self.iDynamicAxis.setRange(minimum * (1 / scale), maximum * (1 / scale))
-                self.iDynamicAxis.setLabelFormat(f"%g {prefix}A")
-        self.iAxis.rangeChanged.connect(updateDynamicAxis)
-        self.iAxis.setRange(0, 0.0000002)
+        self.iAxis.setRange(0, 200e-9)
 
         self.vAxis = QtChart.QValueAxis()
         self.vAxis.setTitleText("Voltage")
@@ -150,50 +202,53 @@ class IVPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.vAxis)
         self.elmSeries.attachAxis(self.vAxis)
 
-        self.iMin = 0
-        self.iMax = 0
+        self.iLimits = LimitsAggregator(self)
+        self.vLimits = LimitsAggregator(self)
 
         self.series['smu'] = self.smuSeries
         self.series['elm'] = self.elmSeries
 
-    def updateLimits(self, x, y):
-        if max(self.smuSeries.count(), self.elmSeries.count()) > 0:
-            self.iMin = min(self.iMin, y)
-            self.iMax = max(self.iMax, y)
-        else:
-            self.iMin = y
-            self.iMax = y
-
-    def fit(self):
-        if self.chart.isZoomed():
-            return
+    def fitVAxis(self) -> None:
         self.vAxis.setReverse(self.isReverse())
-        minimum = []
-        maximum = []
-        for series in self.series.values():
-            if series.count():
-                minimum.append(series.at(0).x())
-                maximum.append(series.at(series.count() - 1).x())
-        if not minimum: return
-        if not maximum: return
-        minimum = min(minimum)
-        maximum = max(maximum)
-        if self.isReverse():
-            minimum, maximum = maximum, minimum
-        self.vAxis.setRange(minimum, maximum)
-        self.iDynamicAxis.setProperty("locked", True)
-        if self.iMin == self.iMax:
-            self.iAxis.setRange(self.iMin, self.iMax + 0.1)
+        if self.vLimits.isValid():
+            minimum = self.vLimits.minimum()
+            maximum = self.vLimits.maximum()
         else:
-            self.iAxis.setRange(self.iMin, self.iMax)
-        self.iDynamicAxis.setProperty("locked", False)
+            minimum = 0
+            maximum = 100
+        self.vAxis.setRange(minimum, maximum)
+
+    def fitIAxis(self) -> None:
+        if self.iLimits.isValid():
+            minimum = self.iLimits.minimum()
+            maximum = self.iLimits.maximum()
+        else:
+            minimum = 0
+            maximum = 200e-9
+        if minimum == maximum:
+            maximum += 0.1
+        self.iDynamicAxis.setLocked(True)
+        self.iAxis.setRange(minimum, maximum)
+        self.iDynamicAxis.setLocked(False)
         self.iAxis.applyNiceNumbers()
 
-    def append(self, name, x, y):
+    def fit(self) -> None:
+        if self.chart.isZoomed():
+            return
+        self.fitVAxis()
+        self.fitIAxis()
+
+    def clear(self) -> None:
+        super().clear()
+        self.iLimits.clear()
+        self.vLimits.clear()
+
+    def append(self, name: str, x: float, y: float) -> None:
         series = self.series.get(name)
         if series is not None:
             series.append(x, y)
-            self.updateLimits(x, y)
+            self.iLimits.append(y)
+            self.vLimits.append(x)
             self.fit()
 
 class ItPlotWidget(PlotWidget):
@@ -222,20 +277,11 @@ class ItPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
-        self.iDynamicAxis = QtChart.QValueAxis()
+        self.iDynamicAxis = DynamicValueAxis(self.iAxis, 'A')
         self.iDynamicAxis.setTitleText("Current")
-        self.iDynamicAxis.setRange(0, 1)
         self.iDynamicAxis.setTickCount(9)
-        self.iDynamicAxis.setProperty("locked", False)
         self.chart.addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
-        def updateDynamicAxis(minimum, maximum):
-            if not self.iDynamicAxis.property("locked"):
-                value = max(abs(minimum), abs(maximum))
-                scale, prefix, _ = auto_scale(value)
-                self.iDynamicAxis.setRange(minimum * (1/scale), maximum * (1/scale))
-                self.iDynamicAxis.setLabelFormat(f"%g {prefix}A")
-        self.iAxis.rangeChanged.connect(updateDynamicAxis)
-        self.iAxis.setRange(0, 0.0000002)
+        self.iAxis.setRange(0, 200e-9)
 
         self.tAxis = QtChart.QDateTimeAxis()
         self.tAxis.setTitleText("Time")
@@ -244,51 +290,58 @@ class ItPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.tAxis)
         self.elmSeries.attachAxis(self.tAxis)
 
-        self.tMin = 0
-        self.tMax = 0
-
-        self.iMin = 0
-        self.iMax = 0
+        self.iLimits = LimitsAggregator(self)
+        self.tLimits = LimitsAggregator(self)
 
         self.series['smu'] = self.smuSeries
         self.series['elm'] = self.elmSeries
 
-    def updateLimits(self, x, y):
-        if max(self.smuSeries.count(), self.elmSeries.count()) > 1:
-            self.tMin = min(self.tMin, x)
-            self.tMax = max(self.tMax, x)
-            self.iMin = min(self.iMin, y)
-            self.iMax = max(self.iMax, y)
+    def fitTAxis(self) -> None:
+        if self.tLimits.isValid():
+            minimum = self.tLimits.minimum()
+            maximum = self.tLimits.maximum()
         else:
-            self.tMin = x
-            self.tMax = x
-            self.iMin = y
-            self.iMax = y
-
-    def fit(self):
-        if self.chart.isZoomed(): return
-        minimum = []
-        for series in self.series.values():
-            if series.count():
-                minimum.append(series.at(0).x())
-        t0 = QtCore.QDateTime.fromMSecsSinceEpoch(self.tMin * 1e3)
-        t1 = QtCore.QDateTime.fromMSecsSinceEpoch(self.tMax * 1e3)
+            import time
+            t = time.time()
+            minimum = t-60
+            maximum = t
+        t0 = QtCore.QDateTime.fromMSecsSinceEpoch(minimum * 1e3)
+        t1 = QtCore.QDateTime.fromMSecsSinceEpoch(maximum * 1e3)
         self.tAxis.setRange(t0, t1)
-        self.iDynamicAxis.setProperty("locked", True)
-        if self.iMin == self.iMax:
-            self.iAxis.setRange(self.iMin, self.iMax + 0.1)
+
+    def fitIAxis(self) -> None:
+        if self.iLimits.isValid():
+            minimum = self.iLimits.minimum()
+            maximum = self.iLimits.maximum()
         else:
-            self.iAxis.setRange(self.iMin, self.iMax)
-        self.iDynamicAxis.setProperty("locked", False)
+            minimum = 0
+            maximum = 200e-9
+        if minimum == maximum:
+            maximum += 0.1
+        self.iDynamicAxis.setLocked(True)
+        self.iAxis.setRange(minimum, maximum)
+        self.iDynamicAxis.setLocked(False)
         self.iAxis.applyNiceNumbers()
 
-    def append(self, name, x, y):
+    def fit(self):
+        if self.chart.isZoomed():
+            return
+        self.fitTAxis()
+        self.fitIAxis()
+
+    def clear(self) -> None:
+        super().clear()
+        self.iLimits.clear()
+        self.tLimits.clear()
+
+    def append(self, name: str, x: float, y: float) -> None:
         series = self.series.get(name)
         if series is not None:
             series.append(QtCore.QPointF(x * 1e3, y))
             if series.count() > self.MAX_POINTS:
                 series.remove(0)
-            self.updateLimits(x, y)
+            self.iLimits.append(y)
+            self.tLimits.append(x)
             self.fit()
 
 class CVPlotWidget(PlotWidget):
@@ -303,9 +356,69 @@ class CVPlotWidget(PlotWidget):
         self.chart.addSeries(self.lcrSeries)
 
         self.cAxis = QtChart.QValueAxis()
-        self.cAxis.setTitleText("Capacitance")
-        self.cAxis.setLabelFormat("%g pF")
-        self.cAxis.setRange(0, 200)
+        self.chart.addAxis(self.cAxis, QtCore.Qt.AlignLeft)
+        self.lcrSeries.attachAxis(self.cAxis)
+
+        self.cDynamicAxis = DynamicValueAxis(self.cAxis, 'F')
+        self.cDynamicAxis.setTitleText("Capacitance")
+        self.cDynamicAxis.setTickCount(9)
+        self.chart.addAxis(self.cDynamicAxis, QtCore.Qt.AlignLeft)
+        self.cAxis.setRange(0, 200e-9)
+
+        self.vAxis = QtChart.QValueAxis()
+        self.vAxis.setTitleText("Voltage")
+        self.vAxis.setLabelFormat("%g V")
+        self.vAxis.setRange(0, 200)
+        self.vAxis.setTickCount(9)
+        self.chart.addAxis(self.vAxis, QtCore.Qt.AlignBottom)
+        self.lcrSeries.attachAxis(self.vAxis)
+
+        self.cLimits = LimitsAggregator(self)
+        self.vLimits = LimitsAggregator(self)
+
+        self.series['lcr'] = self.lcrSeries
+
+    def fit(self):
+        if self.chart.isZoomed():
+            return
+        minimum = self.vLimits.minimum()
+        maximum = self.vLimits.maximum()
+        self.vAxis.setReverse(minimum > maximum)
+        minimum, maximum = sorted((minimum, maximum))
+        self.vAxis.setRange(minimum, maximum)
+        self.cDynamicAxis.setLocked(True)
+        self.cAxis.setRange(self.cLimits.minimum(), self.cLimits.maximum())
+        self.cDynamicAxis.setLocked(False)
+        self.cAxis.applyNiceNumbers()
+
+    def clear(self) -> None:
+        super().clear()
+        self.cLimits.clear()
+        self.vLimits.clear()
+
+    def append(self, name, x, y):
+        series = self.series.get(name)
+        if series is not None:
+            series.append(x, y)
+            self.cLimits.append(y)
+            self.vLimits.append(x)
+            self.fit()
+
+class CV2PlotWidget(PlotWidget):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.chart.setTitle("1/C^2 vs. V")
+
+        self.lcrSeries = QtChart.QLineSeries()
+        self.lcrSeries.setName("LCR")
+        self.lcrSeries.setColor(QtCore.Qt.magenta)
+        self.chart.addSeries(self.lcrSeries)
+
+        self.cAxis = QtChart.QValueAxis()
+        self.cAxis.setTitleText("Capacitance [1/pF^2]")
+        self.cAxis.setLabelFormat("%g")
+        self.cAxis.setRange(0, 1/200**2)
         self.cAxis.setTickCount(9)
         self.chart.addAxis(self.cAxis, QtCore.Qt.AlignLeft)
         self.lcrSeries.attachAxis(self.cAxis)
@@ -318,50 +431,32 @@ class CVPlotWidget(PlotWidget):
         self.chart.addAxis(self.vAxis, QtCore.Qt.AlignBottom)
         self.lcrSeries.attachAxis(self.vAxis)
 
-        self.cMin = 0
-        self.cMax = 2e-16
-
-        self.vMin = 0
-        self.vMax = 1
+        self.cLimits = LimitsAggregator(self)
+        self.vLimits = LimitsAggregator(self)
 
         self.series['lcr'] = self.lcrSeries
 
-    def updateLimits(self, x, y):
-        if max(series.count() for series in self.series.values()) > 1:
-            self.vMin = min(self.vMin, x)
-            self.vMax = max(self.vMax, x)
-            self.cMin = min(self.cMin, y)
-            self.cMax = max(self.cMax, y)
-        else:
-            self.vMin = x
-            self.vMax = x
-            self.cMin = y
-            self.cMax = y
-
     def fit(self):
-        if self.chart.isZoomed(): return
-        minimum, maximum = self.vMin, self.vMax
+        if self.chart.isZoomed():
+            return
+        minimum = self.vLimits.minimum()
+        maximum = self.vLimits.maximum()
         self.vAxis.setReverse(minimum > maximum)
         minimum, maximum = sorted((minimum, maximum))
         self.vAxis.setRange(minimum, maximum)
-        self.cAxis.setRange(self.cMin, self.cMax)
+        self.cAxis.setRange(self.cLimits.minimum(), self.cLimits.maximum())
         self.cAxis.applyNiceNumbers()
         self.cAxis.setTickCount(9)
+
+    def clear(self) -> None:
+        super().clear()
+        self.cLimits.clear()
+        self.vLimits.clear()
 
     def append(self, name, x, y):
         series = self.series.get(name)
         if series is not None:
             series.append(x, y)
-            self.updateLimits(x, y)
+            self.cLimits.append(y)
+            self.vLimits.append(x)
             self.fit()
-
-class CV2PlotWidget(CVPlotWidget):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.chart.setTitle("1/C^2 vs. V")
-        self.cAxis.setTitleText("Capacitance [1/pF^2]")
-        self.cAxis.setLabelFormat("%g")
-        self.cAxis.setRange(0, 1/200**2)
-        self.vAxis.setTitleText("Voltage")
-        self.vAxis.setLabelFormat("%.3g V")
