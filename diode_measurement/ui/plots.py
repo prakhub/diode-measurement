@@ -15,7 +15,7 @@ __all__ = [
 
 class DynamicValueAxis(QtChart.QValueAxis):
 
-    def __init__(self, axis, unit):
+    def __init__(self, axis: QtChart.QValueAxis, unit):
         super().__init__(axis)
         self.setProperty('axis', axis)
         self.setUnit(unit)
@@ -24,25 +24,30 @@ class DynamicValueAxis(QtChart.QValueAxis):
         axis.rangeChanged.connect(self.setRange)
         axis.hide()
 
-    def axis(self):
+    def axis(self) -> QtChart.QValueAxis:
         return self.property('axis')
 
-    def unit(self):
+    def unit(self) -> str:
         return self.property('unit')
 
-    def setUnit(self, unit):
+    def setUnit(self, unit: str) -> None:
         return self.setProperty('unit', unit)
 
-    def setLocked(self, state):
+    def setLocked(self, state: bool) -> None:
         self.setProperty('locked', state)
 
-    def setRange(self, minimum, maximum):
+    def setRange(self, minimum: float, maximum: float) -> None:
         if not self.property('locked'):
+            # Get best matching scale/prefix
+            base = max(abs(minimum), abs(maximum))
+            scale, prefix, _ = auto_scale(base)
+            # Update labels prefix
             unit = self.unit()
-            scale, prefix, _ = auto_scale(max(minimum, maximum))
             self.setLabelFormat(f'%G {prefix}{unit}')
+            # Scale limits
             minimum *= 1 / scale
             maximum *= 1 / scale
+            # Update axis range
             super().setRange(minimum, maximum)
 
 class LimitsAggregator(QtCore.QObject):
@@ -78,13 +83,13 @@ class LimitsAggregator(QtCore.QObject):
 
 class PlotToolButton(QtWidgets.QPushButton):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setFixedSize(18, 18)
 
 class PlotWidget(QtChart.QChartView):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.chart = QtChart.QChart()
         self.chart.setMargins(QtCore.QMargins(4, 4, 4, 4))
@@ -124,22 +129,22 @@ class PlotWidget(QtChart.QChartView):
         layout.addWidget(self.resetButton)
         layout.addWidget(self.saveAsButton)
 
-        self.series = {}
+        self.series: dict = {}
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event) -> None:
         self.toolbar.setVisible(self.underMouse())
         super().mouseMoveEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event) -> None:
         self.toolbar.hide()
         super().leaveEvent(event)
 
     @QtCore.pyqtSlot()
-    def reset(self):
+    def reset(self) -> None:
         self.chart.zoomReset()
 
     @QtCore.pyqtSlot()
-    def saveAs(self):
+    def saveAs(self) -> None:
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             "Save File",
@@ -154,11 +159,11 @@ class PlotWidget(QtChart.QChartView):
             except Exception as exc:
                 pass
 
-    def clear(self):
+    def clear(self) -> None:
         for series in self.chart.series():
             series.clear()
 
-    def isReverse(self):
+    def isReverse(self) -> None:
         for series in self.chart.series():
             if series.count():
                 if series.at(series.count() - 1).x() < series.at(0).x():
@@ -167,7 +172,7 @@ class PlotWidget(QtChart.QChartView):
 
 class IVPlotWidget(PlotWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.chart.setTitle("I vs. V")
 
@@ -255,7 +260,7 @@ class ItPlotWidget(PlotWidget):
 
     MAX_POINTS = 60 * 60 * 24
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.chart.setTitle("I vs. t")
 
@@ -346,7 +351,7 @@ class ItPlotWidget(PlotWidget):
 
 class CVPlotWidget(PlotWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.chart.setTitle("C vs. V")
 
@@ -378,11 +383,11 @@ class CVPlotWidget(PlotWidget):
 
         self.series['lcr'] = self.lcrSeries
 
-    def fit(self):
+    def fit(self) -> None:
         if self.chart.isZoomed():
             return
-        minimum = self.vLimits.minimum()
-        maximum = self.vLimits.maximum()
+        minimum: float = self.vLimits.minimum()
+        maximum: float = self.vLimits.maximum()
         self.vAxis.setReverse(minimum > maximum)
         minimum, maximum = sorted((minimum, maximum))
         self.vAxis.setRange(minimum, maximum)
@@ -396,7 +401,7 @@ class CVPlotWidget(PlotWidget):
         self.cLimits.clear()
         self.vLimits.clear()
 
-    def append(self, name, x, y):
+    def append(self, name: str, x: float, y: float) -> None:
         series = self.series.get(name)
         if series is not None:
             series.append(x, y)
@@ -406,7 +411,7 @@ class CVPlotWidget(PlotWidget):
 
 class CV2PlotWidget(PlotWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.chart.setTitle("1/C^2 vs. V")
 
@@ -436,7 +441,7 @@ class CV2PlotWidget(PlotWidget):
 
         self.series['lcr'] = self.lcrSeries
 
-    def fit(self):
+    def fit(self) -> None:
         if self.chart.isZoomed():
             return
         minimum = self.vLimits.minimum()
@@ -453,7 +458,7 @@ class CV2PlotWidget(PlotWidget):
         self.cLimits.clear()
         self.vLimits.clear()
 
-    def append(self, name, x, y):
+    def append(self, name: str, x: float, y: float) -> None:
         series = self.series.get(name)
         if series is not None:
             series.append(x, y)

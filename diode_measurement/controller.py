@@ -338,6 +338,7 @@ class Controller(QtCore.QObject):
             "Text (*.txt);;All (*);;"
         )
         if filename:
+            logger.info("Importing measurement file: %s", filename)
             self.view.lock()
             self.view.clear()
             try:
@@ -687,26 +688,17 @@ class PlotsController(QtCore.QObject):
 
     def onLoadCVReadings(self, readings):
         lcrPoints = []
-        lcr2Points = []
         widget = self.view.cvPlotWidget
         widget.clear()
-        widget2 = self.view.cv2PlotWidget
-        widget2.clear()
         for reading in readings:
             voltage = reading.get('voltage')
             c_lcr = reading.get('c_lcr')
-            c_lcr2 = 1 / c_lcr ** 2
             if isFinite(c_lcr):
                 lcrPoints.append(QtCore.QPointF(voltage, c_lcr))
-                lcr2Points.append(QtCore.QPointF(voltage, c_lcr2))
                 widget.cLimits.append(c_lcr)
                 widget.vLimits.append(voltage)
-                widget2.cLimits.append(c_lcr2)
-                widget2.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcrPoints)
-        widget2.series.get('lcr').replace(lcr2Points)
         widget.fit()
-        widget2.fit()
 
     def onLoadCV2Readings(self, readings):
         lcr2Points = []
