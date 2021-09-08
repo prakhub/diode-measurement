@@ -2,6 +2,10 @@
 
 IV/CV measurements for silicon sensors.
 
+## Install
+
+On Windows download a pre-built executable from the release section and run it.
+
 ## Build
 
 Building a Windows executable using PyInstaller.
@@ -16,6 +20,40 @@ python setup.py test
 pyinstaller ./pyinstaller.spec
 ```
 
+## Supported Instruments
+
+Source Meter Units
+
+- Keithley K237
+- Keithley K2410
+- Keithley K2470
+- Keithley K2657A
+
+Electro Meter
+
+- Keithley K6514
+- Keithley K6517
+
+LCR Meter
+
+- Keithley K595
+- Keysight E4980A
+
+## Setup
+
+To interface instruments using a GPIB interface the NI-VISA drivers need to be 
+installed. Interfacing instruments using TCPIP, USB or Serial port is supported
+out of the box by using PyVISA-py, pyusb and pyserial.
+
+The instrument resource name inputs accept follwing formats:
+
+|Format|Example|Result|
+|:-----|:------|:-----|
+|&lt;n&gt;|16|GPIB::16::INSTR|
+|&lt;ip&gt;:&lt;port&gt;|0.0.0.0:1080|TCPIP::0.0.0.0::1080::SOCKET|
+|&lt;host&gt;:&lt;port&gt;|localhost:1080|TCPIP::localhost::1080::SOCKET|
+|&lt;visa&gt;|GPIB1::16::INSTR|GPIB1::16::INSTR|
+  
 ## Data formats
 
 The used plain text format consists of a header containing meta data in key and
