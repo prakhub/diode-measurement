@@ -39,7 +39,7 @@ class K595(LCRMeter):
         self._write('V0X')
 
     def get_output_enabled(self) -> bool:
-        return self.get_voltage_level() == 0
+        return self.get_voltage_level() != 0
 
     def set_output_enabled(self, enabled: bool) -> None:
         pass # not available
@@ -50,7 +50,7 @@ class K595(LCRMeter):
         return float(self._query('X').split(',')[1])
 
     def set_voltage_level(self, level: float) -> None:
-        self._write(f'V{level:3.2f}X')
+        self._write(f'V{level:.2f}X')
 
     def set_current_compliance_level(self, level: float) -> None:
         pass # not available
