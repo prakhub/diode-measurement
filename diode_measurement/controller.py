@@ -213,6 +213,9 @@ class Controller(QtCore.QObject):
         enabled = settings.value("lcr/enabled", False, bool)
         self.view.generalWidget.setLCREnabled(enabled)
 
+        enabled = settings.value("outputEnabled", False, bool)
+        self.view.generalWidget.setOutputEnabled(enabled)
+
         sample = settings.value("sampleName", "Unnamed")
         self.view.generalWidget.setSampleName(sample)
 
@@ -285,6 +288,9 @@ class Controller(QtCore.QObject):
 
         enabled = self.view.generalWidget.isLCREnabled()
         settings.setValue("lcr/enabled", enabled)
+
+        enabled = self.view.generalWidget.isOutputEnabled()
+        settings.setValue("outputEnabled", enabled)
 
         sample = self.view.generalWidget.sampleName()
         settings.setValue("sampleName", sample)
@@ -585,13 +591,17 @@ class Controller(QtCore.QObject):
             for role in self.view.roles():
                 measurement.prepareDriver(role.name().lower())
 
+            outputEnabled = self.view.generalWidget.isOutputEnabled()
+
             filename = self.createFilename()
             path = os.path.dirname(filename)
-            if not os.path.exists(path):
-                os.makedirs(path)
+            if outputEnabled:
+                if not os.path.exists(path):
+                    os.makedirs(path)
             with contextlib.ExitStack() as stack:
-                fp = stack.enter_context(open(filename, 'w', newline=''))
-                writer = Writer(measurement, fp)
+                if outputEnabled:
+                    fp = stack.enter_context(open(filename, 'w', newline=''))
+                    writer = Writer(measurement, fp)
                 measurement.run()
         except Exception as exc:
             logger.exception(exc)

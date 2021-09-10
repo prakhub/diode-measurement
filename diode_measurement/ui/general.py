@@ -93,6 +93,11 @@ class GeneralWidget(QtWidgets.QWidget):
         self.measurementGroupBox = QtWidgets.QGroupBox()
         self.measurementGroupBox.setTitle("Measurement")
 
+        self.outputGroupBox = QtWidgets.QGroupBox()
+        self.outputGroupBox.setTitle("Output")
+        self.outputGroupBox.setCheckable(True)
+        self.outputGroupBox.setChecked(False)
+
         self.rampGroupBox = QtWidgets.QGroupBox()
         self.rampGroupBox.setTitle("Ramp")
 
@@ -115,9 +120,11 @@ class GeneralWidget(QtWidgets.QWidget):
         self.instrumentLayout.addWidget(self.lcrCheckBox)
         self.instrumentLayout.addStretch()
         self.instrumentLayout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Sample"))
+
+        layout = QtWidgets.QVBoxLayout(self.outputGroupBox)
+        layout.addWidget(QtWidgets.QLabel("Sample Name"))
         layout.addWidget(self.sampleLineEdit)
-        layout.addWidget(QtWidgets.QLabel("Output"))
+        layout.addWidget(QtWidgets.QLabel("Output Path"))
         outputLayout = QtWidgets.QHBoxLayout()
         outputLayout.addWidget(self.outputLineEdit)
         outputLayout.addWidget(self.outputToolButton)
@@ -149,7 +156,10 @@ class GeneralWidget(QtWidgets.QWidget):
         layout.addStretch()
 
         layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(self.measurementGroupBox)
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.measurementGroupBox)
+        vbox.addWidget(self.outputGroupBox)
+        layout.addLayout(vbox)
         layout.addWidget(self.rampGroupBox)
         vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.complianceGroupBox)
@@ -163,9 +173,7 @@ class GeneralWidget(QtWidgets.QWidget):
     def lock(self):
         self.measurementComboBox.setEnabled(False)
         self.instrumentWidget.setEnabled(False)
-        self.sampleLineEdit.setEnabled(False)
-        self.outputLineEdit.setEnabled(False)
-        self.outputToolButton.setEnabled(False)
+        self.outputGroupBox.setEnabled(False)
         self.beginVoltageSpinBox.setEnabled(False)
         self.endVoltageSpinBox.setEnabled(False)
         self.stepVoltageSpinBox.setEnabled(False)
@@ -175,9 +183,7 @@ class GeneralWidget(QtWidgets.QWidget):
     def unlock(self):
         self.measurementComboBox.setEnabled(True)
         self.instrumentWidget.setEnabled(True)
-        self.sampleLineEdit.setEnabled(True)
-        self.outputLineEdit.setEnabled(True)
-        self.outputToolButton.setEnabled(True)
+        self.outputGroupBox.setEnabled(True)
         self.beginVoltageSpinBox.setEnabled(True)
         self.endVoltageSpinBox.setEnabled(True)
         self.stepVoltageSpinBox.setEnabled(True)
@@ -207,6 +213,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setLCREnabled(self, enabled):
         return self.lcrCheckBox.setChecked(enabled)
+
+    def isOutputEnabled(self):
+        return self.outputGroupBox.isChecked()
+
+    def setOutputEnabled(self, enabled):
+        self.outputGroupBox.setChecked(enabled)
 
     def sampleName(self):
         return self.sampleLineEdit.text().strip()
