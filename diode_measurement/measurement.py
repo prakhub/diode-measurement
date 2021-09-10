@@ -125,6 +125,10 @@ class RangeMeasurement(Measurement):
         self.update.emit({'source_voltage': voltage})
         self.state['source_voltage'] = voltage
 
+    def set_source_voltage_range(self, voltage):
+        logger.info("Source voltage range: %gV", voltage)
+        self.source_instrument.set_voltage_range(voltage)
+
     def check_current_compliance(self):
         """Raise exception if current compliance tripped and continue in
         compliance option is not active.
@@ -234,6 +238,10 @@ class RangeMeasurement(Measurement):
         self.update.emit({"message": f"Ramp to {ramp.end} V"})
         current_step = 0
         estimate = Estimate(len(ramp))
+
+        voltage_end = self.state.get('voltage_end')
+        self.set_source_voltage_range(voltage_end)
+
         for step, voltage in enumerate(ramp):
             elapsed_time = format(estimate.elapsed).split('.')[0]
             remaining_time = format(estimate.remaining).split('.')[0]
@@ -289,6 +297,10 @@ class RangeMeasurement(Measurement):
             5.0
         )
         estimate = Estimate(len(ramp))
+
+        voltage_end = self.state.get('voltage_end')
+        self.set_source_voltage_range(voltage_end)
+
         for step, voltage in enumerate(ramp):
             elapsed_time = format(estimate.elapsed).split('.')[0]
             remaining_time = format(estimate.remaining).split('.')[0]
@@ -325,6 +337,9 @@ class RangeMeasurement(Measurement):
 
         ramp = LinearRange(source_voltage, end_voltage, step_voltage)
         estimate = Estimate(len(ramp))
+
+        self.set_source_voltage_range(end_voltage)
+
         for step, voltage in enumerate(ramp):
             elapsed_time = format(estimate.elapsed).split('.')[0]
             remaining_time = format(estimate.remaining).split('.')[0]
