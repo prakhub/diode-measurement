@@ -223,6 +223,10 @@ class RangeMeasurement(Measurement):
         # Enable output
         self.set_source_output_state(True)
 
+        # Voltage range
+        voltage_end = self.state.get('voltage_end')
+        self.set_source_voltage_range(voltage_end)
+
         self.rampBegin()
 
         # Wait after output enable/ramp
@@ -238,9 +242,6 @@ class RangeMeasurement(Measurement):
         self.update.emit({"message": f"Ramp to {ramp.end} V"})
         current_step = 0
         estimate = Estimate(len(ramp))
-
-        voltage_end = self.state.get('voltage_end')
-        self.set_source_voltage_range(voltage_end)
 
         for step, voltage in enumerate(ramp):
             elapsed_time = format(estimate.elapsed).split('.')[0]
@@ -297,9 +298,6 @@ class RangeMeasurement(Measurement):
             5.0
         )
         estimate = Estimate(len(ramp))
-
-        voltage_end = self.state.get('voltage_end')
-        self.set_source_voltage_range(voltage_end)
 
         for step, voltage in enumerate(ramp):
             elapsed_time = format(estimate.elapsed).split('.')[0]
