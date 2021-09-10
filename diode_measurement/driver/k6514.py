@@ -20,20 +20,22 @@ class K6514(Electrometer):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write(':SOUR:FUNC VOLT')
+        pass
 
     def get_output_enabled(self) -> bool:
-        return self._query(':OUTP:STAT?') == '1'
+        return False
 
     def set_output_enabled(self, enabled: bool) -> None:
-        value = {False: '0', True: '1'}[enabled]
-        self._write(f':OUTP:STAT {value}')
+        pass
 
     def get_voltage_level(self) -> float:
-        return float(self._query(':SOUR:VOLT:LEV?'))
+        return 0
 
     def set_voltage_level(self, level: float) -> None:
-        self._write(f':SOUR:VOLT:LEV {level:.3E}')
+        pass
+
+    def set_voltage_range(self, level: float) -> None:
+        pass
 
     def set_current_compliance_level(self, level: float) -> None:
         self._write(f':SENS:CURR:PROT:LEV {level:.3E}')

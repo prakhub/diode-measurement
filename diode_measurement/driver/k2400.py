@@ -42,6 +42,9 @@ class K2400(SourceMeter):
     def set_voltage_level(self, level: float) -> None:
         self._write(f':SOUR:VOLT:LEV {level:.3E}')
 
+    def set_voltage_range(self, level: float) -> None:
+        self._write(f':SOUR:VOLT:RANG {level:.3E}')
+
     def set_current_compliance_level(self, level: float) -> None:
         self._write(f':SENS:CURR:PROT:LEV {level:.3E}')
 

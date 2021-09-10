@@ -52,6 +52,9 @@ class K595(LCRMeter):
     def set_voltage_level(self, level: float) -> None:
         self._write(f'V{level:.2f}X')
 
+    def set_voltage_range(self, level: float) -> None:
+        pass # TODO
+
     def set_current_compliance_level(self, level: float) -> None:
         pass # not available
 

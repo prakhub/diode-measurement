@@ -45,6 +45,9 @@ class E4980A(Electrometer):
     def set_voltage_level(self, level: float) -> None:
         self._write(f':BIAS:VOLT:LEV {level:.3E}')
 
+    def set_voltage_range(self, level: float) -> None:
+        pass # TODO
+
     def set_current_compliance_level(self, level: float) -> None:
         self._write(f':SENS:CURR:PROT:LEV {level:.3E}')
 

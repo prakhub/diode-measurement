@@ -59,6 +59,10 @@ class SourceMeter(Driver):
         pass
 
     @abstractmethod
+    def set_voltage_range(self, level: float) -> None:
+        pass
+
+    @abstractmethod
     def set_current_compliance_level(self, level: float) -> None:
         pass
 

@@ -42,6 +42,9 @@ class K2657A(SourceMeter):
     def set_voltage_level(self, level: float) -> None:
         self._write(f'smua.source.levelv = {level:.3E}')
 
+    def set_voltage_range(self, level: float) -> None:
+        self._write(f'smua.source.rangev = {level:.3E}')
+
     def set_current_compliance_level(self, level: float) -> None:
         self._write(f'smua.source.limiti = {level:.3E}')
 
