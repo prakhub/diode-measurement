@@ -8,7 +8,7 @@ __all__ = [
     'K2470Panel',
     'K2657APanel',
     'K6514Panel',
-    'K6517Panel',
+    'K6517BPanel',
     'E4285Panel',
     'E4980APanel'
 ]
@@ -280,10 +280,10 @@ class K6514Panel(InstrumentPanel):
     def __init__(self, parent=None):
         super().__init__("K6514", parent)
 
-class K6517Panel(InstrumentPanel):
+class K6517BPanel(InstrumentPanel):
 
     def __init__(self, parent=None):
-        super().__init__("K6517", parent)
+        super().__init__("K6517B", parent)
 
 class E4285Panel(InstrumentPanel):
 

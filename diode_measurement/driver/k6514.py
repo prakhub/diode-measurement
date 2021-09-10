@@ -2,6 +2,8 @@ import time
 
 from .driver import Electrometer, handle_exception
 
+__all__ = ['K6514']
+
 class K6514(Electrometer):
 
     def identity(self) -> str:

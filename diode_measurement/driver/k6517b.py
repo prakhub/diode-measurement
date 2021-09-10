@@ -2,7 +2,9 @@ import time
 
 from .driver import Electrometer, handle_exception
 
-class K6517(Electrometer):
+__all__ = ['K6517B']
+
+class K6517B(Electrometer):
 
     def identity(self) -> str:
         return self._query('*IDN?').strip()

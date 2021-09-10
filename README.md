@@ -32,7 +32,7 @@ Source Meter Units
 Electro Meter
 
 - Keithley K6514
-- Keithley K6517
+- Keithley K6517B
 
 LCR Meter
 

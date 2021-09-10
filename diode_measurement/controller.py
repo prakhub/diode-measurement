@@ -19,7 +19,7 @@ from .ui.panels import K2657APanel
 
 # Electrometers
 from .ui.panels import K6514Panel
-from .ui.panels import K6517Panel
+from .ui.panels import K6517BPanel
 
 # LCR meters
 from .ui.panels import K595Panel
@@ -84,7 +84,7 @@ class Controller(QtCore.QObject):
         # Electrometer
         role = self.view.addRole("ELM")
         role.addInstrument(K6514Panel())
-        role.addInstrument(K6517Panel())
+        role.addInstrument(K6517BPanel())
 
         # LCR meter
         role = self.view.addRole("LCR")
@@ -94,7 +94,7 @@ class Controller(QtCore.QObject):
         role.addInstrument(E4980APanel())
 
         # Temperatur
-        role = self.view.addRole("Temperature")
+        # role = self.view.addRole("Temperature")
 
         self.state = {}
 

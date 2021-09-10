@@ -2,6 +2,8 @@ import time
 
 from .driver import Electrometer, handle_exception
 
+__all__ = ['E4980A']
+
 class E4980A(Electrometer):
 
     @handle_exception

@@ -12,7 +12,7 @@ from .driver.k2410 import K2410
 from .driver.k2470 import K2470
 from .driver.k2657a import K2657A
 from .driver.k6514 import K6514
-from .driver.k6517 import K6517
+from .driver.k6517b import K6517B
 from .driver.e4980a import E4980A
 
 from .functions import LinearRange
@@ -27,7 +27,7 @@ DRIVERS = {
     'K2470': K2470,
     'K2657A': K2657A,
     'K6514': K6514,
-    'K6517': K6517,
+    'K6517B': K6517B,
     'E4980A': E4980A
 }
 
