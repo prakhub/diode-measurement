@@ -1,7 +1,7 @@
-from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 
 __all__ = ['ChangeVoltageDialog']
+
 
 class ChangeVoltageDialog(QtWidgets.QDialog):
     """Change voltage dialog for continuous It measurements."""

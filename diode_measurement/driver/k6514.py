@@ -4,6 +4,7 @@ from .driver import Electrometer, handle_exception
 
 __all__ = ['K6514']
 
+
 class K6514(Electrometer):
 
     def identity(self) -> str:
@@ -47,7 +48,7 @@ class K6514(Electrometer):
 
     def read_current(self, timeout=10.0, interval=0.250):
         # Select sense function
-        self._write(f':FUNC CURR')
+        self._write(':FUNC CURR')
         # Request operation complete
         self.resource.write('*CLS')
         self.resource.write('*OPC')

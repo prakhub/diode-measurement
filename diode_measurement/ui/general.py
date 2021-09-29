@@ -5,6 +5,7 @@ from ..utils import ureg
 
 __all__ = ['GeneralWidget']
 
+
 class GeneralWidget(QtWidgets.QWidget):
 
     currentComplianceChanged = QtCore.pyqtSignal(float)
@@ -87,7 +88,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.changeVoltageButton.setEnabled(False)
         self.changeVoltageButton.clicked.connect(
             lambda: (self.changeVoltageContinuousRequested.emit(),
-                self.changeVoltageButton.setEnabled(False))
+                     self.changeVoltageButton.setEnabled(False))
         )
 
         self.measurementGroupBox = QtWidgets.QGroupBox()

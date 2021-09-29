@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['Driver']
 
+
 def handle_exception(method):
     def handle_exception(self, *args, **kwargs):
         try:
@@ -13,7 +14,11 @@ def handle_exception(method):
             raise DriverError(f"{type(self).__name__}: {exc}") from exc
     return handle_exception
 
-class DriverError(Exception): pass
+
+class DriverError(Exception):
+
+    pass
+
 
 class Driver(ABC):
 
@@ -39,6 +44,7 @@ class Driver(ABC):
     @abstractmethod
     def configure(self, **options) -> None:
         pass
+
 
 class SourceMeter(Driver):
 
@@ -74,9 +80,11 @@ class SourceMeter(Driver):
     def read_current(self) -> float:
         pass
 
+
 class Electrometer(SourceMeter):
 
     pass
+
 
 class LCRMeter(SourceMeter):
 

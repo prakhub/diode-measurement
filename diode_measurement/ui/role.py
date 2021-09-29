@@ -5,6 +5,7 @@ from .widgets import ResourceWidget
 
 __all__ = ['RoleWidget']
 
+
 class RoleWidget(QtWidgets.QWidget):
 
     def __init__(self, name, parent=None):

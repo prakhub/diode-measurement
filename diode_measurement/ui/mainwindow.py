@@ -17,6 +17,7 @@ from .logwindow import LogWindow
 from ..utils import format_metric
 from ..utils import format_switch
 
+
 class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, parent=None):
@@ -426,7 +427,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         if self.property("locked"):
             title = "Measurement active"
-            text = f"Stop the current measurement to exiting the application."
+            text = "Stop the current measurement to exiting the application."
             QtWidgets.QMessageBox.information(self, title, text)
             event.ignore()
         else:

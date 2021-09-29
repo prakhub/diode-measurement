@@ -1,8 +1,7 @@
 import logging
-import sys, os
+import sys
 
 from PyQt5 import QtCore
-from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 
 from . import __version__
@@ -10,6 +9,7 @@ from .controller import Controller
 from .ui.mainwindow import MainWindow
 
 logger = logging.getLogger(__name__)
+
 
 class Application(QtWidgets.QApplication):
 

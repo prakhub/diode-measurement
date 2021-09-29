@@ -12,6 +12,7 @@ __all__ = [
 
 ureg = pint.UnitRegistry()
 
+
 def get_resource(resource_name):
     """Create valid VISA resource name for short descriptors."""
     resource_name = resource_name.strip()
@@ -34,8 +35,10 @@ def get_resource(resource_name):
 
     return resource_name, visa_library
 
+
 def safe_filename(filename):
     return re.sub(r'[^a-zA-Z0-9\_\/\.\-]+', '_', filename)
+
 
 def auto_scale(value):
     scales = (
@@ -62,6 +65,7 @@ def auto_scale(value):
             return scale, prefix, name
     return 1e0, '', ''
 
+
 def format_metric(value, unit, decimals=3):
     """Pretty format metric units.
     >>> format_metric(.0042, 'A')
@@ -72,12 +76,14 @@ def format_metric(value, unit, decimals=3):
     scale, prefix, _ = auto_scale(value)
     return f"{value * (1 / scale):.{decimals}f} {prefix}{unit}"
 
+
 def format_switch(value, default=None):
     """Pretty format for instrument output states.
     >>> format_switch(False)
     'OFF'
     """
     return {False: "OFF", True: "ON"}.get(value) or default
+
 
 def limits(iterable) -> tuple:
     """Calculate limits of 2D point series."""

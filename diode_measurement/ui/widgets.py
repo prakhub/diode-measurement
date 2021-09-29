@@ -5,6 +5,7 @@ from PyQt5 import QtWidgets
 
 __all__ = ['showException', 'ResourceWidget']
 
+
 def showException(exc, parent=None):
     details = ''.join(traceback.format_tb(exc.__traceback__))
     dialog = QtWidgets.QMessageBox(parent)
@@ -18,6 +19,7 @@ def showException(exc, parent=None):
     spacer = QtWidgets.QSpacerItem(448, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
     dialog.layout().addItem(spacer, dialog.layout().rowCount(), 0, 1, dialog.layout().columnCount())
     dialog.exec()
+
 
 class ResourceWidget(QtWidgets.QGroupBox):
 

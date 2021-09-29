@@ -1,11 +1,12 @@
 import csv
-import os
+
 
 def safe_format(value, format_spec=''):
     try:
         return format(value, format_spec)
-    except:
+    except Exception:
         return format(float('nan'))
+
 
 class Writer:
 

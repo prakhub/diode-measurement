@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['Reader']
 
+
 class Reader:
 
     def __init__(self, fp):

@@ -1,4 +1,3 @@
-from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 
 __all__ = [
@@ -12,6 +11,7 @@ __all__ = [
     'E4285Panel',
     'E4980APanel'
 ]
+
 
 class InstrumentPanel(QtWidgets.QWidget):
 
@@ -36,6 +36,7 @@ class InstrumentPanel(QtWidgets.QWidget):
 
     def setConfig(self, config):
         pass
+
 
 class K237Panel(InstrumentPanel):
 
@@ -77,10 +78,12 @@ class K237Panel(InstrumentPanel):
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
 
+
 class K595Panel(InstrumentPanel):
 
     def __init__(self, parent=None):
         super().__init__("K595", parent)
+
 
 class K2410Panel(InstrumentPanel):
 
@@ -146,6 +149,7 @@ class K2410Panel(InstrumentPanel):
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
 
+
 class K2470Panel(InstrumentPanel):
 
     def __init__(self, parent=None):
@@ -209,6 +213,7 @@ class K2470Panel(InstrumentPanel):
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
+
 
 class K2657APanel(InstrumentPanel):
 
@@ -275,20 +280,24 @@ class K2657APanel(InstrumentPanel):
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
 
+
 class K6514Panel(InstrumentPanel):
 
     def __init__(self, parent=None):
         super().__init__("K6514", parent)
+
 
 class K6517BPanel(InstrumentPanel):
 
     def __init__(self, parent=None):
         super().__init__("K6517B", parent)
 
+
 class E4285Panel(InstrumentPanel):
 
     def __init__(self, parent=None):
         super().__init__("E4285", parent)
+
 
 class E4980APanel(InstrumentPanel):
 

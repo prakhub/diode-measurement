@@ -13,6 +13,7 @@ __all__ = [
     "CV2PlotWidget"
 ]
 
+
 class DynamicValueAxis(QtChart.QValueAxis):
 
     def __init__(self, axis: QtChart.QValueAxis, unit):
@@ -50,6 +51,7 @@ class DynamicValueAxis(QtChart.QValueAxis):
             # Update axis range
             super().setRange(minimum, maximum)
 
+
 class LimitsAggregator(QtCore.QObject):
 
     def __init__(self, parent=None) -> None:
@@ -81,11 +83,13 @@ class LimitsAggregator(QtCore.QObject):
     def maximum(self) -> float:
         return self._maximum
 
+
 class PlotToolButton(QtWidgets.QPushButton):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setFixedSize(18, 18)
+
 
 class PlotWidget(QtChart.QChartView):
 
@@ -156,7 +160,7 @@ class PlotWidget(QtChart.QChartView):
                 filename = f"{filename}.png"
             try:
                 self.grab().save(filename)
-            except Exception as exc:
+            except Exception:
                 pass
 
     def clear(self) -> None:
@@ -169,6 +173,7 @@ class PlotWidget(QtChart.QChartView):
                 if series.at(series.count() - 1).x() < series.at(0).x():
                     return True
         return False
+
 
 class IVPlotWidget(PlotWidget):
 
@@ -256,6 +261,7 @@ class IVPlotWidget(PlotWidget):
             self.vLimits.append(x)
             self.fit()
 
+
 class ItPlotWidget(PlotWidget):
 
     MAX_POINTS = 60 * 60 * 24
@@ -308,7 +314,7 @@ class ItPlotWidget(PlotWidget):
         else:
             import time
             t = time.time()
-            minimum = t-60
+            minimum = t - 60
             maximum = t
         t0 = QtCore.QDateTime.fromMSecsSinceEpoch(minimum * 1e3)
         t1 = QtCore.QDateTime.fromMSecsSinceEpoch(maximum * 1e3)
@@ -348,6 +354,7 @@ class ItPlotWidget(PlotWidget):
             self.iLimits.append(y)
             self.tLimits.append(x)
             self.fit()
+
 
 class CVPlotWidget(PlotWidget):
 
@@ -409,6 +416,7 @@ class CVPlotWidget(PlotWidget):
             self.vLimits.append(x)
             self.fit()
 
+
 class CV2PlotWidget(PlotWidget):
 
     def __init__(self, parent=None) -> None:
@@ -423,7 +431,7 @@ class CV2PlotWidget(PlotWidget):
         self.cAxis = QtChart.QValueAxis()
         self.cAxis.setTitleText("Capacitance [1/pF^2]")
         self.cAxis.setLabelFormat("%g")
-        self.cAxis.setRange(0, 1/200**2)
+        self.cAxis.setRange(0, 1 / 200**2)
         self.cAxis.setTickCount(9)
         self.chart.addAxis(self.cAxis, QtCore.Qt.AlignLeft)
         self.lcrSeries.attachAxis(self.cAxis)

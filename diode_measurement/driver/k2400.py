@@ -2,6 +2,7 @@ from .driver import SourceMeter, handle_exception
 
 __all__ = ['K2400']
 
+
 class K2400(SourceMeter):
 
     def identity(self) -> str:

@@ -36,6 +36,7 @@ ERROR_MESSAGES = {
 
 logger = logging.getLogger(__name__)
 
+
 class K237(SourceMeter):
 
     WRITE_DELAY = 0.250
@@ -117,4 +118,4 @@ class K237(SourceMeter):
             return 3
         elif level <= 1100.:
             return 4
-        return 0 # Auto
+        return 0  # Auto

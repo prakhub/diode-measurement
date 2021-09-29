@@ -38,17 +38,18 @@ from .writer import Writer
 from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
-from .utils import limits
 
 from .settings import SPECS
 
 logger = logging.getLogger(__name__)
+
 
 def isFinite(value):
     """Return True if value is a finite numerical value."""
     if value is None:
         return False
     return math.isfinite(value)
+
 
 def handle_exception(method):
     def handle_exception(self, *args, **kwargs):
@@ -58,6 +59,7 @@ def handle_exception(method):
             logger.exception(exc)
             self.onFailed(exc)
     return handle_exception
+
 
 class Controller(QtCore.QObject):
 
@@ -521,7 +523,7 @@ class Controller(QtCore.QObject):
         self.state.update({"current_compliance": value})
 
     def onContinueInComplianceChanged(self, checked):
-        logging.info("updated continue_in_compliance: %s", checked == True)
+        logging.info("updated continue_in_compliance: %s", checked)
         self.state.update({"continue_in_compliance": checked})
 
     def onWaitingTimeContinuousChanged(self, value):
@@ -608,6 +610,7 @@ class Controller(QtCore.QObject):
             self.failed.emit(exc)
         finally:
             self.finished.emit()
+
 
 class PlotsController(QtCore.QObject):
 

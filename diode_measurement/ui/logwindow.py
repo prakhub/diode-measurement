@@ -8,12 +8,14 @@ from PyQt5 import QtWidgets
 
 __all__ = ['LogWindow', 'LogWidget']
 
+
 class LogHandlerObject(QtCore.QObject):
 
-    message =  QtCore.pyqtSignal(object)
+    message = QtCore.pyqtSignal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
 
 class LogHandler(logging.Handler):
 
@@ -23,6 +25,7 @@ class LogHandler(logging.Handler):
 
     def emit(self, record):
         self.object.message.emit(record)
+
 
 class LogWidget(QtWidgets.QTextEdit):
 
@@ -60,7 +63,7 @@ class LogWidget(QtWidgets.QTextEdit):
         with self.mutex:
             # Clear when exceeding maximum allowed entries...
             if self.entries > self.MaximumEntries:
-                self.clear() # TODO
+                self.clear()  # TODO
             # Get current scrollbar position
             scrollbar = self.verticalScrollBar()
             current_pos = scrollbar.value()
@@ -104,6 +107,7 @@ class LogWidget(QtWidgets.QTextEdit):
         # Escape to HTML
         message = html.escape(message)
         return f"<span style=\"{style}\">{message}</span>"
+
 
 class LogWindow(QtWidgets.QWidget):
 

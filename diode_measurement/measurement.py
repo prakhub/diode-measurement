@@ -4,7 +4,7 @@ import logging
 
 from PyQt5 import QtCore
 
-from .resource import Resource, ResourceError
+from .resource import Resource
 
 from .driver.k237 import K237
 from .driver.k595 import K595
@@ -31,6 +31,7 @@ DRIVERS = {
     'E4980A': E4980A
 }
 
+
 class Measurement(QtCore.QObject):
 
     started = QtCore.pyqtSignal()
@@ -50,13 +51,13 @@ class Measurement(QtCore.QObject):
         role = self.state.get(name, {})
         if not role.get("enabled"):
             return None
-        model =  role.get('model')
+        model = role.get('model')
         resource_name = role.get('resource_name')
         if not resource_name.strip():
             raise ValueError(f"Empty resource name not allowed for {name.upper()} ({model}).")
         visa_library = role.get('visa_library')
         termination = role.get('termination')
-        timeout = role.get('timeout') * 1000 # in millisecs
+        timeout = role.get('timeout') * 1000  # in millisecs
         cls = DRIVERS.get(model)
         if not cls:
             logger.warning("No such driver: %s", model)
@@ -102,6 +103,7 @@ class Measurement(QtCore.QObject):
             self.contexts.clear()
             self.finished.emit()
 
+
 class RangeMeasurement(Measurement):
 
     def __init__(self, state):
@@ -113,8 +115,8 @@ class RangeMeasurement(Measurement):
     def set_source_output_state(self, state):
         logger.info("Source output state: %s", state)
         self.source_instrument.set_output_enabled(state)
-        self.update.emit({'source_output_state': (state == True)})
-        self.state['source_output_state'] = (state == True)
+        self.update.emit({'source_output_state': state})
+        self.state['source_output_state'] = state
 
     def get_source_voltage(self):
         return self.source_instrument.get_voltage_level()
@@ -240,7 +242,6 @@ class RangeMeasurement(Measurement):
         )
 
         self.update.emit({"message": f"Ramp to {ramp.end} V"})
-        current_step = 0
         estimate = Estimate(len(ramp))
 
         for step, voltage in enumerate(ramp):
@@ -364,6 +365,7 @@ class RangeMeasurement(Measurement):
 
             estimate.advance()
 
+
 class IVMeasurement(RangeMeasurement):
 
     ivReading = QtCore.pyqtSignal(dict)
@@ -407,7 +409,6 @@ class IVMeasurement(RangeMeasurement):
         })
 
     def acquireContinuousReading(self):
-        voltage = self.state.get('voltage_end', 0.0)
         while not self.state.get('stop_requested'):
             self.update.emit({"message": "Reading..."})
             self.update.emit({"progress": (0, 0, 0)})
@@ -425,6 +426,7 @@ class IVMeasurement(RangeMeasurement):
             self.apply_change_voltage()
 
             self.apply_waiting_time_continuous()
+
 
 class CVMeasurement(RangeMeasurement):
 
@@ -456,7 +458,7 @@ class CVMeasurement(RangeMeasurement):
         reading = self.acquireReadingData()
         self.cvReading.emit(reading)
         self.update.emit({
-                'smu_current': reading.get('i_smu'),
-                'elm_current': reading.get('i_elm'),
-                'lcr_capacity': reading.get('c_lcr')
-            })
+            'smu_current': reading.get('i_smu'),
+            'elm_current': reading.get('i_elm'),
+            'lcr_capacity': reading.get('c_lcr')
+        })

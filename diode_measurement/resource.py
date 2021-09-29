@@ -4,7 +4,11 @@ import pyvisa
 
 logger = logging.getLogger(__name__)
 
-class ResourceError(Exception): pass
+
+class ResourceError(Exception):
+
+    pass
+
 
 class Resource:
 

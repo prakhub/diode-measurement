@@ -14,6 +14,7 @@ ERROR_MESSAGES = {
     6: "Self Test"
 }
 
+
 class K595(LCRMeter):
 
     WRITE_DELAY = 0.250
@@ -42,7 +43,7 @@ class K595(LCRMeter):
         return self.get_voltage_level() != 0
 
     def set_output_enabled(self, enabled: bool) -> None:
-        pass # not available
+        pass  # not available
 
     def get_voltage_level(self) -> float:
         self._write('F1X')
@@ -53,10 +54,10 @@ class K595(LCRMeter):
         self._write(f'V{level:.2f}X')
 
     def set_voltage_range(self, level: float) -> None:
-        pass # TODO
+        pass  # TODO
 
     def set_current_compliance_level(self, level: float) -> None:
-        pass # not available
+        pass  # not available
 
     def compliance_tripped(self) -> bool:
         self._write('F1X')

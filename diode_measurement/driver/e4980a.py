@@ -4,6 +4,7 @@ from .driver import Electrometer, handle_exception
 
 __all__ = ['E4980A']
 
+
 class E4980A(Electrometer):
 
     @handle_exception
@@ -48,7 +49,7 @@ class E4980A(Electrometer):
         self._write(f':BIAS:VOLT:LEV {level:.3E}')
 
     def set_voltage_range(self, level: float) -> None:
-        pass # TODO
+        pass  # TODO
 
     def set_current_compliance_level(self, level: float) -> None:
         self._write(f':SENS:CURR:PROT:LEV {level:.3E}')

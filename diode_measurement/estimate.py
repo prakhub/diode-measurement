@@ -4,6 +4,7 @@ import datetime
 
 __all__ = ['Estimate']
 
+
 class Estimate:
     """Estiamte remaining time.
     >>> e = Estimate(42)
