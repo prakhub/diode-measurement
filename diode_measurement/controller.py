@@ -385,23 +385,15 @@ class Controller(QtCore.QObject):
             finally:
                 self.view.unlock()
 
-    @handle_exception
     def onStart(self):
-        state = self.prepareState()
-
-        if not state.get("source"):
-            raise RuntimeError("No source instrument selected.")
-
-        self.view.lock()
-        self.view.clear()
-
-        self.state.update(state)
-        self.state.update({"stop_requested": False})
-
-        measurement = self.createMeasurement()
-
-        self.measurementThread = threading.Thread(target=self.runMeasurement, args=[measurement])
-        self.measurementThread.start()
+        try:
+            self.view.lock()
+            self.view.clear()
+            self.startMeasurement()
+        except Exception as exc:
+            logger.exception(exc)
+            self.onFailed(exc)
+            self.view.unlock()
 
     def onStop(self):
         self.state.update({"stop_requested": True})
@@ -436,6 +428,7 @@ class Controller(QtCore.QObject):
     def onContinuousToggled(self, checked):
         self.view.setContinuous(checked)
         self.view.itPlotWidget.setVisible(checked)
+        self.view.generalWidget.continuousGroupBox.setEnabled(checked)
 
     def onContinuousChanged(self, state):
         self.onContinuousToggled(state == QtCore.Qt.Checked)
@@ -446,7 +439,7 @@ class Controller(QtCore.QObject):
         if spec.get("type") == "iv":
             self.view.raiseIVTab()
             self.view.continuousAction.setEnabled(True)
-            self.view.generalWidget.continuousGroupBox.setEnabled(True)
+            self.view.generalWidget.continuousGroupBox.setEnabled(self.view.isContinuous())
         elif spec.get("type") == "cv":
             self.view.raiseCVTab()
             self.view.continuousAction.setEnabled(False)
@@ -566,6 +559,14 @@ class Controller(QtCore.QObject):
         filename = safe_filename(f"{sample}-{timestamp}.txt")
         return os.path.join(path, filename)
 
+    def connectIVPlots(self, measurement) -> None:
+        measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
+        measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
+        measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+
+    def connectCVPlots(self, measurement) -> None:
+        measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
+
     def createMeasurement(self):
         measurements = {
             "iv": IVMeasurement,
@@ -576,35 +577,44 @@ class Controller(QtCore.QObject):
 
         measurement.update.connect(lambda data: self.update.emit(data))
 
-        def connectIVPlots(measurement):
-            measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
-            measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
-            measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
-
-        def connectCVPlots(measurement):
-            measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
-
         if isinstance(measurement, IVMeasurement):
-            connectIVPlots(measurement)
+            self.connectIVPlots(measurement)
         elif isinstance(measurement, CVMeasurement):
-            connectCVPlots(measurement)
+            self.connectCVPlots(measurement)
+
+        # Prepare role drivers
+        for role in self.view.roles():
+            measurement.prepareDriver(role.name().lower())
 
         return measurement
 
-    def runMeasurement(self, measurement):
+    def startMeasurement(self) -> None:
+        state = self.prepareState()
+
+        if not state.get("source"):
+            raise RuntimeError("No source instrument selected.")
+
+        # Update state
+        self.state.update(state)
+        self.state.update({"stop_requested": False})
+
+        # Filename
+        outputEnabled = self.view.generalWidget.isOutputEnabled()
+        filename = self.createFilename() if outputEnabled else ""
+
+        # Create and run measurement
+        measurement = self.createMeasurement()
+        self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement, filename])
+        self.measurementThread.start()
+
+    def _runMeasurement(self, measurement, filename: str) -> None:
         try:
-            for role in self.view.roles():
-                measurement.prepareDriver(role.name().lower())
-
-            outputEnabled = self.view.generalWidget.isOutputEnabled()
-
-            filename = self.createFilename()
-            path = os.path.dirname(filename)
-            if outputEnabled:
+            if filename:
+                path = os.path.dirname(filename)
                 if not os.path.exists(path):
                     os.makedirs(path)
             with contextlib.ExitStack() as stack:
-                if outputEnabled:
+                if filename:
                     fp = stack.enter_context(open(filename, 'w', newline=''))
                     writer = Writer(measurement, fp)
                 measurement.run()
