@@ -38,6 +38,7 @@ from .writer import Writer
 from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
+from .utils import inverse_square
 
 from .settings import SPECS
 
@@ -697,7 +698,10 @@ class PlotsController(QtCore.QObject):
             return
         if isFinite(c_lcr):
             self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
-            self.view.cv2PlotWidget.append('lcr', voltage, 1 / c_lcr ** 2)
+            # Prevent division by zero exception
+            if c_lcr:
+                c2_lcr: float = inverse_square(c_lcr)
+                self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
 
     def onLoadCVReadings(self, readings):
         lcrPoints = []
@@ -721,9 +725,11 @@ class PlotsController(QtCore.QObject):
             voltage = reading.get('voltage')
             c_lcr = reading.get('c_lcr')
             if isFinite(c_lcr):
-                c_lcr2 = 1 / c_lcr ** 2
-                lcr2Points.append(QtCore.QPointF(voltage, c_lcr2))
-                widget.cLimits.append(c_lcr2)
-                widget.vLimits.append(voltage)
+                # Prevent division by zero exception
+                if c_lcr:
+                    c2_lcr: float = inverse_square(c_lcr)
+                    lcr2Points.append(QtCore.QPointF(voltage, c2_lcr))
+                    widget.cLimits.append(c2_lcr)
+                    widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcr2Points)
         widget.fit()

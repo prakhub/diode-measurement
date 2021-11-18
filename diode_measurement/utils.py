@@ -7,7 +7,8 @@ __all__ = [
     'auto_scale',
     'format_metric',
     'format_switch',
-    'limits'
+    'limits',
+    'inverse_square'
 ]
 
 ureg = pint.UnitRegistry()
@@ -99,3 +100,8 @@ def limits(iterable) -> tuple:
                 max(y, limits[3])
             )
     return limits
+
+
+def inverse_square(value: float) -> float:
+    """Return 1/x^2 for value."""
+    return 1. / value ** 2
