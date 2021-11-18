@@ -6,6 +6,8 @@ import threading
 import contextlib
 from datetime import datetime
 
+from typing import List, Union
+
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 
@@ -43,13 +45,6 @@ from .utils import inverse_square
 from .settings import SPECS
 
 logger = logging.getLogger(__name__)
-
-
-def isFinite(value):
-    """Return True if value is a finite numerical value."""
-    if value is None:
-        return False
-    return math.isfinite(value)
 
 
 def handle_exception(method):
@@ -137,7 +132,8 @@ class Controller(QtCore.QObject):
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
 
-        self.plotsController = PlotsController(self.view, self)
+        self.ivPlotsController = IVPlotsController(self.view, self)
+        self.cvPlotsController = CVPlotsController(self.view, self)
 
     def prepareState(self):
         state = {}
@@ -381,11 +377,11 @@ class Controller(QtCore.QObject):
 
                 # Data
                 if meta.get("measurement_type") == "iv":
-                    self.plotsController.onLoadIVReadings(data)
-                    self.plotsController.onLoadItReadings(continuousData)
+                    self.ivPlotsController.onLoadIVReadings(data)
+                    self.ivPlotsController.onLoadItReadings(continuousData)
                 if meta.get("measurement_type") == "cv":
-                    self.plotsController.onLoadCVReadings(data)
-                    self.plotsController.onLoadCV2Readings(data)
+                    self.cvPlotsController.onLoadCVReadings(data)
+                    self.cvPlotsController.onLoadCV2Readings(data)
             finally:
                 self.view.unlock()
 
@@ -580,12 +576,18 @@ class Controller(QtCore.QObject):
 
         measurement.update.connect(lambda data: self.update.emit(data))
 
-        if isinstance(measurement, IVMeasurement):
-            measurement.ivReading.connect(lambda reading: self.plotsController.ivReading.emit(reading))
-            measurement.itReading.connect(lambda reading: self.plotsController.itReading.emit(reading))
+        def connectIVPlots(measurement):
+            measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
+            measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
             measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+
+        def connectCVPlots(measurement):
+            measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
+
+        if isinstance(measurement, IVMeasurement):
+            connectIVPlots(measurement)
         elif isinstance(measurement, CVMeasurement):
-            measurement.cvReading.connect(lambda reading: self.plotsController.cvReading.emit(reading))
+            connectCVPlots(measurement)
 
         return measurement
 
@@ -613,45 +615,40 @@ class Controller(QtCore.QObject):
             self.finished.emit()
 
 
-class PlotsController(QtCore.QObject):
+class IVPlotsController(QtCore.QObject):
 
     ivReading = QtCore.pyqtSignal(dict)
     itReading = QtCore.pyqtSignal(dict)
-    cvReading = QtCore.pyqtSignal(dict)
 
-    def __init__(self, view, parent=None):
+    def __init__(self, view, parent=None) -> None:
         super().__init__(parent)
         self.view = view
-
         self.ivReading.connect(self.onIVReading)
         self.itReading.connect(self.onItReading)
-        self.cvReading.connect(self.onCVReading)
 
-    def onIVReading(self, reading):
-        voltage = reading.get('voltage')
-        i_smu = reading.get('i_smu')
-        i_elm = reading.get('i_elm')
-        if not isFinite(voltage):
-            return
-        if isFinite(i_smu):
+    def onIVReading(self, reading: dict) -> None:
+        voltage: float = reading.get('voltage', math.nan)
+        i_smu: float = reading.get('i_smu', math.nan)
+        i_elm: float = reading.get('i_elm', math.nan)
+        if math.isfinite(voltage) and math.isfinite(i_smu):
             self.view.ivPlotWidget.append('smu', voltage, i_smu)
-        if isFinite(i_elm):
+        if math.isfinite(voltage) and math.isfinite(i_elm):
             self.view.ivPlotWidget.append('elm', voltage, i_elm)
 
-    def onLoadIVReadings(self, readings):
+    def onLoadIVReadings(self, readings: List[dict]) -> None:
         smuPoints = []
         elmPoints = []
         widget = self.view.ivPlotWidget
         widget.clear()
         for reading in readings:
-            voltage = reading.get('voltage')
-            i_smu = reading.get('i_smu')
-            i_elm = reading.get('i_elm')
-            if isFinite(i_smu):
+            voltage: float = reading.get('voltage', math.nan)
+            i_smu: float = reading.get('i_smu', math.nan)
+            i_elm: float = reading.get('i_elm', math.nan)
+            if math.isfinite(voltage) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(voltage, i_smu))
                 widget.iLimits.append(i_smu)
                 widget.vLimits.append(voltage)
-            if isFinite(i_elm):
+            if math.isfinite(voltage) and math.isfinite(i_elm):
                 elmPoints.append(QtCore.QPointF(voltage, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.vLimits.append(voltage)
@@ -659,31 +656,31 @@ class PlotsController(QtCore.QObject):
         widget.series.get('elm').replace(elmPoints)
         widget.fit()
 
-    def onItReading(self, reading, fit=True):
-        timestamp = reading.get('timestamp')
-        i_smu = reading.get('i_smu')
-        i_elm = reading.get('i_elm')
-        if isFinite(i_smu):
+    def onItReading(self, reading: dict, fit: bool = True) -> None:
+        timestamp: float = reading.get('timestamp', math.nan)
+        i_smu: float = reading.get('i_smu', math.nan)
+        i_elm: float = reading.get('i_elm', math.nan)
+        if math.isfinite(timestamp) and math.isfinite(i_smu):
             self.view.itPlotWidget.append('smu', timestamp, i_smu)
-        if isFinite(i_elm):
+        if math.isfinite(timestamp) and math.isfinite(i_elm):
             self.view.itPlotWidget.append('elm', timestamp, i_elm)
         if fit:
             self.view.itPlotWidget.fit()
 
-    def onLoadItReadings(self, readings):
-        smuPoints = []
-        elmPoints = []
+    def onLoadItReadings(self, readings: List[dict]) -> None:
+        smuPoints: List[QtCore.QPointF] = []
+        elmPoints: List[QtCore.QPointF] = []
         widget = self.view.itPlotWidget
         widget.clear()
         for reading in readings:
-            timestamp = reading.get('timestamp')
-            i_smu = reading.get('i_smu')
-            i_elm = reading.get('i_elm')
-            if isFinite(i_smu):
+            timestamp: float = reading.get('timestamp', math.nan)
+            i_smu: float = reading.get('i_smu', math.nan)
+            i_elm: float = reading.get('i_elm', math.nan)
+            if math.isfinite(timestamp) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(timestamp * 1e3, i_smu))
                 widget.iLimits.append(i_smu)
                 widget.tLimits.append(timestamp)
-            if isFinite(i_elm):
+            if math.isfinite(timestamp) and math.isfinite(i_elm):
                 elmPoints.append(QtCore.QPointF(timestamp * 1e3, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.tLimits.append(timestamp)
@@ -691,40 +688,48 @@ class PlotsController(QtCore.QObject):
         widget.series.get('elm').replace(elmPoints)
         widget.fit()
 
-    def onCVReading(self, reading):
-        voltage = reading.get('voltage')
-        c_lcr = reading.get('c_lcr')
-        if not isFinite(voltage):
-            return
-        if isFinite(c_lcr):
+
+class CVPlotsController(QtCore.QObject):
+
+    cvReading = QtCore.pyqtSignal(dict)
+
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(parent)
+        self.view = view
+        self.cvReading.connect(self.onCVReading)
+
+    def onCVReading(self, reading: dict) -> None:
+        voltage: float = reading.get('voltage', math.nan)
+        c_lcr: float = reading.get('c_lcr', math.nan)
+        if math.isfinite(voltage) and math.isfinite(c_lcr):
             self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
             # Prevent division by zero exception
             if c_lcr:
                 c2_lcr: float = inverse_square(c_lcr)
                 self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
 
-    def onLoadCVReadings(self, readings):
-        lcrPoints = []
+    def onLoadCVReadings(self, readings: List[dict]) -> None:
+        lcrPoints: List[QtCore.QPointF] = []
         widget = self.view.cvPlotWidget
         widget.clear()
         for reading in readings:
-            voltage = reading.get('voltage')
-            c_lcr = reading.get('c_lcr')
-            if isFinite(c_lcr):
+            voltage: float = reading.get('voltage', math.nan)
+            c_lcr: float = reading.get('c_lcr', math.nan)
+            if math.isfinite(voltage) and math.isfinite(c_lcr):
                 lcrPoints.append(QtCore.QPointF(voltage, c_lcr))
                 widget.cLimits.append(c_lcr)
                 widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcrPoints)
         widget.fit()
 
-    def onLoadCV2Readings(self, readings):
-        lcr2Points = []
+    def onLoadCV2Readings(self, readings: List[dict]) -> None:
+        lcr2Points: List[QtCore.QPointF] = []
         widget = self.view.cv2PlotWidget
         widget.clear()
         for reading in readings:
-            voltage = reading.get('voltage')
-            c_lcr = reading.get('c_lcr')
-            if isFinite(c_lcr):
+            voltage: float = reading.get('voltage', math.nan)
+            c_lcr: float = reading.get('c_lcr', math.nan)
+            if math.isfinite(voltage) and math.isfinite(c_lcr):
                 # Prevent division by zero exception
                 if c_lcr:
                     c2_lcr: float = inverse_square(c_lcr)
