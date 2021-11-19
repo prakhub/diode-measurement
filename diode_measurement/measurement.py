@@ -1,6 +1,7 @@
-import time
 import contextlib
 import logging
+import math
+import time
 
 from PyQt5 import QtCore
 
@@ -17,6 +18,7 @@ from .driver.e4980a import E4980A
 
 from .functions import LinearRange
 from .estimate import Estimate
+from .utils import inverse_square
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,8 @@ class Measurement(QtCore.QObject):
         self.state = state
         self.contexts = {}
         self._registered = {}
+        self.startedHandlers = []
+        self.finishedHandlers = []
 
     def registerInstrument(self, name, cls, resource):
         self._registered[name] = cls, resource
@@ -88,6 +92,8 @@ class Measurement(QtCore.QObject):
     def run(self):
         try:
             self.started.emit()
+            for handler in self.startedHandlers:
+                handler()
             self.contexts.clear()
             with contextlib.ExitStack() as stack:
                 for key, value in self._registered.items():
@@ -100,6 +106,8 @@ class Measurement(QtCore.QObject):
                 finally:
                     self.finalize()
         finally:
+            for handler in self.finishedHandlers:
+                handler()
             self.contexts.clear()
             self.finished.emit()
 
@@ -391,6 +399,8 @@ class IVMeasurement(RangeMeasurement):
 
     def __init__(self, state):
         super().__init__(state)
+        self.ivReadingHandlers = []
+        self.itReadingHandlers = []
 
     def measure(self):
         super().measure()
@@ -424,6 +434,8 @@ class IVMeasurement(RangeMeasurement):
             'smu_current': reading.get('i_smu'),
             'elm_current': reading.get('i_elm')
         })
+        for handler in self.ivReadingHandlers:
+            handler(reading)
 
     def acquireContinuousReading(self):
         while not self.state.get('stop_requested'):
@@ -436,6 +448,8 @@ class IVMeasurement(RangeMeasurement):
                 'smu_current': reading.get('i_smu'),
                 'elm_current': reading.get('i_elm')
             })
+            for handler in self.itReadingHandlers:
+                handler(reading)
 
             self.check_current_compliance()
             self.update_current_compliance()
@@ -451,6 +465,16 @@ class CVMeasurement(RangeMeasurement):
 
     def __init__(self, state):
         super().__init__(state)
+        self.cvReadingHandlers = []
+
+    def extendCVReading(self, reading: dict) -> dict:
+        # Calcualte 1c^2 as c2_lcr
+        c_lcr = reading.get('c_lcr', math.nan)
+        if math.isfinite(c_lcr) and c_lcr:
+            reading['c2_lcr'] = inverse_square(c_lcr)
+        else:
+            reading['c2_lcr'] = math.nan
+        return reading
 
     def acquireReadingData(self):
         smu = self.contexts.get('smu')
@@ -473,9 +497,12 @@ class CVMeasurement(RangeMeasurement):
 
     def acquireReading(self):
         reading = self.acquireReadingData()
+        self.extendCVReading(reading)
         self.cvReading.emit(reading)
         self.update.emit({
             'smu_current': reading.get('i_smu'),
             'elm_current': reading.get('i_elm'),
             'lcr_capacity': reading.get('c_lcr')
         })
+        for handler in self.cvReadingHandlers:
+            handler(reading)

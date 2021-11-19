@@ -6,8 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2021-11-19
+### Fixed
+- CV yields division by zero (#8).
+- Invalid plot values yield unhandled exceptions(#9)
+- Crashes on file permission errors (#10).
+
 ## [0.6.1] - 2021-11-10
-## Fixed
+### Fixed
 - Change voltage yield range error (#6).
 
 ## [0.6.0] - 2021-09-10

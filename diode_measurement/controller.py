@@ -40,7 +40,6 @@ from .writer import Writer
 from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
-from .utils import inverse_square
 
 from .settings import SPECS
 
@@ -70,7 +69,7 @@ class Controller(QtCore.QObject):
 
         self.view = view
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
-        self.view.setProperty("about", f"Diode Measurement<br/>Version {__version__}<br/>(c) 2021 HEPHY.at")
+        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -393,7 +392,7 @@ class Controller(QtCore.QObject):
         except Exception as exc:
             logger.exception(exc)
             self.onFailed(exc)
-            self.view.unlock()
+            self.onFinished()
 
     def onStop(self):
         self.state.update({"stop_requested": True})
@@ -542,7 +541,7 @@ class Controller(QtCore.QObject):
         validTypes = ["iv"]
         currentMeasurement = self.view.generalWidget.currentMeasurement()
         enabled = False
-        if currentMeasurement is not None:
+        if currentMeasurement:
             measurementType = currentMeasurement.get("type")
             enabled = measurementType in validTypes
         self.view.continuousCheckBox.setEnabled(enabled)
@@ -600,23 +599,34 @@ class Controller(QtCore.QObject):
 
         # Filename
         outputEnabled = self.view.generalWidget.isOutputEnabled()
-        filename = self.createFilename() if outputEnabled else ""
+        filename = self.createFilename() if outputEnabled else None
+        self.state.update({"filename": filename})
 
         # Create and run measurement
         measurement = self.createMeasurement()
-        self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement, filename])
+        self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement])
         self.measurementThread.start()
 
-    def _runMeasurement(self, measurement, filename: str) -> None:
+    def _runMeasurement(self, measurement) -> None:
         try:
-            if filename:
-                path = os.path.dirname(filename)
-                if not os.path.exists(path):
-                    os.makedirs(path)
+            filename = measurement.state.get("filename")
             with contextlib.ExitStack() as stack:
                 if filename:
+                    def createOutputDir(filename):
+                        path = os.path.dirname(filename)
+                        if not os.path.exists(path):
+                            os.makedirs(path)
+                    measurement.startedHandlers.append(lambda: createOutputDir(filename))
                     fp = stack.enter_context(open(filename, 'w', newline=''))
-                    writer = Writer(measurement, fp)
+                    writer = Writer(fp)
+                    # Note: using signals executes slots in main thread, shoyld be this thread
+                    measurement.startedHandlers.append(lambda: writer.write_meta(measurement.state))
+                    if isinstance(measurement, IVMeasurement):
+                        measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
+                        measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                    if isinstance(measurement, CVMeasurement):
+                        measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
+                    measurement.finishedHandlers.append(lambda: writer.flush())
                 measurement.run()
         except Exception as exc:
             logger.exception(exc)
@@ -711,12 +721,11 @@ class CVPlotsController(QtCore.QObject):
     def onCVReading(self, reading: dict) -> None:
         voltage: float = reading.get('voltage', math.nan)
         c_lcr: float = reading.get('c_lcr', math.nan)
+        c2_lcr: float = reading.get('c2_lcr', math.nan)
         if math.isfinite(voltage) and math.isfinite(c_lcr):
             self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
-            # Prevent division by zero exception
-            if c_lcr:
-                c2_lcr: float = inverse_square(c_lcr)
-                self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
+        if math.isfinite(voltage) and math.isfinite(c2_lcr):
+            self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
 
     def onLoadCVReadings(self, readings: List[dict]) -> None:
         lcrPoints: List[QtCore.QPointF] = []
@@ -738,13 +747,10 @@ class CVPlotsController(QtCore.QObject):
         widget.clear()
         for reading in readings:
             voltage: float = reading.get('voltage', math.nan)
-            c_lcr: float = reading.get('c_lcr', math.nan)
-            if math.isfinite(voltage) and math.isfinite(c_lcr):
-                # Prevent division by zero exception
-                if c_lcr:
-                    c2_lcr: float = inverse_square(c_lcr)
-                    lcr2Points.append(QtCore.QPointF(voltage, c2_lcr))
-                    widget.cLimits.append(c2_lcr)
-                    widget.vLimits.append(voltage)
+            c2_lcr: float = reading.get('c2_lcr', math.nan)
+            if math.isfinite(voltage) and math.isfinite(c2_lcr):
+                lcr2Points.append(QtCore.QPointF(voltage, c2_lcr))
+                widget.cLimits.append(c2_lcr)
+                widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcr2Points)
         widget.fit()
