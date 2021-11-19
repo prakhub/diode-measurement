@@ -6,6 +6,8 @@ import threading
 import contextlib
 from datetime import datetime
 
+from typing import List, Union
+
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 
@@ -44,13 +46,6 @@ from .settings import SPECS
 logger = logging.getLogger(__name__)
 
 
-def isFinite(value):
-    """Return True if value is a finite numerical value."""
-    if value is None:
-        return False
-    return math.isfinite(value)
-
-
 def handle_exception(method):
     def handle_exception(self, *args, **kwargs):
         try:
@@ -74,7 +69,7 @@ class Controller(QtCore.QObject):
 
         self.view = view
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
-        self.view.setProperty("about", f"Diode Measurement<br/>Version {__version__}<br/>(c) 2021 HEPHY.at")
+        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -136,7 +131,8 @@ class Controller(QtCore.QObject):
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
 
-        self.plotsController = PlotsController(self.view, self)
+        self.ivPlotsController = IVPlotsController(self.view, self)
+        self.cvPlotsController = CVPlotsController(self.view, self)
 
     def prepareState(self):
         state = {}
@@ -380,31 +376,23 @@ class Controller(QtCore.QObject):
 
                 # Data
                 if meta.get("measurement_type") == "iv":
-                    self.plotsController.onLoadIVReadings(data)
-                    self.plotsController.onLoadItReadings(continuousData)
+                    self.ivPlotsController.onLoadIVReadings(data)
+                    self.ivPlotsController.onLoadItReadings(continuousData)
                 if meta.get("measurement_type") == "cv":
-                    self.plotsController.onLoadCVReadings(data)
-                    self.plotsController.onLoadCV2Readings(data)
+                    self.cvPlotsController.onLoadCVReadings(data)
+                    self.cvPlotsController.onLoadCV2Readings(data)
             finally:
                 self.view.unlock()
 
-    @handle_exception
     def onStart(self):
-        state = self.prepareState()
-
-        if not state.get("source"):
-            raise RuntimeError("No source instrument selected.")
-
-        self.view.lock()
-        self.view.clear()
-
-        self.state.update(state)
-        self.state.update({"stop_requested": False})
-
-        measurement = self.createMeasurement()
-
-        self.measurementThread = threading.Thread(target=self.runMeasurement, args=[measurement])
-        self.measurementThread.start()
+        try:
+            self.view.lock()
+            self.view.clear()
+            self.startMeasurement()
+        except Exception as exc:
+            logger.exception(exc)
+            self.onFailed(exc)
+            self.onFinished()
 
     def onStop(self):
         self.state.update({"stop_requested": True})
@@ -439,6 +427,7 @@ class Controller(QtCore.QObject):
     def onContinuousToggled(self, checked):
         self.view.setContinuous(checked)
         self.view.itPlotWidget.setVisible(checked)
+        self.view.generalWidget.continuousGroupBox.setEnabled(checked)
 
     def onContinuousChanged(self, state):
         self.onContinuousToggled(state == QtCore.Qt.Checked)
@@ -449,7 +438,7 @@ class Controller(QtCore.QObject):
         if spec.get("type") == "iv":
             self.view.raiseIVTab()
             self.view.continuousAction.setEnabled(True)
-            self.view.generalWidget.continuousGroupBox.setEnabled(True)
+            self.view.generalWidget.continuousGroupBox.setEnabled(self.view.isContinuous())
         elif spec.get("type") == "cv":
             self.view.raiseCVTab()
             self.view.continuousAction.setEnabled(False)
@@ -552,7 +541,7 @@ class Controller(QtCore.QObject):
         validTypes = ["iv"]
         currentMeasurement = self.view.generalWidget.currentMeasurement()
         enabled = False
-        if currentMeasurement is not None:
+        if currentMeasurement:
             measurementType = currentMeasurement.get("type")
             enabled = measurementType in validTypes
         self.view.continuousCheckBox.setEnabled(enabled)
@@ -569,6 +558,14 @@ class Controller(QtCore.QObject):
         filename = safe_filename(f"{sample}-{timestamp}.txt")
         return os.path.join(path, filename)
 
+    def connectIVPlots(self, measurement) -> None:
+        measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
+        measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
+        measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+
+    def connectCVPlots(self, measurement) -> None:
+        measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
+
     def createMeasurement(self):
         measurements = {
             "iv": IVMeasurement,
@@ -580,30 +577,56 @@ class Controller(QtCore.QObject):
         measurement.update.connect(lambda data: self.update.emit(data))
 
         if isinstance(measurement, IVMeasurement):
-            measurement.ivReading.connect(lambda reading: self.plotsController.ivReading.emit(reading))
-            measurement.itReading.connect(lambda reading: self.plotsController.itReading.emit(reading))
-            measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+            self.connectIVPlots(measurement)
         elif isinstance(measurement, CVMeasurement):
-            measurement.cvReading.connect(lambda reading: self.plotsController.cvReading.emit(reading))
+            self.connectCVPlots(measurement)
+
+        # Prepare role drivers
+        for role in self.view.roles():
+            measurement.prepareDriver(role.name().lower())
 
         return measurement
 
-    def runMeasurement(self, measurement):
+    def startMeasurement(self) -> None:
+        state = self.prepareState()
+
+        if not state.get("source"):
+            raise RuntimeError("No source instrument selected.")
+
+        # Update state
+        self.state.update(state)
+        self.state.update({"stop_requested": False})
+
+        # Filename
+        outputEnabled = self.view.generalWidget.isOutputEnabled()
+        filename = self.createFilename() if outputEnabled else None
+        self.state.update({"filename": filename})
+
+        # Create and run measurement
+        measurement = self.createMeasurement()
+        self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement])
+        self.measurementThread.start()
+
+    def _runMeasurement(self, measurement) -> None:
         try:
-            for role in self.view.roles():
-                measurement.prepareDriver(role.name().lower())
-
-            outputEnabled = self.view.generalWidget.isOutputEnabled()
-
-            filename = self.createFilename()
-            path = os.path.dirname(filename)
-            if outputEnabled:
-                if not os.path.exists(path):
-                    os.makedirs(path)
+            filename = measurement.state.get("filename")
             with contextlib.ExitStack() as stack:
-                if outputEnabled:
+                if filename:
+                    def createOutputDir(filename):
+                        path = os.path.dirname(filename)
+                        if not os.path.exists(path):
+                            os.makedirs(path)
+                    measurement.startedHandlers.append(lambda: createOutputDir(filename))
                     fp = stack.enter_context(open(filename, 'w', newline=''))
-                    writer = Writer(measurement, fp)
+                    writer = Writer(fp)
+                    # Note: using signals executes slots in main thread, shoyld be this thread
+                    measurement.startedHandlers.append(lambda: writer.write_meta(measurement.state))
+                    if isinstance(measurement, IVMeasurement):
+                        measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
+                        measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                    if isinstance(measurement, CVMeasurement):
+                        measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
+                    measurement.finishedHandlers.append(lambda: writer.flush())
                 measurement.run()
         except Exception as exc:
             logger.exception(exc)
@@ -612,45 +635,40 @@ class Controller(QtCore.QObject):
             self.finished.emit()
 
 
-class PlotsController(QtCore.QObject):
+class IVPlotsController(QtCore.QObject):
 
     ivReading = QtCore.pyqtSignal(dict)
     itReading = QtCore.pyqtSignal(dict)
-    cvReading = QtCore.pyqtSignal(dict)
 
-    def __init__(self, view, parent=None):
+    def __init__(self, view, parent=None) -> None:
         super().__init__(parent)
         self.view = view
-
         self.ivReading.connect(self.onIVReading)
         self.itReading.connect(self.onItReading)
-        self.cvReading.connect(self.onCVReading)
 
-    def onIVReading(self, reading):
-        voltage = reading.get('voltage')
-        i_smu = reading.get('i_smu')
-        i_elm = reading.get('i_elm')
-        if not isFinite(voltage):
-            return
-        if isFinite(i_smu):
+    def onIVReading(self, reading: dict) -> None:
+        voltage: float = reading.get('voltage', math.nan)
+        i_smu: float = reading.get('i_smu', math.nan)
+        i_elm: float = reading.get('i_elm', math.nan)
+        if math.isfinite(voltage) and math.isfinite(i_smu):
             self.view.ivPlotWidget.append('smu', voltage, i_smu)
-        if isFinite(i_elm):
+        if math.isfinite(voltage) and math.isfinite(i_elm):
             self.view.ivPlotWidget.append('elm', voltage, i_elm)
 
-    def onLoadIVReadings(self, readings):
+    def onLoadIVReadings(self, readings: List[dict]) -> None:
         smuPoints = []
         elmPoints = []
         widget = self.view.ivPlotWidget
         widget.clear()
         for reading in readings:
-            voltage = reading.get('voltage')
-            i_smu = reading.get('i_smu')
-            i_elm = reading.get('i_elm')
-            if isFinite(i_smu):
+            voltage: float = reading.get('voltage', math.nan)
+            i_smu: float = reading.get('i_smu', math.nan)
+            i_elm: float = reading.get('i_elm', math.nan)
+            if math.isfinite(voltage) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(voltage, i_smu))
                 widget.iLimits.append(i_smu)
                 widget.vLimits.append(voltage)
-            if isFinite(i_elm):
+            if math.isfinite(voltage) and math.isfinite(i_elm):
                 elmPoints.append(QtCore.QPointF(voltage, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.vLimits.append(voltage)
@@ -658,31 +676,31 @@ class PlotsController(QtCore.QObject):
         widget.series.get('elm').replace(elmPoints)
         widget.fit()
 
-    def onItReading(self, reading, fit=True):
-        timestamp = reading.get('timestamp')
-        i_smu = reading.get('i_smu')
-        i_elm = reading.get('i_elm')
-        if isFinite(i_smu):
+    def onItReading(self, reading: dict, fit: bool = True) -> None:
+        timestamp: float = reading.get('timestamp', math.nan)
+        i_smu: float = reading.get('i_smu', math.nan)
+        i_elm: float = reading.get('i_elm', math.nan)
+        if math.isfinite(timestamp) and math.isfinite(i_smu):
             self.view.itPlotWidget.append('smu', timestamp, i_smu)
-        if isFinite(i_elm):
+        if math.isfinite(timestamp) and math.isfinite(i_elm):
             self.view.itPlotWidget.append('elm', timestamp, i_elm)
         if fit:
             self.view.itPlotWidget.fit()
 
-    def onLoadItReadings(self, readings):
-        smuPoints = []
-        elmPoints = []
+    def onLoadItReadings(self, readings: List[dict]) -> None:
+        smuPoints: List[QtCore.QPointF] = []
+        elmPoints: List[QtCore.QPointF] = []
         widget = self.view.itPlotWidget
         widget.clear()
         for reading in readings:
-            timestamp = reading.get('timestamp')
-            i_smu = reading.get('i_smu')
-            i_elm = reading.get('i_elm')
-            if isFinite(i_smu):
+            timestamp: float = reading.get('timestamp', math.nan)
+            i_smu: float = reading.get('i_smu', math.nan)
+            i_elm: float = reading.get('i_elm', math.nan)
+            if math.isfinite(timestamp) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(timestamp * 1e3, i_smu))
                 widget.iLimits.append(i_smu)
                 widget.tLimits.append(timestamp)
-            if isFinite(i_elm):
+            if math.isfinite(timestamp) and math.isfinite(i_elm):
                 elmPoints.append(QtCore.QPointF(timestamp * 1e3, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.tLimits.append(timestamp)
@@ -690,40 +708,49 @@ class PlotsController(QtCore.QObject):
         widget.series.get('elm').replace(elmPoints)
         widget.fit()
 
-    def onCVReading(self, reading):
-        voltage = reading.get('voltage')
-        c_lcr = reading.get('c_lcr')
-        if not isFinite(voltage):
-            return
-        if isFinite(c_lcr):
-            self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
-            self.view.cv2PlotWidget.append('lcr', voltage, 1 / c_lcr ** 2)
 
-    def onLoadCVReadings(self, readings):
-        lcrPoints = []
+class CVPlotsController(QtCore.QObject):
+
+    cvReading = QtCore.pyqtSignal(dict)
+
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(parent)
+        self.view = view
+        self.cvReading.connect(self.onCVReading)
+
+    def onCVReading(self, reading: dict) -> None:
+        voltage: float = reading.get('voltage', math.nan)
+        c_lcr: float = reading.get('c_lcr', math.nan)
+        c2_lcr: float = reading.get('c2_lcr', math.nan)
+        if math.isfinite(voltage) and math.isfinite(c_lcr):
+            self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
+        if math.isfinite(voltage) and math.isfinite(c2_lcr):
+            self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
+
+    def onLoadCVReadings(self, readings: List[dict]) -> None:
+        lcrPoints: List[QtCore.QPointF] = []
         widget = self.view.cvPlotWidget
         widget.clear()
         for reading in readings:
-            voltage = reading.get('voltage')
-            c_lcr = reading.get('c_lcr')
-            if isFinite(c_lcr):
+            voltage: float = reading.get('voltage', math.nan)
+            c_lcr: float = reading.get('c_lcr', math.nan)
+            if math.isfinite(voltage) and math.isfinite(c_lcr):
                 lcrPoints.append(QtCore.QPointF(voltage, c_lcr))
                 widget.cLimits.append(c_lcr)
                 widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcrPoints)
         widget.fit()
 
-    def onLoadCV2Readings(self, readings):
-        lcr2Points = []
+    def onLoadCV2Readings(self, readings: List[dict]) -> None:
+        lcr2Points: List[QtCore.QPointF] = []
         widget = self.view.cv2PlotWidget
         widget.clear()
         for reading in readings:
-            voltage = reading.get('voltage')
-            c_lcr = reading.get('c_lcr')
-            if isFinite(c_lcr):
-                c_lcr2 = 1 / c_lcr ** 2
-                lcr2Points.append(QtCore.QPointF(voltage, c_lcr2))
-                widget.cLimits.append(c_lcr2)
+            voltage: float = reading.get('voltage', math.nan)
+            c2_lcr: float = reading.get('c2_lcr', math.nan)
+            if math.isfinite(voltage) and math.isfinite(c2_lcr):
+                lcr2Points.append(QtCore.QPointF(voltage, c2_lcr))
+                widget.cLimits.append(c2_lcr)
                 widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcr2Points)
         widget.fit()

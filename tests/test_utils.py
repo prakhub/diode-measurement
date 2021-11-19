@@ -37,3 +37,10 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(utils.limits([[4, 5], [4, 3], [-1, 2]]), (-1, 4, 2, 5))
         self.assertEqual(utils.limits([[-1, 2], [4, 5], [4, 3]]), (-1, 4, 2, 5))
         self.assertEqual(utils.limits([[1, -2], [4, -5], [4, -3]]), (1, 4, -5, -2))
+
+    def test_inverse_square(self):
+        with self.assertRaises(ZeroDivisionError):
+            utils.inverse_square(0)
+        self.assertEqual(utils.inverse_square(1), 1)
+        self.assertEqual(utils.inverse_square(2), .25)
+        self.assertEqual(utils.inverse_square(8), .015625)
