@@ -64,6 +64,15 @@ class AbstractController(QtCore.QObject):
     def __init__(self, view, parent=None) -> None:
         super().__init__(parent)
         self.view = view
+        self._plugins = []
+
+    def installPlugin(self, plugin) -> None:
+        self._plugins.append(plugin)
+        plugin.install(self)
+
+    def shutdown(self):
+        for plugin in self._plugins:
+            plugin.shutdown(self)
 
 
 class Controller(AbstractController):
@@ -80,6 +89,7 @@ class Controller(AbstractController):
         self.measurementThread: threading.Thread = None
 
         self.state = {}
+        self.cache = {}
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
@@ -173,6 +183,18 @@ class Controller(AbstractController):
         self.stateMachine.addState(self.stoppingState)
         self.stateMachine.setInitialState(self.idleState)
         self.stateMachine.start()
+
+    def snapshot(self):
+        """Return application state snapshot."""
+        snapshot = {}
+        snapshot['measurement_type'] = self.cache.get('measurement_type')
+        snapshot['sample'] = self.cache.get('sample')
+        snapshot['source_voltage'] = self.cache.get('source_voltage')
+        snapshot['smu_current'] = self.cache.get('smu_current')
+        snapshot['elm_current'] = self.cache.get('elm_current')
+        snapshot['lcr_capacity'] = self.cache.get('lcr_capacity')
+        snapshot['temperature'] = self.cache.get('dmm_temperature')
+        return snapshot
 
     def prepareState(self):
         state = {}
@@ -453,11 +475,13 @@ class Controller(AbstractController):
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
         self.updateContinuousOption()
+        self.cache.clear()
 
     def onFailed(self, exc):
         showException(exc, self.view)
 
     def onUpdate(self, data):
+        self.cache.update(data)
         if 'source_voltage' in data:
             self.view.updateSourceVoltage(data.get('source_voltage'))
         if 'smu_current' in data:
@@ -632,6 +656,11 @@ class Controller(AbstractController):
         # Update state
         self.state.update(state)
         self.state.update({"stop_requested": False})
+
+        self.cache.update({
+            'measurement_type': state.get('measurement_type'),
+            'sample': state.get('sample')
+        })
 
         # Filename
         outputEnabled = self.view.generalWidget.isOutputEnabled()
@@ -817,18 +846,19 @@ class ChangeVoltageController(AbstractController):
             )
 
     def onRequestChangeVoltage(self, endVoltage: float, stepVoltage: float, waitingTime: float) -> None:
-        logging.info(
-            "updated change_voltage_continuous: end_voltage=%s, step_voltage=%s, waiting_time=%s",
-            format_metric(endVoltage, 'V'),
-            format_metric(stepVoltage, 'V'),
-            format_metric(waitingTime, 's')
-        )
-        self.state.update({"change_voltage_continuous": {
-            "end_voltage": endVoltage,
-            "step_voltage": stepVoltage,
-            "waiting_time": waitingTime
-        }})
-        self.view.setChangeVoltageEnabled(False)
+        if self.view.isChangeVoltageEnabled():
+            logging.info(
+                "updated change_voltage_continuous: end_voltage=%s, step_voltage=%s, waiting_time=%s",
+                format_metric(endVoltage, 'V'),
+                format_metric(stepVoltage, 'V'),
+                format_metric(waitingTime, 's')
+            )
+            self.state.update({"change_voltage_continuous": {
+                "end_voltage": endVoltage,
+                "step_voltage": stepVoltage,
+                "waiting_time": waitingTime
+            }})
+            self.view.setChangeVoltageEnabled(False)
 
     def onChangeVoltageReady(self) -> None:
         self.view.setChangeVoltageEnabled(True)

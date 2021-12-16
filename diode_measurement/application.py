@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets
 from . import __version__
 from .controller import Controller
 from .ui.mainwindow import MainWindow
+from .tcpserver import TCPServerPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,9 @@ class Application(QtWidgets.QApplication):
         logger.info("Diode Measurement, version %s", __version__)
 
         controller = Controller(window)
+        controller.installPlugin(TCPServerPlugin())
         controller.loadSettings()
+
         self.aboutToQuit.connect(lambda: controller.storeSettings())
         window.show()
 
@@ -39,4 +42,6 @@ class Application(QtWidgets.QApplication):
         timer.timeout.connect(lambda: None)
         timer.start(250)
 
-        return self.exec()
+        self.exec()
+
+        controller.shutdown()
