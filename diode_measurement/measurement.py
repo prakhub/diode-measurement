@@ -12,6 +12,7 @@ from .driver.k595 import K595
 from .driver.k2410 import K2410
 from .driver.k2470 import K2470
 from .driver.k2657a import K2657A
+from .driver.k2700 import K2700
 from .driver.k6514 import K6514
 from .driver.k6517b import K6517B
 from .driver.e4980a import E4980A
@@ -28,6 +29,7 @@ DRIVERS = {
     'K2410': K2410,
     'K2470': K2470,
     'K2657A': K2657A,
+    'K2700': K2700,
     'K6514': K6514,
     'K6517B': K6517B,
     'E4980A': E4980A
@@ -302,7 +304,8 @@ class RangeMeasurement(Measurement):
                 'source_voltage': None,
                 'smu_current': None,
                 'elm_current': None,
-                'lcr_capacity': None
+                'lcr_capacity': None,
+                'dmm_temperature': None
             })
 
     def acquireReading(self):
@@ -339,7 +342,8 @@ class RangeMeasurement(Measurement):
         self.update.emit({
             'smu_current': None,
             'elm_current': None,
-            'lcr_capacity': None
+            'lcr_capacity': None,
+            'dmm_temperature': None
         })
         ramp = LinearRange(source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
@@ -410,6 +414,7 @@ class IVMeasurement(RangeMeasurement):
     def acquireReadingData(self):
         smu = self.contexts.get('smu')
         elm = self.contexts.get('elm')
+        dmm = self.contexts.get('dmm')
         voltage = self.get_source_voltage()
         if smu:
             i_smu = smu.read_current()
@@ -419,11 +424,16 @@ class IVMeasurement(RangeMeasurement):
             i_elm = elm.read_current()
         else:
             i_elm = float('NaN')
+        if dmm:
+            t_dmm = dmm.read_temperature()
+        else:
+            t_dmm = float('NaN')
         return {
             'timestamp': time.time(),
             'voltage': voltage,
             'i_smu': i_smu,
-            'i_elm': i_elm
+            'i_elm': i_elm,
+            't_dmm': t_dmm
         }
 
     def acquireReading(self):
@@ -432,7 +442,8 @@ class IVMeasurement(RangeMeasurement):
         self.ivReading.emit(reading)
         self.update.emit({
             'smu_current': reading.get('i_smu'),
-            'elm_current': reading.get('i_elm')
+            'elm_current': reading.get('i_elm'),
+            'dmm_temperature': reading.get('t_dmm')
         })
         for handler in self.ivReadingHandlers:
             handler(reading)
@@ -446,7 +457,8 @@ class IVMeasurement(RangeMeasurement):
             self.itReading.emit(reading)
             self.update.emit({
                 'smu_current': reading.get('i_smu'),
-                'elm_current': reading.get('i_elm')
+                'elm_current': reading.get('i_elm'),
+                'dmm_temperature': reading.get('t_dmm')
             })
             for handler in self.itReadingHandlers:
                 handler(reading)
@@ -479,6 +491,7 @@ class CVMeasurement(RangeMeasurement):
     def acquireReadingData(self):
         smu = self.contexts.get('smu')
         lcr = self.contexts.get('lcr')
+        dmm = self.contexts.get('dmm')
         voltage = self.get_source_voltage()
         if lcr:
             c_lcr = lcr.read_capacity()
@@ -488,11 +501,16 @@ class CVMeasurement(RangeMeasurement):
             i_smu = smu.read_current()
         else:
             i_smu = float('NaN')
+        if dmm:
+            t_dmm = dmm.read_temperature()
+        else:
+            t_dmm = float('NaN')
         return {
             'timestamp': time.time(),
             'voltage': voltage,
             'i_smu': i_smu,
-            'c_lcr': c_lcr
+            'c_lcr': c_lcr,
+            't_dmm': t_dmm
         }
 
     def acquireReading(self):
@@ -502,7 +520,8 @@ class CVMeasurement(RangeMeasurement):
         self.update.emit({
             'smu_current': reading.get('i_smu'),
             'elm_current': reading.get('i_elm'),
-            'lcr_capacity': reading.get('c_lcr')
+            'lcr_capacity': reading.get('c_lcr'),
+            'dmm_temperature': reading.get('t_dmm')
         })
         for handler in self.cvReadingHandlers:
             handler(reading)

@@ -51,13 +51,15 @@ class Writer:
                 "timestamp[s]",
                 "voltage[V]",
                 "i_smu[A]",
-                "i_elm[A]"
+                "i_elm[A]",
+                "temperature[degC]"
             ])
         self.write_table_row([
             safe_format(data.get('timestamp'), '.2f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('i_elm'), '+.3E'),
+            safe_format(data.get('t_dmm'), '+.3E')
         ])
         self.flush()
 
@@ -68,13 +70,15 @@ class Writer:
                 "timestamp[s]",
                 "voltage[V]",
                 "i_smu[A]",
-                "i_elm[A]"
+                "i_elm[A]",
+                "temperature[degC]"
             ])
         self.write_table_row([
             safe_format(data.get('timestamp'), '.2f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('i_elm'), '+.3E'),
+            safe_format(data.get('t_dmm'), '+.3E')
         ])
         self.flush()
 
@@ -86,7 +90,8 @@ class Writer:
                 "voltage[V]",
                 "i_smu[A]",
                 "c_lcr[F]",
-                "c2_lcr[1/F^2]"
+                "c2_lcr[1/F^2]",
+                "temperature[degC]"
             ])
         self.write_table_row([
             safe_format(data.get('timestamp'), '.2f'),
@@ -94,5 +99,6 @@ class Writer:
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('c_lcr'), '+.3E'),
             safe_format(data.get('c2_lcr'), '+.3E'),
+            safe_format(data.get('t_dmm'), '+.3E')
         ])
         self.flush()

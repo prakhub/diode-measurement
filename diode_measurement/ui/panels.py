@@ -6,6 +6,7 @@ __all__ = [
     'K2410Panel',
     'K2470Panel',
     'K2657APanel',
+    'K2700Panel',
     'K6514Panel',
     'K6517BPanel',
     'E4285Panel',
@@ -279,6 +280,12 @@ class K2657APanel(InstrumentPanel):
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
+
+
+class K2700Panel(InstrumentPanel):
+
+    def __init__(self, parent=None):
+        super().__init__("K2700", parent)
 
 
 class K6514Panel(InstrumentPanel):

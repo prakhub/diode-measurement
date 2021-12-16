@@ -141,6 +141,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrGroupBox = QtWidgets.QGroupBox()
         self.lcrGroupBox.setTitle("LCR Status")
 
+        self.dmmGroupBox = QtWidgets.QGroupBox()
+        self.dmmGroupBox.setTitle("DMM Status")
+
         self.smuVoltageLineEdit = QtWidgets.QLineEdit("---")
         self.smuVoltageLineEdit.setReadOnly(True)
         self.smuVoltageLineEdit.setAlignment(QtCore.Qt.AlignRight)
@@ -176,6 +179,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrOutputStateLineEdit = QtWidgets.QLineEdit("---")
         self.lcrOutputStateLineEdit.setReadOnly(True)
         self.lcrOutputStateLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.dmmTemperatureLineEdit = QtWidgets.QLineEdit("---")
+        self.dmmTemperatureLineEdit.setReadOnly(True)
+        self.dmmTemperatureLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
         self.centralWidget = QtWidgets.QWidget()
         self.setCentralWidget(self.centralWidget)
@@ -258,6 +265,15 @@ class MainWindow(QtWidgets.QMainWindow):
         lcrGroupBox.setStretch(1, 3)
         lcrGroupBox.setStretch(2, 1)
 
+        dmmGroupBox = QtWidgets.QHBoxLayout(self.dmmGroupBox)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Temperature"))
+        vboxLayout.addWidget(self.dmmTemperatureLineEdit)
+        dmmGroupBox.addLayout(vboxLayout)
+        dmmGroupBox.addStretch()
+        dmmGroupBox.setStretch(0, 2)
+        dmmGroupBox.setStretch(1, 3)
+
         bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addLayout(controlLayout)
         bottomLayout.addWidget(self.controlTabWidget)
@@ -265,6 +281,7 @@ class MainWindow(QtWidgets.QMainWindow):
         vboxLayout.addWidget(self.smuGroupBox)
         vboxLayout.addWidget(self.elmGroupBox)
         vboxLayout.addWidget(self.lcrGroupBox)
+        vboxLayout.addWidget(self.dmmGroupBox)
         vboxLayout.addStretch()
         bottomLayout.addLayout(vboxLayout)
         bottomLayout.setStretch(0, 0)
@@ -315,6 +332,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrVoltageLineEdit.setText("---")
         self.lcrCurrentLineEdit.setText("---")
         self.lcrOutputStateLineEdit.setText("---")
+        self.dmmTemperatureLineEdit.setText("---")
 
     def lock(self):
         self.setProperty("locked", True)
@@ -407,6 +425,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateLCRCapacity(self, capacity):
         self.lcrCurrentLineEdit.setText(format_metric(capacity, "F"))
+
+    def updateDMMTemperature(self, temperature):
+        self.dmmTemperatureLineEdit.setText(format_metric(temperature, "°C"))
 
     def showLogWindow(self):
         self.logWindow.show()

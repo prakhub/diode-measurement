@@ -28,6 +28,9 @@ from .ui.panels import K595Panel
 from .ui.panels import E4285Panel
 from .ui.panels import E4980APanel
 
+# DMM
+from .ui.panels import K2700Panel
+
 from .ui.widgets import showException
 from .ui.dialogs import ChangeVoltageDialog
 
@@ -91,7 +94,8 @@ class Controller(QtCore.QObject):
         role.addInstrument(E4980APanel())
 
         # Temperatur
-        # role = self.view.addRole("Temperature")
+        role = self.view.addRole("DMM")
+        role.addInstrument(K2700Panel())
 
         self.state = {}
 
@@ -124,9 +128,13 @@ class Controller(QtCore.QObject):
         self.update.connect(self.onUpdate)
         self.itChangeVoltageReady.connect(self.onChangeVoltageReady)
 
+        self.onToggleLcr(False)
+        self.onToggleDmm(False)
+
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
         self.view.generalWidget.elmCheckBox.toggled.connect(self.onToggleElm)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
+        self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
@@ -175,6 +183,7 @@ class Controller(QtCore.QObject):
         state.get("smu").update({"enabled": self.view.generalWidget.isSMUEnabled()})
         state.get("elm").update({"enabled": self.view.generalWidget.isELMEnabled()})
         state.get("lcr").update({"enabled": self.view.generalWidget.isLCREnabled()})
+        state.get("dmm").update({"enabled": self.view.generalWidget.isDMMEnabled()})
 
         for key, value in state.items():
             logger.info('> %s: %s', key, value)
@@ -210,6 +219,9 @@ class Controller(QtCore.QObject):
 
         enabled = settings.value("lcr/enabled", False, bool)
         self.view.generalWidget.setLCREnabled(enabled)
+
+        enabled = settings.value("dmm/enabled", False, bool)
+        self.view.generalWidget.setDMMEnabled(enabled)
 
         enabled = settings.value("outputEnabled", False, bool)
         self.view.generalWidget.setOutputEnabled(enabled)
@@ -286,6 +298,9 @@ class Controller(QtCore.QObject):
 
         enabled = self.view.generalWidget.isLCREnabled()
         settings.setValue("lcr/enabled", enabled)
+
+        enabled = self.view.generalWidget.isDMMEnabled()
+        settings.setValue("dmm/enabled", enabled)
 
         enabled = self.view.generalWidget.isOutputEnabled()
         settings.setValue("outputEnabled", enabled)
@@ -417,6 +432,8 @@ class Controller(QtCore.QObject):
             self.view.updateELMCurrent(data.get('elm_current'))
         if 'lcr_capacity' in data:
             self.view.updateLCRCapacity(data.get('lcr_capacity'))
+        if 'dmm_temperature' in data:
+            self.view.updateDMMTemperature(data.get('dmm_temperature'))
         if 'source_output_state' in data:
             self.view.updateSourceOutputState(data.get('source_output_state'))
         if 'message' in data:
@@ -494,14 +511,21 @@ class Controller(QtCore.QObject):
         self.view.ivPlotWidget.smuSeries.setVisible(state)
         self.view.itPlotWidget.smuSeries.setVisible(state)
         self.view.smuGroupBox.setEnabled(state)
+        self.view.smuGroupBox.setVisible(state)
 
     def onToggleElm(self, state):
         self.view.ivPlotWidget.elmSeries.setVisible(state)
         self.view.itPlotWidget.elmSeries.setVisible(state)
         self.view.elmGroupBox.setEnabled(state)
+        self.view.elmGroupBox.setVisible(state)
 
     def onToggleLcr(self, state):
         self.view.lcrGroupBox.setEnabled(state)
+        self.view.lcrGroupBox.setVisible(state)
+
+    def onToggleDmm(self, state):
+        self.view.dmmGroupBox.setEnabled(state)
+        self.view.dmmGroupBox.setVisible(state)
 
     def onOutputEditingFinished(self):
         if not self.view.generalWidget.outputLineEdit.text().strip():
