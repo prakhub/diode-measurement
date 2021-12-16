@@ -9,10 +9,12 @@ class K2700(DMM):
         return self._query('*IDN?')
 
     def reset(self) -> None:
-        self._write('*RST')
+        pass  # prevent reset
+        # self._write('*RST')
 
     def clear(self) -> None:
-        self._write('*CLS')
+        pass  # prevent clear
+        # self._write('*CLS')
 
     def error_state(self) -> tuple:
         code, message = self._query(':SYST:ERR?').split(',')
