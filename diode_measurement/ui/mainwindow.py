@@ -20,6 +20,8 @@ from ..utils import format_switch
 
 class MainWindow(QtWidgets.QMainWindow):
 
+    prepareChangeVoltage = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setProperty("locked", False)
@@ -56,6 +58,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.changeVoltageAction = QtWidgets.QAction("&Change Voltage...")
         self.changeVoltageAction.setStatusTip("Change voltage in continuous measurement")
         self.changeVoltageAction.setEnabled(False)
+        self.changeVoltageAction.triggered.connect(self.prepareChangeVoltage.emit)
 
         self.contentsAction = QtWidgets.QAction("&Contents")
         self.contentsAction.setStatusTip("Open the user manual")
@@ -132,6 +135,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resetCheckBox.setStatusTip("Reset instruments on start")
 
         self.generalWidget = GeneralWidget()
+        self.generalWidget.changeVoltageButton.clicked.connect(self.changeVoltageAction.trigger)
 
         self.roleWidgets = {}
 
@@ -395,6 +399,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def setContinuous(self, enabled):
         self.continuousAction.setChecked(enabled)
         self.continuousCheckBox.setChecked(enabled)
+
+    def isChangeVoltageEnabled(self) -> bool:
+        return self.changeVoltageAction.isEnabled()
+
+    def setChangeVoltageEnabled(self, state: bool) -> None:
+        self.changeVoltageAction.setEnabled(state)
+        self.generalWidget.changeVoltageButton.setEnabled(state)
 
     def isReset(self):
         return self.resetCheckBox.isChecked()

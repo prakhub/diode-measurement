@@ -59,7 +59,14 @@ def handle_exception(method):
     return handle_exception
 
 
-class Controller(QtCore.QObject):
+class AbstractController(QtCore.QObject):
+
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(parent)
+        self.view = view
+
+
+class Controller(AbstractController):
 
     started = QtCore.pyqtSignal()
     stopped = QtCore.pyqtSignal()
@@ -67,13 +74,13 @@ class Controller(QtCore.QObject):
     finished = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
 
-    def __init__(self, view):
-        super().__init__()
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(view, parent)
+
         self.measurementThread: threading.Thread = None
 
         self.state = {}
 
-        self.view = view
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
 
@@ -664,14 +671,13 @@ class Controller(QtCore.QObject):
             self.finished.emit()
 
 
-class IVPlotsController(QtCore.QObject):
+class IVPlotsController(AbstractController):
 
     ivReading = QtCore.pyqtSignal(dict)
     itReading = QtCore.pyqtSignal(dict)
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
+        super().__init__(view, parent)
         self.ivReading.connect(self.onIVReading)
         self.itReading.connect(self.onItReading)
 
@@ -738,13 +744,12 @@ class IVPlotsController(QtCore.QObject):
         widget.fit()
 
 
-class CVPlotsController(QtCore.QObject):
+class CVPlotsController(AbstractController):
 
     cvReading = QtCore.pyqtSignal(dict)
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
+        super().__init__(view, parent)
         self.cvReading.connect(self.onCVReading)
 
     def onCVReading(self, reading: dict) -> None:
@@ -784,14 +789,14 @@ class CVPlotsController(QtCore.QObject):
         widget.series.get('lcr').replace(lcr2Points)
         widget.fit()
 
-class ChangeVoltageController(QtCore.QObject):
+
+class ChangeVoltageController(AbstractController):
 
     def __init__(self, view, state, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
+        super().__init__(view, parent)
         self.state = state
-        self.view.changeVoltageAction.triggered.connect(self.onPrepareChangeVoltage)
-        self.view.generalWidget.changeVoltageButton.clicked.connect(self.view.changeVoltageAction.trigger)
+        # Connect signals
+        self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)
 
     def sourceVoltage(self):
         if self.state.get('source_voltage') is not None:
@@ -823,9 +828,7 @@ class ChangeVoltageController(QtCore.QObject):
             "step_voltage": stepVoltage,
             "waiting_time": waitingTime
         }})
-        self.view.changeVoltageAction.setEnabled(False)
-        self.view.generalWidget.changeVoltageButton.setEnabled(False)
+        self.view.setChangeVoltageEnabled(False)
 
     def onChangeVoltageReady(self) -> None:
-        self.view.changeVoltageAction.setEnabled(True)
-        self.view.generalWidget.changeVoltageButton.setEnabled(True)
+        self.view.setChangeVoltageEnabled(True)
