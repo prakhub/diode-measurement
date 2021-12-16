@@ -53,6 +53,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.continuousAction.setCheckable(True)
         self.continuousAction.setStatusTip("Enable continuous measurement")
 
+        self.changeVoltageAction = QtWidgets.QAction("&Change Voltage...")
+        self.changeVoltageAction.setStatusTip("Change voltage in continuous measurement")
+        self.changeVoltageAction.setEnabled(False)
+
         self.contentsAction = QtWidgets.QAction("&Contents")
         self.contentsAction.setStatusTip("Open the user manual")
         self.contentsAction.setShortcut(QtGui.QKeySequence('F1'))
@@ -80,6 +84,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.measureMenu.addAction(self.stopAction)
         self.measureMenu.addSeparator()
         self.measureMenu.addAction(self.continuousAction)
+        self.measureMenu.addSeparator()
+        self.measureMenu.addAction(self.changeVoltageAction)
 
         self.helpMenu = self.menuBar().addMenu("&Help")
         self.helpMenu.addAction(self.contentsAction)

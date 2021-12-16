@@ -61,18 +61,26 @@ def handle_exception(method):
 
 class Controller(QtCore.QObject):
 
+    started = QtCore.pyqtSignal()
+    stopped = QtCore.pyqtSignal()
     failed = QtCore.pyqtSignal(object)
     finished = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
-    itChangeVoltageReady = QtCore.pyqtSignal()
 
     def __init__(self, view):
         super().__init__()
         self.measurementThread: threading.Thread = None
 
+        self.state = {}
+
         self.view = view
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
+
+        # Controller
+        self.ivPlotsController = IVPlotsController(self.view, self)
+        self.cvPlotsController = CVPlotsController(self.view, self)
+        self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -97,15 +105,13 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("DMM")
         role.addInstrument(K2700Panel())
 
-        self.state = {}
-
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
-        self.view.startAction.triggered.connect(lambda: self.onStart())
-        self.view.startButton.clicked.connect(lambda: self.onStart())
+        self.view.startAction.triggered.connect(self.started.emit)
+        self.view.startButton.clicked.connect(self.view.startAction.trigger)
 
-        self.view.stopAction.triggered.connect(lambda: self.onStop())
-        self.view.stopButton.clicked.connect(lambda: self.onStop())
+        self.view.stopAction.triggered.connect(self.stopped.emit)
+        self.view.stopButton.clicked.connect(self.view.stopAction.trigger)
 
         self.view.continuousAction.toggled.connect(self.onContinuousToggled)
         self.view.continuousCheckBox.stateChanged.connect(self.onContinuousChanged)
@@ -118,15 +124,12 @@ class Controller(QtCore.QObject):
         self.view.generalWidget.currentComplianceChanged.connect(self.onCurrentComplianceChanged)
         self.view.generalWidget.continueInComplianceChanged.connect(self.onContinueInComplianceChanged)
         self.view.generalWidget.waitingTimeContinuousChanged.connect(self.onWaitingTimeContinuousChanged)
-        self.view.generalWidget.changeVoltageContinuousRequested.connect(self.onChangeVoltageRequested)
 
         self.view.unlock()
         self.onMeasurementChanged(0)
 
-        self.finished.connect(self.onFinished)
         self.failed.connect(self.onFailed)
         self.update.connect(self.onUpdate)
-        self.itChangeVoltageReady.connect(self.onChangeVoltageReady)
 
         self.onToggleLcr(False)
         self.onToggleDmm(False)
@@ -139,8 +142,30 @@ class Controller(QtCore.QObject):
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
 
-        self.ivPlotsController = IVPlotsController(self.view, self)
-        self.cvPlotsController = CVPlotsController(self.view, self)
+        # State machine
+
+        self.idleState = QtCore.QState()
+        self.idleState.entered.connect(self.onFinished)
+
+        self.runningState = QtCore.QState()
+        self.runningState.entered.connect(self.onStart)
+
+        self.stoppingState = QtCore.QState()
+        self.stoppingState.entered.connect(self.onStop)
+
+        self.idleState.addTransition(self.started, self.runningState)
+
+        self.runningState.addTransition(self.finished, self.idleState)
+        self.runningState.addTransition(self.stopped, self.stoppingState)
+
+        self.stoppingState.addTransition(self.finished, self.idleState)
+
+        self.stateMachine = QtCore.QStateMachine()
+        self.stateMachine.addState(self.idleState)
+        self.stateMachine.addState(self.runningState)
+        self.stateMachine.addState(self.stoppingState)
+        self.stateMachine.setInitialState(self.idleState)
+        self.stateMachine.start()
 
     def prepareState(self):
         state = {}
@@ -407,11 +432,13 @@ class Controller(QtCore.QObject):
         except Exception as exc:
             logger.exception(exc)
             self.onFailed(exc)
-            self.onFinished()
+            self.finished.emit()
 
     def onStop(self):
         self.state.update({"stop_requested": True})
         self.view.setMessage("Stop requested...")
+        self.view.stopAction.setEnabled(False)
+        self.view.stopButton.setEnabled(False)
 
     def onFinished(self):
         self.view.unlock()
@@ -543,23 +570,6 @@ class Controller(QtCore.QObject):
         logging.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
         self.state.update({"waiting_time_continuous": value})
 
-    def onChangeVoltageReady(self):
-        self.view.generalWidget.changeVoltageButton.setEnabled(True)
-
-    def onChangeVoltageRequested(self):
-        dialog = ChangeVoltageDialog(self.view)
-        dialog.setEndVoltage(self.sourceVoltage())
-        dialog.setStepVoltage(self.view.generalWidget.stepVoltage())
-        dialog.setWaitingTime(self.view.generalWidget.waitingTime())
-        dialog.exec()
-        if dialog.result() == dialog.Accepted:
-            logging.info("updated change_voltage_continuous: %s", format_metric(dialog.endVoltage(), 'V'))
-            self.state.update({"change_voltage_continuous": {
-                "end_voltage": dialog.endVoltage(),
-                "step_voltage": dialog.stepVoltage(),
-                "waiting_time": dialog.waitingTime()
-            }})
-
     def updateContinuousOption(self):
         # Tweak continous option
         validTypes = ["iv"]
@@ -569,11 +579,6 @@ class Controller(QtCore.QObject):
             measurementType = currentMeasurement.get("type")
             enabled = measurementType in validTypes
         self.view.continuousCheckBox.setEnabled(enabled)
-
-    def sourceVoltage(self):
-        if self.state.get('source_voltage') is not None:
-            return self.state.get('source_voltage')
-        return self.view.generalWidget.endVoltage()
 
     def createFilename(self):
         path = self.view.generalWidget.outputDir()
@@ -585,7 +590,7 @@ class Controller(QtCore.QObject):
     def connectIVPlots(self, measurement) -> None:
         measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
         measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
-        measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+        measurement.itChangeVoltageReady.connect(lambda: self.changeVoltageController.onChangeVoltageReady())
 
     def connectCVPlots(self, measurement) -> None:
         measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
@@ -778,3 +783,49 @@ class CVPlotsController(QtCore.QObject):
                 widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcr2Points)
         widget.fit()
+
+class ChangeVoltageController(QtCore.QObject):
+
+    def __init__(self, view, state, parent=None) -> None:
+        super().__init__(parent)
+        self.view = view
+        self.state = state
+        self.view.changeVoltageAction.triggered.connect(self.onPrepareChangeVoltage)
+        self.view.generalWidget.changeVoltageButton.clicked.connect(self.view.changeVoltageAction.trigger)
+
+    def sourceVoltage(self):
+        if self.state.get('source_voltage') is not None:
+            return self.state.get('source_voltage')
+        return self.view.generalWidget.endVoltage()
+
+    def onPrepareChangeVoltage(self) -> None:
+        dialog = ChangeVoltageDialog(self.view)
+        dialog.setEndVoltage(self.sourceVoltage())
+        dialog.setStepVoltage(self.view.generalWidget.stepVoltage())
+        dialog.setWaitingTime(self.view.generalWidget.waitingTime())
+        dialog.exec()
+        if dialog.result() == dialog.Accepted:
+            self.onRequestChangeVoltage(
+                dialog.endVoltage(),
+                dialog.stepVoltage(),
+                dialog.waitingTime()
+            )
+
+    def onRequestChangeVoltage(self, endVoltage: float, stepVoltage: float, waitingTime: float) -> None:
+        logging.info(
+            "updated change_voltage_continuous: end_voltage=%s, step_voltage=%s, waiting_time=%s",
+            format_metric(endVoltage, 'V'),
+            format_metric(stepVoltage, 'V'),
+            format_metric(waitingTime, 's')
+        )
+        self.state.update({"change_voltage_continuous": {
+            "end_voltage": endVoltage,
+            "step_voltage": stepVoltage,
+            "waiting_time": waitingTime
+        }})
+        self.view.changeVoltageAction.setEnabled(False)
+        self.view.generalWidget.changeVoltageButton.setEnabled(False)
+
+    def onChangeVoltageReady(self) -> None:
+        self.view.changeVoltageAction.setEnabled(True)
+        self.view.generalWidget.changeVoltageButton.setEnabled(True)

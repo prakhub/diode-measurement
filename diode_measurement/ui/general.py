@@ -11,7 +11,6 @@ class GeneralWidget(QtWidgets.QWidget):
     currentComplianceChanged = QtCore.pyqtSignal(float)
     continueInComplianceChanged = QtCore.pyqtSignal(bool)
     waitingTimeContinuousChanged = QtCore.pyqtSignal(float)
-    changeVoltageContinuousRequested = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -74,23 +73,20 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.outputToolButton = QtWidgets.QToolButton()
         self.outputToolButton.setText("...")
-        self.outputToolButton.setStatusTip("Select output directory.")
+        self.outputToolButton.setStatusTip("Select output directory")
         self.outputToolButton.clicked.connect(self.selectOutput)
 
         self.waitingTimeContinuousSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeContinuousSpinBox.setSuffix(" s")
-        self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement.")
+        self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement")
         self.waitingTimeContinuousSpinBox.editingFinished.connect(
             lambda: self.waitingTimeContinuousChanged.emit(self.waitingTimeContinuous())
         )
 
         self.changeVoltageButton = QtWidgets.QToolButton()
-        self.changeVoltageButton.setText("Change Voltage...")
+        self.changeVoltageButton.setText("&Change Voltage...")
+        self.changeVoltageButton.setStatusTip("Change voltage in continuous measurement")
         self.changeVoltageButton.setEnabled(False)
-        self.changeVoltageButton.clicked.connect(
-            lambda: (self.changeVoltageContinuousRequested.emit(),
-                     self.changeVoltageButton.setEnabled(False))
-        )
 
         self.measurementGroupBox = QtWidgets.QGroupBox()
         self.measurementGroupBox.setTitle("Measurement")

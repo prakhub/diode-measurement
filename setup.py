@@ -12,7 +12,8 @@ setup(
         'PyQtChart==5.15.*',
         'PyVISA==1.11.*',
         'PyVISA-py==0.5.*',
-        'pint==0.17.*'
+        'pint==0.17.*',
+        'json-rpc==1.13.*'
     ],
     package_data={},
     entry_points={
