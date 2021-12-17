@@ -166,7 +166,7 @@ class RangeMeasurement(Measurement):
         logger.info("Waiting for %.2f sec", waiting_time)
         time.sleep(waiting_time)
 
-    def apply_waiting_time_continuous(self):
+    def apply_waiting_time_continuous(self, estimate):
         waiting_time = self.state.get('waiting_time_continuous', 1.0)
         logger.info("Waiting for %.2f sec", waiting_time)
         interval = 1.0
@@ -182,7 +182,7 @@ class RangeMeasurement(Measurement):
                 if self.state.get('change_voltage_continuous'):
                     break
                 remaining = round(threshold - now)
-                self.update_message(f"Next reading in {remaining:d} sec...")
+                self.update_estimate_message_continuous(f"Next reading in {remaining:d} sec...", estimate)
                 time.sleep(interval)
                 now = time.time()
 
@@ -201,11 +201,18 @@ class RangeMeasurement(Measurement):
         """Emit update progress event."""
         self.update.emit({"progress": (begin, end, step)})
 
-    def update_estimate_message(self, voltage: float, estimate: Estimate) -> None:
+    def update_estimate_message(self, message: str, estimate: Estimate) -> None:
         """Emit update message event for ramp iterations."""
         elapsed_time = format(estimate.elapsed).split('.')[0]
         remaining_time = format(estimate.remaining).split('.')[0]
-        self.update_message(f"Ramp to {voltage} V | Elapsed {elapsed_time} | Remaining {remaining_time}")
+        average_time = format(estimate.average.total_seconds(), '.2f')
+        self.update_message(f"{message} | Elapsed {elapsed_time} | Remaining {remaining_time} | Average {average_time} s")
+
+    def update_estimate_message_continuous(self, message: str, estimate: Estimate) -> None:
+        """Emit update message event for continuous iterations."""
+        elapsed_time = format(estimate.elapsed).split('.')[0]
+        average_time = format(estimate.average.total_seconds(), '.2f')
+        self.update_message(f"{message} | Elapsed {elapsed_time} | Average {average_time} s")
 
     def update_estimate_progress(self, estimate: Estimate) -> None:
         """Emit update progress event for ramp iterations."""
@@ -269,7 +276,7 @@ class RangeMeasurement(Measurement):
         estimate = Estimate(len(ramp))
 
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
             if self.state.get('stop_requested'):
@@ -328,7 +335,7 @@ class RangeMeasurement(Measurement):
         estimate = Estimate(len(ramp))
 
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
             if self.state.get('stop_requested'):
@@ -348,7 +355,7 @@ class RangeMeasurement(Measurement):
         ramp = LinearRange(source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
             self.set_source_voltage(voltage)
@@ -366,7 +373,7 @@ class RangeMeasurement(Measurement):
             self.set_source_voltage_range(ramp.end)
 
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
             if self.state.get('stop_requested'):
@@ -449,8 +456,9 @@ class IVMeasurement(RangeMeasurement):
             handler(reading)
 
     def acquireContinuousReading(self):
+        estimate = Estimate(1)
         while not self.state.get('stop_requested'):
-            self.update_message("Reading...")
+            #self.update_message("Reading...")
             self.update_progress(0, 0, 0)
             reading = self.acquireReadingData()
             logging.info(reading)
@@ -468,7 +476,10 @@ class IVMeasurement(RangeMeasurement):
 
             self.apply_change_voltage()
 
-            self.apply_waiting_time_continuous()
+            self.apply_waiting_time_continuous(estimate)
+
+            self.update_estimate_message_continuous("Reading...", estimate)
+            estimate.advance()
 
 
 class CVMeasurement(RangeMeasurement):
