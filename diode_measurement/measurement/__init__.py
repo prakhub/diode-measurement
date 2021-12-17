@@ -5,35 +5,24 @@ import time
 
 from PyQt5 import QtCore
 
-from .resource import Resource
+from ..resource import Resource
 
-from .driver.k237 import K237
-from .driver.k595 import K595
-from .driver.k2410 import K2410
-from .driver.k2470 import K2470
-from .driver.k2657a import K2657A
-from .driver.k2700 import K2700
-from .driver.k6514 import K6514
-from .driver.k6517b import K6517B
-from .driver.e4980a import E4980A
+from ..driver.k237 import K237
+from ..driver.k595 import K595
+from ..driver.k2410 import K2410
+from ..driver.k2470 import K2470
+from ..driver.k2657a import K2657A
+from ..driver.k2700 import K2700
+from ..driver.k6514 import K6514
+from ..driver.k6517b import K6517B
+from ..driver.e4980a import E4980A
 
-from .functions import LinearRange
-from .estimate import Estimate
-from .utils import inverse_square
+from ..functions import LinearRange
+from ..estimate import Estimate
+
+__all__ = ['Measurement', 'RangeMeasurement']
 
 logger = logging.getLogger(__name__)
-
-DRIVERS = {
-    'K237': K237,
-    'K595': K595,
-    'K2410': K2410,
-    'K2470': K2470,
-    'K2657A': K2657A,
-    'K2700': K2700,
-    'K6514': K6514,
-    'K6517B': K6517B,
-    'E4980A': E4980A
-}
 
 
 class Measurement(QtCore.QObject):
@@ -47,13 +36,17 @@ class Measurement(QtCore.QObject):
         self.state = state
         self.contexts = {}
         self._registered = {}
+        self._drivers = {}
         self.startedHandlers = []
         self.finishedHandlers = []
 
-    def registerInstrument(self, name, cls, resource):
+    def registerInstrument(self, name: str, cls, resource) -> None:
         self._registered[name] = cls, resource
 
-    def prepareDriver(self, name):
+    def registerDriver(self, name: str, cls) -> None:
+        self._drivers[name] = cls,
+
+    def prepareDriver(self, name, cls):
         role = self.state.get(name, {})
         if not role.get("enabled"):
             return None
@@ -64,7 +57,6 @@ class Measurement(QtCore.QObject):
         visa_library = role.get('visa_library')
         termination = role.get('termination')
         timeout = role.get('timeout') * 1000  # in millisecs
-        cls = DRIVERS.get(model)
         if not cls:
             logger.warning("No such driver: %s", model)
             return None
@@ -400,139 +392,3 @@ class RangeMeasurement(Measurement):
         # If end voltage lower, set new range after ramp.
         if abs(ramp.end) < abs(ramp.begin):
             self.set_source_voltage_range(ramp.end)
-
-
-class IVMeasurement(RangeMeasurement):
-
-    ivReading = QtCore.pyqtSignal(dict)
-    itReading = QtCore.pyqtSignal(dict)
-    itChangeVoltageReady = QtCore.pyqtSignal()
-
-    def __init__(self, state):
-        super().__init__(state)
-        self.ivReadingHandlers = []
-        self.itReadingHandlers = []
-
-    def measure(self):
-        super().measure()
-        if self.state.get('continuous'):
-            self.acquireContinuousReading()
-
-    def acquireReadingData(self):
-        smu = self.contexts.get('smu')
-        elm = self.contexts.get('elm')
-        dmm = self.contexts.get('dmm')
-        voltage = self.get_source_voltage()
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float('NaN')
-        if elm:
-            i_elm = elm.read_current()
-        else:
-            i_elm = float('NaN')
-        if dmm:
-            t_dmm = dmm.read_temperature()
-        else:
-            t_dmm = float('NaN')
-        return {
-            'timestamp': time.time(),
-            'voltage': voltage,
-            'i_smu': i_smu,
-            'i_elm': i_elm,
-            't_dmm': t_dmm
-        }
-
-    def acquireReading(self):
-        reading = self.acquireReadingData()
-        logging.info(reading)
-        self.ivReading.emit(reading)
-        self.update.emit({
-            'smu_current': reading.get('i_smu'),
-            'elm_current': reading.get('i_elm'),
-            'dmm_temperature': reading.get('t_dmm')
-        })
-        for handler in self.ivReadingHandlers:
-            handler(reading)
-
-    def acquireContinuousReading(self):
-        estimate = Estimate(1)
-        while not self.state.get('stop_requested'):
-            #self.update_message("Reading...")
-            self.update_progress(0, 0, 0)
-            reading = self.acquireReadingData()
-            logging.info(reading)
-            self.itReading.emit(reading)
-            self.update.emit({
-                'smu_current': reading.get('i_smu'),
-                'elm_current': reading.get('i_elm'),
-                'dmm_temperature': reading.get('t_dmm')
-            })
-            for handler in self.itReadingHandlers:
-                handler(reading)
-
-            self.check_current_compliance()
-            self.update_current_compliance()
-
-            self.apply_change_voltage()
-
-            self.apply_waiting_time_continuous(estimate)
-
-            self.update_estimate_message_continuous("Reading...", estimate)
-            estimate.advance()
-
-
-class CVMeasurement(RangeMeasurement):
-
-    cvReading = QtCore.pyqtSignal(dict)
-
-    def __init__(self, state):
-        super().__init__(state)
-        self.cvReadingHandlers = []
-
-    def extendCVReading(self, reading: dict) -> dict:
-        # Calcualte 1c^2 as c2_lcr
-        c_lcr = reading.get('c_lcr', math.nan)
-        if math.isfinite(c_lcr) and c_lcr:
-            reading['c2_lcr'] = inverse_square(c_lcr)
-        else:
-            reading['c2_lcr'] = math.nan
-        return reading
-
-    def acquireReadingData(self):
-        smu = self.contexts.get('smu')
-        lcr = self.contexts.get('lcr')
-        dmm = self.contexts.get('dmm')
-        voltage = self.get_source_voltage()
-        if lcr:
-            c_lcr = lcr.read_capacity()
-        else:
-            c_lcr = float('NaN')
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float('NaN')
-        if dmm:
-            t_dmm = dmm.read_temperature()
-        else:
-            t_dmm = float('NaN')
-        return {
-            'timestamp': time.time(),
-            'voltage': voltage,
-            'i_smu': i_smu,
-            'c_lcr': c_lcr,
-            't_dmm': t_dmm
-        }
-
-    def acquireReading(self):
-        reading = self.acquireReadingData()
-        self.extendCVReading(reading)
-        self.cvReading.emit(reading)
-        self.update.emit({
-            'smu_current': reading.get('i_smu'),
-            'elm_current': reading.get('i_elm'),
-            'lcr_capacity': reading.get('c_lcr'),
-            'dmm_temperature': reading.get('t_dmm')
-        })
-        for handler in self.cvReadingHandlers:
-            handler(reading)

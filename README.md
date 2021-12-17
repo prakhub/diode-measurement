@@ -156,13 +156,13 @@ Requires parameter `end_voltage` and optional parameters `step_voltage`
 State snapshot.
 
 ```json
-{"jsonrpc": "2.0", "method": "state", "id": null}
+{"jsonrpc": "2.0", "method": "state", "id": 0}
 ```
 
 This will return application state parameters.
 
 ```json
-{"jsonrpc": "2.0", "result": {"measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "elm_current": 0.0021, "lcr_capacity": null, "temperature": 24.031}, "id": null}
+{"jsonrpc": "2.0", "result": {"measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "elm_current": 0.0021, "lcr_capacity": 0, "temperature": 24.031}, "id": 0}
 ```
 
 ### Example

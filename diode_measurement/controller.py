@@ -31,11 +31,22 @@ from .ui.panels import E4980APanel
 # DMM
 from .ui.panels import K2700Panel
 
+# Drivers
+from .driver.k237 import K237
+from .driver.k595 import K595
+from .driver.k2410 import K2410
+from .driver.k2470 import K2470
+from .driver.k2657a import K2657A
+from .driver.k2700 import K2700
+from .driver.k6514 import K6514
+from .driver.k6517b import K6517B
+from .driver.e4980a import E4980A
+
 from .ui.widgets import showException
 from .ui.dialogs import ChangeVoltageDialog
 
-from .measurement import IVMeasurement
-from .measurement import CVMeasurement
+from .measurement.iv import IVMeasurement
+from .measurement.cv import CVMeasurement
 
 from .reader import Reader
 from .writer import Writer
@@ -47,6 +58,18 @@ from .utils import format_metric
 from .settings import SPECS
 
 logger = logging.getLogger(__name__)
+
+DRIVERS = {
+    'K237': K237,
+    'K595': K595,
+    'K2410': K2410,
+    'K2470': K2470,
+    'K2657A': K2657A,
+    'K2700': K2700,
+    'K6514': K6514,
+    'K6517B': K6517B,
+    'E4980A': E4980A
+}
 
 
 def handle_exception(method):
@@ -643,7 +666,8 @@ class Controller(AbstractController):
 
         # Prepare role drivers
         for role in self.view.roles():
-            measurement.prepareDriver(role.name().lower())
+            driver = DRIVERS.get(role.model())
+            measurement.prepareDriver(role.name().lower(), driver)
 
         return measurement
 

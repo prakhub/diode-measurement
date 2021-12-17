@@ -6,9 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.0] - 2021-12-16
+## [0.7.dev0] - 2021-12-16
 ### Added
+- JSON-RPC remote control TCP server (#5).
+- Show average loop iteration time (#12).
 - DMM role for reading temperature (#13).
+- Basic plugin system.
+
+### Changed
+- Refactored measurement module.
 
 ## [0.6.2] - 2021-11-19
 ### Fixed
@@ -67,8 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.0...HEAD
-[0.7.0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.0
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev0...HEAD
+[0.7.dev0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.dev0
 [0.6.1]: https://github.com/hephy-dd/diode-measurement/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/hephy-dd/diode-measurement/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/hephy-dd/diode-measurement/compare/0.4.0...0.5.0
