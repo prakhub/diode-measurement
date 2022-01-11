@@ -24,7 +24,7 @@ DRIVERS = {
 }
 
 
-def driver_factory(model: str) -> 'Driver':
+def driver_factory(model: str) -> type:
     """Return driver class referenced by model."""
     if model in DRIVERS:
         return DRIVERS.get(model)
