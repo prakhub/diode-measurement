@@ -85,25 +85,40 @@ class Measurement(QtCore.QObject):
 
     def run(self):
         try:
+            logger.debug("run measurement...")
             self.started.emit()
+            logger.debug("handle started callbacks...")
             for handler in self.startedHandlers:
                 handler()
+            logger.debug("handle started callbacks... done.")
             self.contexts.clear()
             with contextlib.ExitStack() as stack:
+                logger.debug("creating instrument contexts...")
                 for key, value in self._registered.items():
                     cls, resource = value
+                    logger.debug("creating instrument context %s: %s...", key, cls.__name__)
                     context = cls(stack.enter_context(resource))
                     self.contexts[key] = context
+                logger.debug("creating instrument contexts... done.")
                 try:
+                    logger.debug("initialize...")
                     self.initialize()
+                    logger.debug("initialize... done.")
+                    logger.debug("measure...")
                     self.measure()
+                    logger.debug("measure... done.")
                 finally:
+                    logger.debug("finalize...")
                     self.finalize()
+                    logger.debug("finalize... done.")
         finally:
+            logger.debug("handle finished callbacks...")
             for handler in self.finishedHandlers:
                 handler()
+            logger.debug("handle finished callbacks... done.")
             self.contexts.clear()
             self.finished.emit()
+            logger.debug("run measurement... done.")
 
 
 class RangeMeasurement(Measurement):
@@ -217,10 +232,17 @@ class RangeMeasurement(Measurement):
         else:
             raise RuntimeError("No source instrument set")
 
+        logger.debug("querying context identities...")
         for key, context in self.contexts.items():
-            logging.info("%s IDN: %s", key.upper(), context.identity())
+            logger.debug("reading %s identity...", key.upper())
+            identity = context.identity()
+            logger.debug("reading %s identity... done.", key.upper())
+            logger.info("%s IDN: %s", key.upper(), identity)
+        logger.debug("querying context identities... done.")
 
+        logger.debug("get source output state...")
         source_output_state = self.get_source_output_state()
+        logger.debug("get source output state... done.")
 
         if source_output_state:
             self.rampZero()
@@ -230,18 +252,21 @@ class RangeMeasurement(Measurement):
         # Reset (optional)
         if self.state.get('reset'):
             for key, context in self.contexts.items():
-                logging.info("Reset %s...", key.upper())
+                logger.info("Reset %s...", key.upper())
                 context.reset()
+                logger.info("Reset %s... done.", key.upper())
 
         # Clear state
         for key, context in self.contexts.items():
-            logging.info("Clear %s...", key.upper())
+            logger.info("Clear %s...", key.upper())
             context.clear()
+            logger.info("Clear %s... done.", key.upper())
 
         # Configure
         for key, context in self.contexts.items():
-            logging.info("%s IDN: %s", key.upper(), context.identity())
+            logger.info("Configure %s...", key.upper())
             context.configure()
+            logger.info("Configure %s... done.", key.upper())
             self.checkErrorState(context)
 
         # Compliance
@@ -255,7 +280,9 @@ class RangeMeasurement(Measurement):
         self.rampBegin()
 
         # Wait after output enable/ramp
+        logger.debug("apply settle time...")
         time.sleep(1.0)
+        logger.debug("apply settle time... done.")
 
     def measure(self):
         ramp = LinearRange(
@@ -377,7 +404,7 @@ class RangeMeasurement(Measurement):
             time.sleep(waiting_time)
 
             reading = self.acquireReadingData()
-            logging.info(reading)
+            logger.info(reading)
             self.itReading.emit(reading)
             self.update.emit({
                 'smu_current': reading.get('i_smu'),

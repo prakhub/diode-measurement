@@ -58,7 +58,7 @@ class IVMeasurement(RangeMeasurement):
 
     def acquireReading(self):
         reading = self.acquireReadingData()
-        logging.info(reading)
+        logger.info(reading)
         self.ivReading.emit(reading)
         self.update.emit({
             'smu_current': reading.get('i_smu'),
@@ -74,7 +74,7 @@ class IVMeasurement(RangeMeasurement):
             #self.update_message("Reading...")
             self.update_progress(0, 0, 0)
             reading = self.acquireReadingData()
-            logging.info(reading)
+            logger.info(reading)
             self.itReading.emit(reading)
             self.update.emit({
                 'smu_current': reading.get('i_smu'),

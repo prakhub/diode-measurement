@@ -613,15 +613,15 @@ class Controller(AbstractController):
             self.view.generalWidget.outputLineEdit.setText(os.path.expanduser("~"))
 
     def onCurrentComplianceChanged(self, value):
-        logging.info("updated current_compliance: %s", format_metric(value, 'A'))
+        logger.info("updated current_compliance: %s", format_metric(value, 'A'))
         self.state.update({"current_compliance": value})
 
     def onContinueInComplianceChanged(self, checked):
-        logging.info("updated continue_in_compliance: %s", checked)
+        logger.info("updated continue_in_compliance: %s", checked)
         self.state.update({"continue_in_compliance": checked})
 
     def onWaitingTimeContinuousChanged(self, value):
-        logging.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
+        logger.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
         self.state.update({"waiting_time_continuous": value})
 
     def updateContinuousOption(self):
@@ -672,7 +672,9 @@ class Controller(AbstractController):
         return measurement
 
     def startMeasurement(self) -> None:
+        logger.debug("preparing state...")
         state = self.prepareState()
+        logger.debug("preparing state... done.")
 
         if not state.get("source"):
             raise RuntimeError("No source instrument selected.")
@@ -692,24 +694,30 @@ class Controller(AbstractController):
         self.state.update({"filename": filename})
 
         # Create and run measurement
+        logger.debug("creating measurement...")
         measurement = self.createMeasurement()
+        logger.debug("creating measurement... done.")
         self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement])
+        logger.debug("starting measurement thread...")
         self.measurementThread.start()
+        logger.debug("starting measurement thread... done.")
 
     def _runMeasurement(self, measurement) -> None:
         try:
             filename = measurement.state.get("filename")
             with contextlib.ExitStack() as stack:
                 if filename:
-                    def createOutputDir(filename):
+                    logger.info("preparing output file: %s", filename)
+                    def createOutputDir():
                         path = os.path.dirname(filename)
                         if not os.path.exists(path):
+                            logger.debug("create output dir: %s", path)
                             os.makedirs(path)
-                    measurement.startedHandlers.append(lambda: createOutputDir(filename))
+                    measurement.startedHandlers.append(lambda: createOutputDir())
                     fp = stack.enter_context(open(filename, 'w', newline=''))
                     writer = Writer(fp)
                     # Note: using signals executes slots in main thread, shoyld be this thread
-                    measurement.startedHandlers.append(lambda: writer.write_meta(measurement.state))
+                    measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
                     if isinstance(measurement, IVMeasurement):
                         measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
                         measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
@@ -871,7 +879,7 @@ class ChangeVoltageController(AbstractController):
 
     def onRequestChangeVoltage(self, endVoltage: float, stepVoltage: float, waitingTime: float) -> None:
         if self.view.isChangeVoltageEnabled():
-            logging.info(
+            logger.info(
                 "updated change_voltage_continuous: end_voltage=%s, step_voltage=%s, waiting_time=%s",
                 format_metric(endVoltage, 'V'),
                 format_metric(stepVoltage, 'V'),
