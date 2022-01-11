@@ -6,16 +6,7 @@ import time
 from PyQt5 import QtCore
 
 from ..resource import Resource
-
-from ..driver.k237 import K237
-from ..driver.k595 import K595
-from ..driver.k2410 import K2410
-from ..driver.k2470 import K2470
-from ..driver.k2657a import K2657A
-from ..driver.k2700 import K2700
-from ..driver.k6514 import K6514
-from ..driver.k6517b import K6517B
-from ..driver.e4980a import E4980A
+from ..driver import driver_factory
 
 from ..functions import LinearRange
 from ..estimate import Estimate
@@ -46,7 +37,7 @@ class Measurement(QtCore.QObject):
     def registerDriver(self, name: str, cls) -> None:
         self._drivers[name] = cls,
 
-    def prepareDriver(self, name, cls):
+    def prepareDriver(self, name: str):
         role = self.state.get(name, {})
         if not role.get("enabled"):
             return None
@@ -57,6 +48,7 @@ class Measurement(QtCore.QObject):
         visa_library = role.get('visa_library')
         termination = role.get('termination')
         timeout = role.get('timeout') * 1000  # in millisecs
+        cls = driver_factory(model)
         if not cls:
             logger.warning("No such driver: %s", model)
             return None

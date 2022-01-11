@@ -1,0 +1,31 @@
+# Drivers
+from .k237 import K237
+from .k595 import K595
+from .k2410 import K2410
+from .k2470 import K2470
+from .k2657a import K2657A
+from .k2700 import K2700
+from .k6514 import K6514
+from .k6517b import K6517B
+from .e4980a import E4980A
+
+__all__ = ['driver_factory']
+
+DRIVERS = {
+    'K237': K237,
+    'K595': K595,
+    'K2410': K2410,
+    'K2470': K2470,
+    'K2657A': K2657A,
+    'K2700': K2700,
+    'K6514': K6514,
+    'K6517B': K6517B,
+    'E4980A': E4980A
+}
+
+
+def driver_factory(model: str) -> 'Driver':
+    """Return driver class referenced by model."""
+    if model in DRIVERS:
+        return DRIVERS.get(model)
+    raise ValueError(f"No such driver: {model}")
