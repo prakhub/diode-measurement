@@ -66,6 +66,10 @@ class Measurement(QtCore.QObject):
         if code:
             raise RuntimeError(f"Instrument Error: {code}: {message}")
 
+    @property
+    def stop_requested(self) -> bool:
+        return self.state.get('stop_requested') is True
+
     def initialize(self):
         pass
 
@@ -78,6 +82,7 @@ class Measurement(QtCore.QObject):
     def run(self):
         try:
             logger.debug("run measurement...")
+            self.state.update({'rpc_state': 'configure'})
             self.started.emit()
             logger.debug("handle started callbacks...")
             for handler in self.startedHandlers:
@@ -99,10 +104,20 @@ class Measurement(QtCore.QObject):
                     logger.debug("measure...")
                     self.measure()
                     logger.debug("measure... done.")
+                except Exception:
+                    self.state.update({'rpc_state': 'error'})
+                    raise
+                else:
+                    self.state.update({'rpc_state': 'stopping'})
                 finally:
                     logger.debug("finalize...")
                     self.finalize()
                     logger.debug("finalize... done.")
+        except Exception:
+            self.state.update({'rpc_state': 'error'})
+            raise
+        else:
+            self.state.update({'rpc_state': 'idle'})
         finally:
             logger.debug("handle finished callbacks...")
             for handler in self.finishedHandlers:
@@ -117,6 +132,10 @@ class RangeMeasurement(Measurement):
 
     def __init__(self, state):
         super().__init__(state)
+
+    @property
+    def is_continuous(self) -> bool:
+        return self.state.get('continuous') is True
 
     def get_source_output_state(self):
         return self.source_instrument.get_output_enabled()
@@ -175,7 +194,7 @@ class RangeMeasurement(Measurement):
             now = time.time()
             threshold = now + waiting_time
             while now < threshold:
-                if self.state.get('stop_requested'):
+                if self.stop_requested:
                     self.update_message("Stopping...")
                     break
                 if self.state.get('change_voltage_continuous'):
@@ -189,7 +208,9 @@ class RangeMeasurement(Measurement):
         params = self.state.get('change_voltage_continuous')
         if params is not None:
             del self.state['change_voltage_continuous']
+            self.state.update({'rpc_state': 'ramping'})
             self.rampToContinuous(params.get("end_voltage"), params.get("step_voltage"), params.get("waiting_time"))
+            self.state.update({'rpc_state': 'continuous'})
         self.itChangeVoltageReady.emit()
 
     def update_message(self, message: str) -> None:
@@ -286,11 +307,13 @@ class RangeMeasurement(Measurement):
         self.update_message(f"Ramp to {ramp.end} V")
         estimate = Estimate(len(ramp))
 
+        self.state.update({'rpc_state': 'ramping'})
+
         for step, voltage in enumerate(ramp):
             self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
-            if self.state.get('stop_requested'):
+            if self.stop_requested:
                 self.update_message("Stopping...")
                 return
             self.set_source_voltage(voltage)
@@ -303,14 +326,17 @@ class RangeMeasurement(Measurement):
 
             estimate.advance()
 
+        self.state.update({'rpc_state': 'measure'})
+
         self.update_message("")
 
-        if self.state.get('stop_requested'):
+        if self.stop_requested:
             self.update_message("Stopping...")
             return
 
-        if self.state.get('continuous'):
+        if self.is_continuous:
             self.update_message("Continuous measurement...")
+            self.state.update({'rpc_state': 'continuous'})
             self.acquireContinuousReading()
 
     def finalize(self):
@@ -349,7 +375,7 @@ class RangeMeasurement(Measurement):
             self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
-            if self.state.get('stop_requested'):
+            if self.stop_requested:
                 break
             self.set_source_voltage(voltage)
             time.sleep(.250)
@@ -387,7 +413,7 @@ class RangeMeasurement(Measurement):
             self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
-            if self.state.get('stop_requested'):
+            if self.stop_requested:
                 self.update_message("Stopping...")
                 return
 

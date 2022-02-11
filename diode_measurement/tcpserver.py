@@ -1,5 +1,6 @@
 import jsonrpc
 import logging
+import math
 import socketserver
 import threading
 import time
@@ -12,6 +13,15 @@ from .plugin import Plugin
 __all__ = ['TCPServerPlugin']
 
 logger = logging.getLogger(__name__)
+
+
+def isfinite(value: object) -> object:
+    return isinstance(value, float) and not math.isfinite(value)
+
+
+def json_dict(d: dict) -> dict:
+    """Replace non-finite floats (nan, +inf, -inf) with `None` to be converted to `null` in JSON."""
+    return {k: (None if isfinite(v) else v) for k, v in d.items()}
 
 
 class RPCHandler:
@@ -41,7 +51,7 @@ class RPCHandler:
         self.controller.changeVoltageController.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
 
     def onState(self):
-        return self.controller.snapshot()
+        return json_dict(self.controller.snapshot())
 
 
 class TCPHandler(socketserver.BaseRequestHandler):

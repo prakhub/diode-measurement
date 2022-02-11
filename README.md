@@ -162,8 +162,14 @@ State snapshot.
 This will return application state parameters.
 
 ```json
-{"jsonrpc": "2.0", "result": {"measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "elm_current": 0.0021, "lcr_capacity": 0, "temperature": 24.031}, "id": 0}
+{"jsonrpc": "2.0", "result": {"state": "ramping", "measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "elm_current": 0.0021, "lcr_capacity": 0, "temperature": 24.031}, "id": 0}
 ```
+
+### States
+
+Following states are exposed by the state snapshot: `idle`, `configure`, `ramping`, `continuous`, `stopping` and `error`.
+
+![State diagram](docs/images/rpc_states.png)
 
 ### Example
 

@@ -93,7 +93,7 @@ class Controller(AbstractController):
 
         self.measurementThread: threading.Thread = None
 
-        self.state = {}
+        self.state = {'rpc_state': 'idle'}
         self.cache = {}
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
@@ -192,6 +192,7 @@ class Controller(AbstractController):
     def snapshot(self):
         """Return application state snapshot."""
         snapshot = {}
+        snapshot['state'] = self.state.get('rpc_state')
         snapshot['measurement_type'] = self.cache.get('measurement_type')
         snapshot['sample'] = self.cache.get('sample')
         snapshot['source_voltage'] = self.cache.get('source_voltage')
@@ -607,7 +608,7 @@ class Controller(AbstractController):
         self.state.update({"waiting_time_continuous": value})
 
     def updateContinuousOption(self):
-        # Tweak continous option
+        # Tweak continuous option
         validTypes = ["iv"]
         currentMeasurement = self.view.generalWidget.currentMeasurement()
         enabled = False
@@ -658,7 +659,7 @@ class Controller(AbstractController):
 
         # Update state
         self.state.update(state)
-        self.state.update({"stop_requested": False})
+        self.state.update({'stop_requested': False})
 
         self.cache.update({
             'measurement_type': state.get('measurement_type'),

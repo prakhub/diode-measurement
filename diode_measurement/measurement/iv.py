@@ -26,11 +26,6 @@ class IVMeasurement(RangeMeasurement):
         self.ivReadingHandlers = []
         self.itReadingHandlers = []
 
-    def measure(self):
-        super().measure()
-        if self.state.get('continuous'):
-            self.acquireContinuousReading()
-
     def acquireReadingData(self):
         smu = self.contexts.get('smu')
         elm = self.contexts.get('elm')
@@ -70,7 +65,7 @@ class IVMeasurement(RangeMeasurement):
 
     def acquireContinuousReading(self):
         estimate = Estimate(1)
-        while not self.state.get('stop_requested'):
+        while not self.stop_requested:
             #self.update_message("Reading...")
             self.update_progress(0, 0, 0)
             reading = self.acquireReadingData()
