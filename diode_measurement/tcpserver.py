@@ -1,9 +1,12 @@
+import datetime
 import jsonrpc
 import logging
 import math
 import socketserver
 import threading
 import time
+
+from typing import Any
 
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
@@ -15,7 +18,8 @@ __all__ = ['TCPServerPlugin']
 logger = logging.getLogger(__name__)
 
 
-def isfinite(value: object) -> object:
+def isfinite(value: Any) -> bool:
+    """Return `True` if value is finite float or `True` for any other value type."""
     return isinstance(value, float) and not math.isfinite(value)
 
 
@@ -24,9 +28,10 @@ def json_dict(d: dict) -> dict:
     return {k: (None if isfinite(v) else v) for k, v in d.items()}
 
 
-class RPCHandler:
+class RPCHandler(QtCore.QObject):
 
-    def __init__(self, controller):
+    def __init__(self, controller, parent: QtCore.QObject = None) -> None:
+        super().__init__(parent)
         self.controller = controller
         self.dispatcher = jsonrpc.Dispatcher()
         self.dispatcher['start'] = self.onStart
@@ -47,7 +52,7 @@ class RPCHandler:
     def onStop(self):
         self.controller.stopped.emit()
 
-    def onChangeVoltage(self, end_voltage, step_voltage=1.0, waiting_time=1.0):
+    def onChangeVoltage(self, end_voltage: float, step_voltage: float = 1.0, waiting_time: float = 1.0):
         self.controller.changeVoltageController.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
 
     def onState(self):
@@ -56,26 +61,30 @@ class RPCHandler:
 
 class TCPHandler(socketserver.BaseRequestHandler):
 
-    def handle(self):
-        self.data = self.request.recv(1024).strip().decode('utf-8')
+    buffer_size: int = 1024
+
+    def handle(self) -> None:
+        self.data = self.request.recv(self.buffer_size).strip().decode('utf-8')
         logger.info("%s wrote: %s", self.client_address[0], self.data)
+        self.server.messageReady.emit(format(self.data))
         response = self.server.rpcHandler.handle(self.data)
         if response:
             data = response.json.encode('utf-8')
-            logger.info("%s returned: %s", self.client_address[0], data)
+            logger.info("%s returned: %s", self.client_address[0], response.json)
+            self.server.messageReady.emit(format(response.json))
             self.request.sendall(data)
 
 
 class TCPServer(socketserver.TCPServer):
 
-    allow_reuse_address = True
+    allow_reuse_address: bool = True
 
 
 class RPCWidget(QtWidgets.QWidget):
 
     reconnectSignal = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("RPC")
 
@@ -86,31 +95,42 @@ class RPCWidget(QtWidgets.QWidget):
         self.stateLabel = QtWidgets.QLabel()
         self.stateLabel.setText("Disconnected")
 
-        self.hostnameLineEdit = QtWidgets.QLineEdit("localhost")
+        self.hostnameLineEdit = QtWidgets.QLineEdit()
+        self.hostnameLineEdit.setToolTip(self.tr("Hostname"))
+        self.hostnameLineEdit.setStatusTip(self.tr("Hostname"))
 
         self.portSpinBox = QtWidgets.QSpinBox()
+        self.portSpinBox.setToolTip(self.tr("Port"))
+        self.portSpinBox.setStatusTip(self.tr("Port"))
         self.portSpinBox.setRange(0, 999999)
-        self.portSpinBox.setValue(8000)
 
-        self.autoConnectCheckBox = QtWidgets.QCheckBox("Auto Connect")
-        self.autoConnectCheckBox.setToolTip("Connect server on startup")
-        self.autoConnectCheckBox.setStatusTip("Connect server on startup")
+        self.autoConnectCheckBox = QtWidgets.QCheckBox(self.tr("Auto Connect"))
+        self.autoConnectCheckBox.setToolTip(self.tr("Connect server on startup"))
+        self.autoConnectCheckBox.setStatusTip(self.tr("Connect server on startup"))
 
         self.reconnectButton = QtWidgets.QToolButton()
-        self.reconnectButton.setText("Connect")
+        self.reconnectButton.setText(self.tr("Connect"))
+
+        self.protocolTextEdit = QtWidgets.QTextEdit()
+        self.protocolTextEdit.setReadOnly(True)
+
+        self.protocolGroupBox = QtWidgets.QGroupBox(self.tr("Protocol"))
 
         # Layouts
 
         formLayout = QtWidgets.QFormLayout(self.rpcGroupBox)
-        formLayout.addRow("State", self.stateLabel)
-        formLayout.addRow("Hostname", self.hostnameLineEdit)
-        formLayout.addRow("Port", self.portSpinBox)
+        formLayout.addRow(self.tr("State"), self.stateLabel)
+        formLayout.addRow(self.tr("Hostname"), self.hostnameLineEdit)
+        formLayout.addRow(self.tr("Port"), self.portSpinBox)
         formLayout.addRow("", self.autoConnectCheckBox)
         formLayout.addRow("", self.reconnectButton)
 
+        protocolLayout = QtWidgets.QVBoxLayout(self.protocolGroupBox)
+        protocolLayout.addWidget(self.protocolTextEdit)
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.addWidget(self.rpcGroupBox)
-        layout.addStretch()
+        layout.addWidget(self.protocolGroupBox)
         layout.setStretch(0, 1)
         layout.setStretch(1, 2)
 
@@ -118,7 +138,7 @@ class RPCWidget(QtWidgets.QWidget):
 
         self.reconnectButton.clicked.connect(lambda: self.reconnectSignal.emit())
         self.reconnectButton.clicked.connect(lambda: self.reconnectButton.setEnabled(False))
-        self.reconnectButton.clicked.connect(lambda: self.setState("Connecting..."))
+        self.reconnectButton.clicked.connect(lambda: self.setState(self.tr("Connecting...")))
         self.portSpinBox.editingFinished.connect(lambda: self.reconnectButton.setEnabled(True))
         self.hostnameLineEdit.editingFinished.connect(lambda: self.reconnectButton.setEnabled(True))
 
@@ -153,11 +173,9 @@ class RPCWidget(QtWidgets.QWidget):
 
 class TCPServerPlugin(Plugin):
 
-    startRequest = QtCore.pyqtSignal()
-    stopRequest = QtCore.pyqtSignal()
-    itChangeVoltage = QtCore.pyqtSignal(float, float, float)
     connected = QtCore.pyqtSignal(bool)
     failed = QtCore.pyqtSignal(object)
+    messageReady = QtCore.pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -169,10 +187,7 @@ class TCPServerPlugin(Plugin):
     def install(self, context):
         self.failed.connect(context.onFailed)
         self._installTab(context)
-        self.rpcHandler = RPCHandler(context)
-        self.startRequest.connect(context.started.emit)
-        self.stopRequest.connect(context.stopped.emit)
-        self.itChangeVoltage.connect(context.changeVoltageController.onRequestChangeVoltage)
+        self.rpcHandler = RPCHandler(context, self)
         self.loadSettings()
         self._startServer()
 
@@ -186,9 +201,11 @@ class TCPServerPlugin(Plugin):
 
     def loadSettings(self):
         settings = QtCore.QSettings()
-        enabled = settings.value("tcpServer/enabled", False, bool)
-        hostname = settings.value("tcpServer/hostname", "", str)
-        port = settings.value("tcpServer/port", 8000, int)
+        settings.beginGroup("tcpServer")
+        enabled = settings.value("enabled", False, bool)
+        hostname = settings.value("hostname", "", str)
+        port = settings.value("port", 8000, int)
+        settings.endGroup()
         self.rpcWidget.setServerEnabled(enabled)
         self.rpcWidget.setHostname(hostname)
         self.rpcWidget.setPort(port)
@@ -198,9 +215,11 @@ class TCPServerPlugin(Plugin):
         enabled = self.rpcWidget.isServerEnabled()
         hostname = self.rpcWidget.hostname()
         port = self.rpcWidget.port()
-        settings.setValue("tcpServer/enabled", enabled)
-        settings.setValue("tcpServer/hostname", hostname)
-        settings.setValue("tcpServer/port", port)
+        settings.beginGroup("tcpServer")
+        settings.setValue("enabled", enabled)
+        settings.setValue("hostname", hostname)
+        settings.setValue("port", port)
+        settings.endGroup()
 
     def requestReconnect(self):
         while self._q:
@@ -215,6 +234,12 @@ class TCPServerPlugin(Plugin):
         self.connected.connect(lambda state: self.rpcWidget.setConnected(state))
         self.rpcWidget.reconnectSignal.connect(lambda: self.requestReconnect())
         context.view.controlTabWidget.insertTab(1000, self.rpcWidget, self.rpcWidget.windowTitle())
+        self.messageReady.connect(self.appendProtocol)
+
+    def appendProtocol(self, message: str) -> None:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        text = f"{timestamp} {message}"
+        self.rpcWidget.protocolTextEdit.append(text)
 
     def _startServer(self):
         self._enabled.set()
@@ -223,30 +248,31 @@ class TCPServerPlugin(Plugin):
     def _setupServer(self, server):
         self._q.append(server.shutdown)
         server.rpcHandler = self.rpcHandler
-        server.startRequest = self.startRequest
-        server.stopRequest = self.stopRequest
-        server.itChangeVoltage = self.itChangeVoltage
+        server.messageReady = self.messageReady
 
     def run(self):
-        self._reconnect = self.rpcWidget.isServerEnabled()
         while self._enabled.is_set():
+            self._reconnect = self.rpcWidget.isServerEnabled()
             if self._reconnect:
                 hostname = self.rpcWidget.hostname()
                 port = self.rpcWidget.port()
-                logger.info("TCP connect %s:%s", hostname, port)
-                try:
-                    with TCPServer((hostname, port), TCPHandler) as server:
-                        self.connected.emit(True)
-                        self._setupServer(server)
-                        server.serve_forever()
-                except Exception as exc:
-                    logger.exception(exc)
-                    self.failed.emit(exc)
-                finally:
-                    self._reconnect = False
-                    logger.info("TCP disconnect %s:%s", hostname, port)
-                    self.connected.emit(False)
-                    self._q.clear()
-                    time.sleep(.50)
+                self._runServer(hostname, port)
             else:
                 time.sleep(.50)
+
+    def _runServer(self, hostname: str, port: int) -> None:
+        logger.info("TCP connect %s:%s", hostname, port)
+        try:
+            with TCPServer((hostname, port), TCPHandler) as server:
+                self.connected.emit(True)
+                self._setupServer(server)
+                server.serve_forever()
+        except Exception as exc:
+            logger.exception(exc)
+            self.failed.emit(exc)
+        finally:
+            self._reconnect = False
+            logger.info("TCP disconnect %s:%s", hostname, port)
+            self.connected.emit(False)
+            self._q.clear()
+            time.sleep(.50)

@@ -21,6 +21,7 @@ class Measurement(QtCore.QObject):
     started = QtCore.pyqtSignal()
     finished = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
+    failed_signal = QtCore.pyqtSignal(object)
 
     def __init__(self, state):
         super().__init__()
@@ -104,20 +105,17 @@ class Measurement(QtCore.QObject):
                     logger.debug("measure...")
                     self.measure()
                     logger.debug("measure... done.")
-                except Exception:
-                    self.state.update({'rpc_state': 'error'})
-                    raise
-                else:
-                    self.state.update({'rpc_state': 'stopping'})
+                except Exception as exc:
+                    logger.exception(exc)
+                    self.failed_signal.emit(exc)
                 finally:
                     logger.debug("finalize...")
+                    self.state.update({'rpc_state': 'stopping'})
                     self.finalize()
                     logger.debug("finalize... done.")
-        except Exception:
-            self.state.update({'rpc_state': 'error'})
-            raise
-        else:
-            self.state.update({'rpc_state': 'idle'})
+        except Exception as exc:
+            logger.exception(exc)
+            self.failed_signal.emit(exc)
         finally:
             logger.debug("handle finished callbacks...")
             for handler in self.finishedHandlers:
@@ -125,6 +123,7 @@ class Measurement(QtCore.QObject):
             logger.debug("handle finished callbacks... done.")
             self.contexts.clear()
             self.finished.emit()
+            self.state.update({'rpc_state': 'idle'})
             logger.debug("run measurement... done.")
 
 

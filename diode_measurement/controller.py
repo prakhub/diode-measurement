@@ -470,6 +470,7 @@ class Controller(AbstractController):
             self.finished.emit()
 
     def onStop(self):
+        self.view.lockOnStop()
         self.state.update({"stop_requested": True})
         self.view.setMessage("Stop requested...")
         self.view.stopAction.setEnabled(False)
@@ -484,6 +485,7 @@ class Controller(AbstractController):
         self.cache.clear()
 
     def onFailed(self, exc):
+        self.view.lockOnStop()  # TODO
         showException(exc, self.view)
 
     def onUpdate(self, data):
@@ -646,6 +648,8 @@ class Controller(AbstractController):
         # Prepare role drivers
         for role in self.view.roles():
             measurement.prepareDriver(role.name().lower())
+
+        measurement.failed_signal.connect(self.onFailed)
 
         return measurement
 

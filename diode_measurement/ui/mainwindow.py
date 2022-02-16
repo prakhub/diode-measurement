@@ -360,6 +360,9 @@ class MainWindow(QtWidgets.QMainWindow):
         for role in self.roles():
             role.lock()
 
+    def lockOnStop(self):
+        self.generalWidget.lockOnStop()
+
     def unlock(self):
         self.importAction.setEnabled(True)
         self.startAction.setEnabled(True)

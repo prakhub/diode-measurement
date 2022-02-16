@@ -167,7 +167,7 @@ This will return application state parameters.
 
 ### States
 
-Following states are exposed by the state snapshot: `idle`, `configure`, `ramping`, `continuous`, `stopping` and `error`.
+Following states are exposed by the state snapshot: `idle`, `configure`, `ramping`, `continuous`, `stopping`.
 
 ![State diagram](docs/images/rpc_states.png)
 
