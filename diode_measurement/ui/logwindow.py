@@ -30,16 +30,17 @@ class LogHandler(logging.Handler):
 class LogWidget(QtWidgets.QTextEdit):
 
     MaximumEntries = 1024 * 1024
+    """Maximum number of visible log entries."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
+        self.document().setMaximumBlockCount(type(self).MaximumEntries)
         self.setFont(QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont))
         self.mutex = threading.RLock()
         self.handler = LogHandler(self)
         self.handler.object.message.connect(self.appendRecord)
         self.setLevel(logging.INFO)
-        self.__entries = 0
 
     @property
     def entries(self):
@@ -61,9 +62,6 @@ class LogWidget(QtWidgets.QTextEdit):
     @QtCore.pyqtSlot(object)
     def appendRecord(self, record):
         with self.mutex:
-            # Clear when exceeding maximum allowed entries...
-            if self.entries > self.MaximumEntries:
-                self.clear()  # TODO
             # Get current scrollbar position
             scrollbar = self.verticalScrollBar()
             current_pos = scrollbar.value()
@@ -73,7 +71,6 @@ class LogWidget(QtWidgets.QTextEdit):
                 lock_bottom = True
             # Append foramtted log message
             self.append(self.formatRecord(record))
-            self.__entries += 1
             # Scroll to bottom
             if lock_bottom:
                 self.toBottom()
@@ -82,7 +79,6 @@ class LogWidget(QtWidgets.QTextEdit):
 
     def clear(self):
         super().clear()
-        self.__entries = 0
 
     @classmethod
     def formatTime(cls, seconds):

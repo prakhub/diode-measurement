@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.dev3] - 2022-02-16
 ### Added
 - Protocol history for JSON-RPC (#5).
+- Optional parameters for JSON-RPC start method (#5).
 ### Changed
 - Removed error state for JSON-RPC (#5).
 

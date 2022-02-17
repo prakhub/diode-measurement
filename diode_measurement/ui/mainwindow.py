@@ -201,7 +201,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().addPermanentWidget(self.messageLabel)
 
         self.progressBar = QtWidgets.QProgressBar()
-        self.progressBar.setMaximumWidth(480)
+        self.progressBar.setFixedWidth(240)
         self.statusBar().addPermanentWidget(self.progressBar)
 
     def _createLayout(self):
@@ -383,10 +383,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.messageLabel.show()
         self.messageLabel.setText(message)
 
+    def clearMessage(self):
+        self.messageLabel.hide()
+        self.messageLabel.clear()
+
     def setProgress(self, minimum, maximum, value):
         self.progressBar.show()
         self.progressBar.setRange(minimum, maximum)
         self.progressBar.setValue(value)
+
+    def clearProgress(self):
+        self.progressBar.hide()
+        self.progressBar.setRange(0, 1)
+        self.progressBar.setValue(0)
 
     def raiseIVTab(self):
         index = self.dataTabWidget.indexOf(self.ivWidget)

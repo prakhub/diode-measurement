@@ -46,11 +46,34 @@ class RPCHandler(QtCore.QObject):
     def handle(self, request):
         return self.manager.handle(request, self.dispatcher)
 
-    def onStart(self):
-        self.controller.started.emit()
+    def onStart(self, reset: bool = None, continuous: bool = None,
+                measurement_type: str = None, begin_voltage: float = None,
+                end_voltage: float = None, step_voltage: float = None,
+                waiting_time: float = None, compliance: float = None,
+                waiting_time_continuous: float = None):
+        if not self.controller.rpc_params:
+            rpc_params = {}
+            if reset is not None:
+                rpc_params['reset'] = reset
+            if continuous is not None:
+                rpc_params['continuous'] = continuous
+            if begin_voltage is not None:
+                rpc_params['begin_voltage'] = begin_voltage
+            if end_voltage is not None:
+                rpc_params['end_voltage'] = end_voltage
+            if step_voltage is not None:
+                rpc_params['step_voltage'] = step_voltage
+            if waiting_time is not None:
+                rpc_params['waiting_time'] = waiting_time
+            if compliance is not None:
+                rpc_params['compliance'] = compliance
+            if waiting_time_continuous is not None:
+                rpc_params['waiting_time_continuous'] = waiting_time_continuous
+            self.controller.rpc_params.update(rpc_params)
+            self.controller.started.emit()
 
     def onStop(self):
-        self.controller.stopped.emit()
+        self.controller.aborted.emit()
 
     def onChangeVoltage(self, end_voltage: float, step_voltage: float = 1.0, waiting_time: float = 1.0):
         self.controller.changeVoltageController.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
@@ -81,6 +104,9 @@ class TCPServer(socketserver.TCPServer):
 
 
 class RPCWidget(QtWidgets.QWidget):
+
+    MaximumEntries = 1024 * 64
+    """Maximum number of visible protocol entries."""
 
     reconnectSignal = QtCore.pyqtSignal()
 
@@ -113,6 +139,7 @@ class RPCWidget(QtWidgets.QWidget):
 
         self.protocolTextEdit = QtWidgets.QTextEdit()
         self.protocolTextEdit.setReadOnly(True)
+        self.protocolTextEdit.document().setMaximumBlockCount(type(self).MaximumEntries)
 
         self.protocolGroupBox = QtWidgets.QGroupBox(self.tr("Protocol"))
 
@@ -185,14 +212,14 @@ class TCPServerPlugin(Plugin):
         self._reconnect = False
 
     def install(self, context):
-        self.failed.connect(context.onFailed)
+        self.failed.connect(context.handleException)
         self._installTab(context)
         self.rpcHandler = RPCHandler(context, self)
         self.loadSettings()
         self._startServer()
 
     def shutdown(self, context):
-        self.failed.disconnect(context.onFailed)
+        self.failed.disconnect(context.handleException)
         self._enabled.clear()
         while self._q:
             self._q.pop()()
@@ -239,7 +266,21 @@ class TCPServerPlugin(Plugin):
     def appendProtocol(self, message: str) -> None:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         text = f"{timestamp} {message}"
-        self.rpcWidget.protocolTextEdit.append(text)
+        textEdit = self.rpcWidget.protocolTextEdit
+        # Get current scrollbar position
+        scrollbar = textEdit.verticalScrollBar()
+        pos = scrollbar.value()
+        # Lock to current position or to bottom
+        lock = False
+        if pos + 1 >= scrollbar.maximum():
+            lock = True
+        # Append message
+        textEdit.append(text)
+        # Scroll to bottom
+        if lock:
+            scrollbar.setValue(scrollbar.maximum())
+        else:
+            scrollbar.setValue(pos)
 
     def _startServer(self):
         self._enabled.set()

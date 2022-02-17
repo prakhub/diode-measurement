@@ -80,7 +80,7 @@ table containing continuous measurement data.
 
 #### Example
 
-```
+```csv
 sample: Unnamed
 measurement_type: iv
 voltage_begin[V]: +5.000E+00
@@ -109,7 +109,7 @@ data.
 
 #### Example
 
-```
+```csv
 sample: Unnamed
 measurement_type: cv
 voltage_begin[V]: +5.000E+00
@@ -127,33 +127,49 @@ timestamp[s]	voltage[V]	i_smu[A]	c_lcr[F]	c_lcr[F]	temperature[degC]
 
 ## JSON-RPC
 
-The application provides an [JSON-RPC](https://www.jsonrpc.org/) (remote procedure call) version 2.0
-interface using a TCP server.
+The application provides an [JSON-RPC](https://www.jsonrpc.org/) (remote
+procedure call) version 2.0 interface using a TCP server.
 
 ### Methods
 
-Start notification.
+#### Start
+
+Start notification starts a new measurement.
 
 ```json
 {"jsonrpc": "2.0", "method": "start"}
 ```
 
-Stop notification.
+Optional parameters are `continuous` (Boolean), `reset` (Boolean),
+`begin_voltage` (Volt), `end_voltage` (Volt), `step_voltage` (Volt),
+`waiting_time` (seconds), `compliance` (Ampere) and `waiting_time_continuous`
+(seconds). Specified values will be applied to the user interface before
+starting the measurement.
+
+#### Stop
+
+Stop notification stops an active measurement.
 
 ```json
 {"jsonrpc": "2.0", "method": "stop"}
 ```
 
-Change voltage notification (applies only during continuous It measurement).
+#### Change voltage
 
-Requires parameter `end_voltage` and optional parameters `step_voltage`
-(default is `1.0` Volt) and `waiting_time` (default is `1.0` seconds).
+Change voltage notification applies only during continuous It measurement.
+
+Required parameter `end_voltage` (Volt).
+
+Optional parameters with default values are `step_voltage` (default is `1.0`
+Volt) and `waiting_time` (default is `1.0` seconds).
 
 ```json
 {"jsonrpc": "2.0", "method": "change_voltage", "params": {"end_voltage": 100.0, "step_voltage": 10.0, "waiting_time": 0.25}}
 ```
 
-State snapshot.
+#### State
+
+Request an application state snapshot.
 
 ```json
 {"jsonrpc": "2.0", "method": "state", "id": 0}
@@ -167,16 +183,18 @@ This will return application state parameters.
 
 ### States
 
-Following states are exposed by the state snapshot: `idle`, `configure`, `ramping`, `continuous`, `stopping`.
+Following states are exposed by the state snapshot: `idle`, `configure`,
+`ramping`, `continuous`, `stopping`.
 
 ![State diagram](docs/images/rpc_states.png)
 
 ### Example
 
-Example using [netcat](https://en.wikipedia.org/wiki/Netcat) to initiate a new measurement.
+Example using [netcat](https://en.wikipedia.org/wiki/Netcat) to initiate a new
+measurement and applies a new end voltage.
 
 ```bash
-echo '{"jsonrpc": "2.0", "method": "start"}' | nc localhost 8080
+echo '{"jsonrpc": "2.0", "method": "start", "params": {"end_voltage": 100.0}}' | nc localhost 8080
 ```
 
 Example using Python to read application state from TCP server.

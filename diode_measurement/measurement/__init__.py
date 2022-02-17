@@ -10,6 +10,7 @@ from ..driver import driver_factory
 
 from ..functions import LinearRange
 from ..estimate import Estimate
+from ..writer import Writer
 
 __all__ = ['Measurement', 'RangeMeasurement']
 
@@ -21,7 +22,7 @@ class Measurement(QtCore.QObject):
     started = QtCore.pyqtSignal()
     finished = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
-    failed_signal = QtCore.pyqtSignal(object)
+    failed = QtCore.pyqtSignal(object)
 
     def __init__(self, state):
         super().__init__()
@@ -36,7 +37,7 @@ class Measurement(QtCore.QObject):
         self._registered[name] = cls, resource
 
     def registerDriver(self, name: str, cls) -> None:
-        self._drivers[name] = cls,
+        self._drivers[name] = cls
 
     def prepareDriver(self, name: str):
         role = self.state.get(name, {})
@@ -107,7 +108,7 @@ class Measurement(QtCore.QObject):
                     logger.debug("measure... done.")
                 except Exception as exc:
                     logger.exception(exc)
-                    self.failed_signal.emit(exc)
+                    self.failed.emit(exc)
                 finally:
                     logger.debug("finalize...")
                     self.state.update({'rpc_state': 'stopping'})
@@ -115,7 +116,7 @@ class Measurement(QtCore.QObject):
                     logger.debug("finalize... done.")
         except Exception as exc:
             logger.exception(exc)
-            self.failed_signal.emit(exc)
+            self.failed.emit(exc)
         finally:
             logger.debug("handle finished callbacks...")
             for handler in self.finishedHandlers:

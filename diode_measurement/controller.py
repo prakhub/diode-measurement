@@ -4,6 +4,8 @@ import time
 import logging
 import threading
 import contextlib
+import queue
+
 from datetime import datetime
 
 from typing import List, Union
@@ -34,8 +36,11 @@ from .ui.panels import K2700Panel
 from .ui.widgets import showException
 from .ui.dialogs import ChangeVoltageDialog
 
+from .measurement import Measurement
 from .measurement.iv import IVMeasurement
 from .measurement.cv import CVMeasurement
+
+from .worker import Worker
 
 from .reader import Reader
 from .writer import Writer
@@ -60,8 +65,38 @@ def handle_exception(method):
             return method(self, *args, **kwargs)
         except Exception as exc:
             logger.exception(exc)
-            self.onFailed(exc)
+            self.handleException(exc)
     return handle_exception
+
+
+class MeasurementRunner:
+
+    def __init__(self, measurement: Measurement) -> None:
+        self.measurement = measurement
+
+    def __call__(self) -> None:
+        measurement = self.measurement
+        filename = measurement.state.get("filename")
+        with contextlib.ExitStack() as stack:
+            if filename:
+                logger.info("preparing output file: %s", filename)
+                def createOutputDir():
+                    path = os.path.dirname(filename)
+                    if not os.path.exists(path):
+                        logger.debug("create output dir: %s", path)
+                        os.makedirs(path)
+                measurement.startedHandlers.append(lambda: createOutputDir())
+                fp = stack.enter_context(open(filename, 'w', newline=''))
+                writer = Writer(fp)
+                # Note: using signals executes slots in main thread, should be worker thread
+                measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
+                if isinstance(measurement, IVMeasurement):
+                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
+                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                if isinstance(measurement, CVMeasurement):
+                    measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
+                measurement.finishedHandlers.append(lambda: writer.flush())
+            measurement.run()
 
 
 class AbstractController(QtCore.QObject):
@@ -73,7 +108,10 @@ class AbstractController(QtCore.QObject):
 
     def installPlugin(self, plugin) -> None:
         self._plugins.append(plugin)
-        plugin.install(self)
+        try:
+            plugin.install(self)
+        except Exception as exc:
+            logger.exception(exc)
 
     def shutdown(self):
         for plugin in self._plugins:
@@ -83,18 +121,18 @@ class AbstractController(QtCore.QObject):
 class Controller(AbstractController):
 
     started = QtCore.pyqtSignal()
-    stopped = QtCore.pyqtSignal()
-    failed = QtCore.pyqtSignal(object)
-    finished = QtCore.pyqtSignal()
+    aborted = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
 
     def __init__(self, view, parent=None) -> None:
         super().__init__(view, parent)
 
-        self.measurementThread: threading.Thread = None
+        self.worker: Worker = Worker(self)
+        self.worker.failed.connect(self.handleException)
 
         self.state = {'rpc_state': 'idle'}
         self.cache = {}
+        self.rpc_params = {}
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
@@ -129,10 +167,10 @@ class Controller(AbstractController):
 
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
-        self.view.startAction.triggered.connect(self.started.emit)
+        self.view.startAction.triggered.connect(self.started)
         self.view.startButton.clicked.connect(self.view.startAction.trigger)
 
-        self.view.stopAction.triggered.connect(self.stopped.emit)
+        self.view.stopAction.triggered.connect(self.aborted)
         self.view.stopButton.clicked.connect(self.view.stopAction.trigger)
 
         self.view.continuousAction.toggled.connect(self.onContinuousToggled)
@@ -150,7 +188,6 @@ class Controller(AbstractController):
         self.view.unlock()
         self.onMeasurementChanged(0)
 
-        self.failed.connect(self.onFailed)
         self.update.connect(self.onUpdate)
 
         self.onToggleLcr(False)
@@ -164,23 +201,27 @@ class Controller(AbstractController):
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
 
-        # State machine
+        # States
 
         self.idleState = QtCore.QState()
-        self.idleState.entered.connect(self.onFinished)
+        self.idleState.entered.connect(self.enterIdle)
 
         self.runningState = QtCore.QState()
-        self.runningState.entered.connect(self.onStart)
+        self.runningState.entered.connect(self.enterRunning)
 
         self.stoppingState = QtCore.QState()
-        self.stoppingState.entered.connect(self.onStop)
+        self.stoppingState.entered.connect(self.enterStopping)
+
+        # Transitions
 
         self.idleState.addTransition(self.started, self.runningState)
 
-        self.runningState.addTransition(self.finished, self.idleState)
-        self.runningState.addTransition(self.stopped, self.stoppingState)
+        self.runningState.addTransition(self.worker.finished, self.idleState)
+        self.runningState.addTransition(self.aborted, self.stoppingState)
 
-        self.stoppingState.addTransition(self.finished, self.idleState)
+        self.stoppingState.addTransition(self.worker.finished, self.idleState)
+
+        # State machine
 
         self.stateMachine = QtCore.QStateMachine()
         self.stateMachine.addState(self.idleState)
@@ -188,6 +229,8 @@ class Controller(AbstractController):
         self.stateMachine.addState(self.stoppingState)
         self.stateMachine.setInitialState(self.idleState)
         self.stateMachine.start()
+
+        self.worker.start()
 
     def snapshot(self):
         """Return application state snapshot."""
@@ -249,6 +292,11 @@ class Controller(AbstractController):
             logger.info('> %s: %s', key, value)
 
         return state
+
+    def shutdown(self):
+        self.stateMachine.stop()
+        self.worker.stop()
+        super().shutdown()
 
     @handle_exception
     def loadSettings(self):
@@ -459,33 +507,31 @@ class Controller(AbstractController):
             finally:
                 self.view.unlock()
 
-    def onStart(self):
-        try:
-            self.view.lock()
-            self.view.clear()
-            self.startMeasurement()
-        except Exception as exc:
-            logger.exception(exc)
-            self.onFailed(exc)
-            self.finished.emit()
+    # State slots
 
-    def onStop(self):
+    def enterIdle(self):
+        self.view.unlock()
+        self.view.clearMessage()
+        self.view.clearProgress()
+        self.updateContinuousOption()
+        self.rpc_params.clear()
+        self.cache.clear()
+
+    def enterRunning(self):
+        self.view.lock()
+        self.view.clear()
+        self.startMeasurement()
+
+    def enterStopping(self):
         self.view.lockOnStop()
         self.state.update({"stop_requested": True})
         self.view.setMessage("Stop requested...")
         self.view.stopAction.setEnabled(False)
         self.view.stopButton.setEnabled(False)
 
-    def onFinished(self):
-        self.view.unlock()
-        self.view.setMessage("")
-        self.view.messageLabel.hide()
-        self.view.progressBar.hide()
-        self.updateContinuousOption()
-        self.cache.clear()
+    # Slots
 
-    def onFailed(self, exc):
-        self.view.lockOnStop()  # TODO
+    def handleException(self, exc):
         showException(exc, self.view)
 
     def onUpdate(self, data):
@@ -638,7 +684,7 @@ class Controller(AbstractController):
         measurementType = self.state.get("measurement_type")
         measurement = MEASUREMENTS.get(measurementType)(self.state)
 
-        measurement.update.connect(lambda data: self.update.emit(data))
+        measurement.update.connect(self.update)
 
         if isinstance(measurement, IVMeasurement):
             self.connectIVPlots(measurement)
@@ -649,69 +695,62 @@ class Controller(AbstractController):
         for role in self.view.roles():
             measurement.prepareDriver(role.name().lower())
 
-        measurement.failed_signal.connect(self.onFailed)
+        measurement.failed.connect(self.handleException)
 
         return measurement
 
     def startMeasurement(self) -> None:
-        logger.debug("preparing state...")
-        state = self.prepareState()
-        logger.debug("preparing state... done.")
-
-        if not state.get("source"):
-            raise RuntimeError("No source instrument selected.")
-
-        # Update state
-        self.state.update(state)
-        self.state.update({'stop_requested': False})
-
-        self.cache.update({
-            'measurement_type': state.get('measurement_type'),
-            'sample': state.get('sample')
-        })
-
-        # Filename
-        outputEnabled = self.view.generalWidget.isOutputEnabled()
-        filename = self.createFilename() if outputEnabled else None
-        self.state.update({"filename": filename})
-
-        # Create and run measurement
-        logger.debug("creating measurement...")
-        measurement = self.createMeasurement()
-        logger.debug("creating measurement... done.")
-        self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement])
-        logger.debug("starting measurement thread...")
-        self.measurementThread.start()
-        logger.debug("starting measurement thread... done.")
-
-    def _runMeasurement(self, measurement) -> None:
         try:
-            filename = measurement.state.get("filename")
-            with contextlib.ExitStack() as stack:
-                if filename:
-                    logger.info("preparing output file: %s", filename)
-                    def createOutputDir():
-                        path = os.path.dirname(filename)
-                        if not os.path.exists(path):
-                            logger.debug("create output dir: %s", path)
-                            os.makedirs(path)
-                    measurement.startedHandlers.append(lambda: createOutputDir())
-                    fp = stack.enter_context(open(filename, 'w', newline=''))
-                    writer = Writer(fp)
-                    # Note: using signals executes slots in main thread, shoyld be this thread
-                    measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
-                    if isinstance(measurement, IVMeasurement):
-                        measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
-                        measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
-                    if isinstance(measurement, CVMeasurement):
-                        measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
-                    measurement.finishedHandlers.append(lambda: writer.flush())
-                measurement.run()
+            logger.debug("handle RPC params...")
+            rpc_params = self.rpc_params.copy()
+            self.rpc_params.clear()
+            if 'reset' in rpc_params:
+                self.view.setReset(rpc_params.get('reset'))
+            if 'continuous' in rpc_params:
+                self.view.setContinuous(rpc_params.get('continuous'))
+            if 'end_voltage' in rpc_params:
+                self.view.generalWidget.setEndVoltage(rpc_params.get('end_voltage'))
+            if 'begin_voltage' in rpc_params:
+                self.view.generalWidget.setBeginVoltage(rpc_params.get('begin_voltage'))
+            if 'step_voltage' in rpc_params:
+                self.view.generalWidget.setStepVoltage(rpc_params.get('step_voltage'))
+            if 'waiting_time' in rpc_params:
+                self.view.generalWidget.setWaitingTime(rpc_params.get('waiting_time'))
+            if 'compliance' in rpc_params:
+                self.view.generalWidget.setCurrentCompliance(rpc_params.get('compliance'))
+            if 'waiting_time_continuous' in rpc_params:
+                self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get('waiting_time_continuous'))
+            logger.debug("handle RPC params... done.")
+
+            logger.debug("preparing state...")
+            state = self.prepareState()
+            logger.debug("preparing state... done.")
+
+            if not state.get("source"):
+                raise RuntimeError("No source instrument selected.")
+
+            # Update state
+            self.state.update(state)
+            self.state.update({'stop_requested': False})
+
+            self.cache.update({
+                'measurement_type': state.get('measurement_type'),
+                'sample': state.get('sample')
+            })
+
+            # Filename
+            outputEnabled = self.view.generalWidget.isOutputEnabled()
+            filename = self.createFilename() if outputEnabled else None
+            self.state.update({"filename": filename})
+
+            # Create and run measurement
+            measurement = self.createMeasurement()
+            self.worker.request(MeasurementRunner(measurement))
+
         except Exception as exc:
             logger.exception(exc)
-            self.failed.emit(exc)
-        finally:
-            self.finished.emit()
+            self.worker.failed.emit(exc)
+            self.aborted.emit()
 
 
 class IVPlotsController(AbstractController):
