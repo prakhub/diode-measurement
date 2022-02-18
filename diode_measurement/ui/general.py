@@ -179,11 +179,6 @@ class GeneralWidget(QtWidgets.QWidget):
         self.waitingTimeSpinBox.setEnabled(False)
         self.changeVoltageButton.setEnabled(False)
 
-    def lockOnStop(self):
-        self.currentComplianceSpinBox.setEnabled(False)
-        self.continueInComplianceCheckBox.setEnabled(False)
-        self.waitingTimeContinuousSpinBox.setEnabled(False)
-
     def unlock(self):
         self.measurementComboBox.setEnabled(True)
         self.instrumentWidget.setEnabled(True)
@@ -196,6 +191,11 @@ class GeneralWidget(QtWidgets.QWidget):
         self.currentComplianceSpinBox.setEnabled(True)
         self.continueInComplianceCheckBox.setEnabled(True)
         self.waitingTimeContinuousSpinBox.setEnabled(True)
+
+    def setStoppingState(self):
+        self.currentComplianceSpinBox.setEnabled(False)
+        self.continueInComplianceCheckBox.setEnabled(False)
+        self.waitingTimeContinuousSpinBox.setEnabled(False)
 
     def addMeasurement(self, spec):
         self.measurementComboBox.addItem(spec.get("title"), spec)

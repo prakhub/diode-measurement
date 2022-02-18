@@ -87,7 +87,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.measureMenu.addAction(self.stopAction)
         self.measureMenu.addSeparator()
         self.measureMenu.addAction(self.continuousAction)
-        self.measureMenu.addSeparator()
         self.measureMenu.addAction(self.changeVoltageAction)
 
         self.helpMenu = self.menuBar().addMenu("&Help")
@@ -344,7 +343,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrOutputStateLineEdit.setText("---")
         self.dmmTemperatureLineEdit.setText("---")
 
-    def lock(self):
+    def setIdleState(self):
+        self.importAction.setEnabled(True)
+        self.startAction.setEnabled(True)
+        self.stopAction.setEnabled(False)
+        self.continuousAction.setEnabled(True)
+        self.startButton.setEnabled(True)
+        self.startButton.setChecked(False)
+        self.stopButton.setEnabled(False)
+        self.stopButton.setChecked(False)
+        self.continuousCheckBox.setEnabled(True)
+        self.resetCheckBox.setEnabled(True)
+        self.generalWidget.unlock()
+        for role in self.roles():
+            role.unlock()
+        self.setProperty("locked", False)
+
+    def setRunningState(self):
         self.setProperty("locked", True)
         self.importAction.setEnabled(False)
         self.startAction.setEnabled(False)
@@ -360,24 +375,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for role in self.roles():
             role.lock()
 
-    def lockOnStop(self):
-        self.generalWidget.lockOnStop()
-
-    def unlock(self):
-        self.importAction.setEnabled(True)
-        self.startAction.setEnabled(True)
-        self.stopAction.setEnabled(False)
-        self.continuousAction.setEnabled(True)
-        self.startButton.setEnabled(True)
-        self.startButton.setChecked(False)
-        self.stopButton.setEnabled(False)
-        self.stopButton.setChecked(False)
-        self.continuousCheckBox.setEnabled(True)
-        self.resetCheckBox.setEnabled(True)
-        self.generalWidget.unlock()
-        for role in self.roles():
-            role.unlock()
-        self.setProperty("locked", False)
+    def setStoppingState(self):
+        self.generalWidget.setStoppingState()
 
     def setMessage(self, message):
         self.messageLabel.show()
@@ -474,11 +473,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def showAbout(self):
         QtWidgets.QMessageBox.about(self, "About", self.property("about"))
 
+    def showActiveInfo(self):
+        title = "Measurement active"
+        text = "Stop the current measurement to exiting the application."
+        QtWidgets.QMessageBox.information(self, title, text)
+
     def closeEvent(self, event):
         if self.property("locked"):
-            title = "Measurement active"
-            text = "Stop the current measurement to exiting the application."
-            QtWidgets.QMessageBox.information(self, title, text)
+            self.showActiveInfo()
             event.ignore()
         else:
             self.logWindow.close()

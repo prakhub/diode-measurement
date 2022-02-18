@@ -1,3 +1,7 @@
+"""Plugin implementing a simple TCP server providing a JSON-RCP protocol
+to control measurements remotely by third party software.
+"""
+
 import datetime
 import jsonrpc
 import logging
@@ -28,10 +32,9 @@ def json_dict(d: dict) -> dict:
     return {k: (None if isfinite(v) else v) for k, v in d.items()}
 
 
-class RPCHandler(QtCore.QObject):
+class RPCHandler:
 
-    def __init__(self, controller, parent: QtCore.QObject = None) -> None:
-        super().__init__(parent)
+    def __init__(self, controller) -> None:
         self.controller = controller
         self.dispatcher = jsonrpc.Dispatcher()
         self.dispatcher['start'] = self.onStart
@@ -75,8 +78,10 @@ class RPCHandler(QtCore.QObject):
     def onStop(self):
         self.controller.aborted.emit()
 
-    def onChangeVoltage(self, end_voltage: float, step_voltage: float = 1.0, waiting_time: float = 1.0):
-        self.controller.changeVoltageController.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
+    def onChangeVoltage(self, end_voltage: float, step_voltage: float = 1.0,
+                        waiting_time: float = 1.0):
+        controller = self.controller.changeVoltageController
+        controller.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
 
     def onState(self):
         return json_dict(self.controller.snapshot())
@@ -214,11 +219,11 @@ class TCPServerPlugin(Plugin):
     def install(self, context):
         self.failed.connect(context.handleException)
         self._installTab(context)
-        self.rpcHandler = RPCHandler(context, self)
+        self.rpcHandler = RPCHandler(context)
         self.loadSettings()
         self._startServer()
 
-    def shutdown(self, context):
+    def uninstall(self, context):
         self.failed.disconnect(context.handleException)
         self._enabled.clear()
         while self._q:

@@ -40,6 +40,7 @@ from .measurement import Measurement
 from .measurement.iv import IVMeasurement
 from .measurement.cv import CVMeasurement
 
+from .plugin import PluginRegistryMixin
 from .worker import Worker
 
 from .reader import Reader
@@ -104,21 +105,9 @@ class AbstractController(QtCore.QObject):
     def __init__(self, view, parent=None) -> None:
         super().__init__(parent)
         self.view = view
-        self._plugins = []
-
-    def installPlugin(self, plugin) -> None:
-        self._plugins.append(plugin)
-        try:
-            plugin.install(self)
-        except Exception as exc:
-            logger.exception(exc)
-
-    def shutdown(self):
-        for plugin in self._plugins:
-            plugin.shutdown(self)
 
 
-class Controller(AbstractController):
+class Controller(PluginRegistryMixin, AbstractController):
 
     started = QtCore.pyqtSignal()
     aborted = QtCore.pyqtSignal()
@@ -185,7 +174,6 @@ class Controller(AbstractController):
         self.view.generalWidget.continueInComplianceChanged.connect(self.onContinueInComplianceChanged)
         self.view.generalWidget.waitingTimeContinuousChanged.connect(self.onWaitingTimeContinuousChanged)
 
-        self.view.unlock()
         self.onMeasurementChanged(0)
 
         self.update.connect(self.onUpdate)
@@ -204,13 +192,13 @@ class Controller(AbstractController):
         # States
 
         self.idleState = QtCore.QState()
-        self.idleState.entered.connect(self.enterIdle)
+        self.idleState.entered.connect(self.setIdleState)
 
         self.runningState = QtCore.QState()
-        self.runningState.entered.connect(self.enterRunning)
+        self.runningState.entered.connect(self.setRunningState)
 
         self.stoppingState = QtCore.QState()
-        self.stoppingState.entered.connect(self.enterStopping)
+        self.stoppingState.entered.connect(self.setStoppingState)
 
         # Transitions
 
@@ -296,7 +284,7 @@ class Controller(AbstractController):
     def shutdown(self):
         self.stateMachine.stop()
         self.worker.stop()
-        super().shutdown()
+        self.uninstallPlugins()
 
     @handle_exception
     def loadSettings(self):
@@ -466,7 +454,7 @@ class Controller(AbstractController):
         )
         if filename:
             logger.info("Importing measurement file: %s", filename)
-            self.view.lock()
+            self.view.setEnabled(False)
             self.view.clear()
             try:
                 # Open in binary mode!
@@ -505,29 +493,28 @@ class Controller(AbstractController):
                     self.cvPlotsController.onLoadCVReadings(data)
                     self.cvPlotsController.onLoadCV2Readings(data)
             finally:
-                self.view.unlock()
+                self.view.setEnabled(True)
 
     # State slots
 
-    def enterIdle(self):
-        self.view.unlock()
+    def setIdleState(self):
+        self.view.setIdleState()
         self.view.clearMessage()
         self.view.clearProgress()
         self.updateContinuousOption()
-        self.rpc_params.clear()
         self.cache.clear()
 
-    def enterRunning(self):
-        self.view.lock()
+    def setRunningState(self):
+        self.view.setRunningState()
         self.view.clear()
         self.startMeasurement()
 
-    def enterStopping(self):
-        self.view.lockOnStop()
-        self.state.update({"stop_requested": True})
+    def setStoppingState(self):
+        self.view.setStoppingState()
         self.view.setMessage("Stop requested...")
         self.view.stopAction.setEnabled(False)
         self.view.stopButton.setEnabled(False)
+        self.state.update({"stop_requested": True})
 
     # Slots
 
