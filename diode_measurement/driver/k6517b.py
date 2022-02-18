@@ -23,7 +23,7 @@ class K6517B(Electrometer):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write(':SOUR:FUNC VOLT')
+        pass
 
     def get_output_enabled(self) -> bool:
         return self._query(':OUTP:STAT?') == '1'
