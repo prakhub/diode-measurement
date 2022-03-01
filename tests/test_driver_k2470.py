@@ -1,4 +1,3 @@
-import os
 import unittest
 
 from diode_measurement.driver.k2470 import K2470

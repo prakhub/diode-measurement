@@ -22,14 +22,16 @@ __all__ = ['TCPServerPlugin']
 logger = logging.getLogger(__name__)
 
 
-def isfinite(value: Any) -> bool:
+def is_finite(value: Any) -> bool:
     """Return `True` if value is finite float or `True` for any other value type."""
-    return isinstance(value, float) and not math.isfinite(value)
+    if isinstance(value, float):
+        return math.isfinite(value)
+    return True
 
 
 def json_dict(d: dict) -> dict:
     """Replace non-finite floats (nan, +inf, -inf) with `None` to be converted to `null` in JSON."""
-    return {k: (None if isfinite(v) else v) for k, v in d.items()}
+    return {k: (v if is_finite(v) else None) for k, v in d.items()}
 
 
 class RPCHandler:

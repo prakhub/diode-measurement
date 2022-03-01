@@ -1,4 +1,3 @@
-import os
 import unittest
 
 from diode_measurement import utils
