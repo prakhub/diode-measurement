@@ -82,7 +82,7 @@ class LogWidget(QtWidgets.QTextEdit):
 
     @classmethod
     def formatTime(cls, seconds):
-        dt = QtCore.QDateTime.fromMSecsSinceEpoch(seconds * 1000)
+        dt = QtCore.QDateTime.fromMSecsSinceEpoch(int(seconds * 1e3))
         return dt.toString("yyyy-MM-dd hh:mm:ss")
 
     @classmethod

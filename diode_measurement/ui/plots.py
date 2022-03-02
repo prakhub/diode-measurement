@@ -316,8 +316,8 @@ class ItPlotWidget(PlotWidget):
             t = time.time()
             minimum = t - 60
             maximum = t
-        t0 = QtCore.QDateTime.fromMSecsSinceEpoch(minimum * 1e3)
-        t1 = QtCore.QDateTime.fromMSecsSinceEpoch(maximum * 1e3)
+        t0 = QtCore.QDateTime.fromMSecsSinceEpoch(int(minimum * 1e3))
+        t1 = QtCore.QDateTime.fromMSecsSinceEpoch(int(maximum * 1e3))
         self.tAxis.setRange(t0, t1)
 
     def fitIAxis(self) -> None:

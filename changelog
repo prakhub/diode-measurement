@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.dev5] - 2022-03-02
+### Fixed
+- Occasional `TypeError` from `QDateTime.fromMSecsSinceEpoch` (#18).
+
 ## [0.7.dev4] - 2022-03-01
 ### Fixed
 - JSON-RPC return None instead of NaN (#5).
