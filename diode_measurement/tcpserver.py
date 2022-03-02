@@ -10,7 +10,7 @@ import socketserver
 import threading
 import time
 
-from typing import Any
+from typing import Any, Dict, Union
 
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
@@ -39,25 +39,22 @@ class RPCHandler:
     def __init__(self, controller) -> None:
         self.controller = controller
         self.dispatcher = jsonrpc.Dispatcher()
-        self.dispatcher['start'] = self.onStart
-        self.dispatcher['stop'] = self.onStop
-        self.dispatcher['change_voltage'] = self.onChangeVoltage
-        self.dispatcher['state'] = self.onState
+        self.dispatcher['start'] = self.on_start
+        self.dispatcher['stop'] = self.on_stop
+        self.dispatcher['change_voltage'] = self.on_change_voltage
+        self.dispatcher['state'] = self.on_state
         self.manager = jsonrpc.JSONRPCResponseManager()
 
-    def __call__(self):
-        return self.controller()
-
-    def handle(self, request):
+    def handle(self, request) -> Dict[str, Any]:
         return self.manager.handle(request, self.dispatcher)
 
-    def onStart(self, reset: bool = None, continuous: bool = None,
-                measurement_type: str = None, begin_voltage: float = None,
-                end_voltage: float = None, step_voltage: float = None,
-                waiting_time: float = None, compliance: float = None,
-                waiting_time_continuous: float = None):
+    def on_start(self, reset: bool = None, continuous: bool = None,
+                 measurement_type: str = None, begin_voltage: float = None,
+                 end_voltage: float = None, step_voltage: float = None,
+                 waiting_time: float = None, compliance: float = None,
+                 waiting_time_continuous: float = None) -> None:
         if not self.controller.rpc_params:
-            rpc_params = {}
+            rpc_params: Dict[str, Union[None, int, float, str]] = {}
             if reset is not None:
                 rpc_params['reset'] = reset
             if continuous is not None:
@@ -77,15 +74,15 @@ class RPCHandler:
             self.controller.rpc_params.update(rpc_params)
             self.controller.started.emit()
 
-    def onStop(self):
+    def on_stop(self) -> None:
         self.controller.aborted.emit()
 
-    def onChangeVoltage(self, end_voltage: float, step_voltage: float = 1.0,
-                        waiting_time: float = 1.0):
+    def on_change_voltage(self, end_voltage: float, step_voltage: float = 1.0,
+                          waiting_time: float = 1.0) -> None:
         controller = self.controller.changeVoltageController
         controller.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
 
-    def onState(self):
+    def on_state(self) -> Dict[str, Union[None, int, float, str]]:
         return json_dict(self.controller.snapshot())
 
 
@@ -112,7 +109,7 @@ class TCPServer(socketserver.TCPServer):
 
 class RPCWidget(QtWidgets.QWidget):
 
-    MaximumEntries = 1024 * 64
+    MaximumEntries: int = 1024 * 64
     """Maximum number of visible protocol entries."""
 
     reconnectSignal = QtCore.pyqtSignal()
@@ -182,7 +179,7 @@ class RPCWidget(QtWidgets.QWidget):
     def setServerEnabled(self, enabled: bool) -> None:
         self.autoConnectCheckBox.setChecked(enabled)
 
-    def setConnected(self, connected: bool)-> None:
+    def setConnected(self, connected: bool) -> None:
         self.reconnectButton.setEnabled(True)
         self.reconnectButton.setText("Disconnect" if connected else "Connect")
         self.portSpinBox.setEnabled(not connected)
@@ -193,13 +190,13 @@ class RPCWidget(QtWidgets.QWidget):
         return self.hostnameLineEdit.text().strip()
 
     def setHostname(self, hostname: str) -> None:
-         self.hostnameLineEdit.setText(hostname)
+        self.hostnameLineEdit.setText(hostname)
 
     def port(self) -> int:
         return self.portSpinBox.value()
 
     def setPort(self, port: int) -> None:
-         self.portSpinBox.setValue(port)
+        self.portSpinBox.setValue(port)
 
     def setState(self, text: str) -> None:
         self.stateLabel.setText(text)

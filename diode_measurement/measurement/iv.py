@@ -1,11 +1,10 @@
-import contextlib
 import logging
-import math
 import time
+
+from typing import Any, Callable, Dict, List
 
 from PyQt5 import QtCore
 
-from ..functions import LinearRange
 from ..estimate import Estimate
 
 from . import RangeMeasurement
@@ -21,10 +20,10 @@ class IVMeasurement(RangeMeasurement):
     itReading = QtCore.pyqtSignal(dict)
     itChangeVoltageReady = QtCore.pyqtSignal()
 
-    def __init__(self, state):
+    def __init__(self, state: Dict[str, Any]) -> None:
         super().__init__(state)
-        self.ivReadingHandlers = []
-        self.itReadingHandlers = []
+        self.ivReadingHandlers: List[Callable] = []
+        self.itReadingHandlers: List[Callable] = []
 
     def acquireReadingData(self):
         smu = self.contexts.get('smu')
@@ -66,7 +65,7 @@ class IVMeasurement(RangeMeasurement):
     def acquireContinuousReading(self):
         estimate = Estimate(1)
         while not self.stop_requested:
-            #self.update_message("Reading...")
+            # self.update_message("Reading...")
             self.update_progress(0, 0, 0)
             reading = self.acquireReadingData()
             logger.info(reading)

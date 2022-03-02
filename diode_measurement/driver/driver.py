@@ -92,6 +92,7 @@ class LCRMeter(SourceMeter):
     def read_capacity(self) -> float:
         pass
 
+
 class DMM(Driver):
 
     @abstractmethod

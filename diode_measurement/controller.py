@@ -2,13 +2,10 @@ import os
 import math
 import time
 import logging
-import threading
 import contextlib
-import queue
 
 from datetime import datetime
-
-from typing import List, Union
+from typing import Any, Dict, List
 
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
@@ -27,7 +24,7 @@ from .ui.panels import K6517BPanel
 
 # LCR meters
 from .ui.panels import K595Panel
-from .ui.panels import E4285Panel
+# from .ui.panels import E4285Panel
 from .ui.panels import E4980APanel
 
 # DMM
@@ -81,11 +78,13 @@ class MeasurementRunner:
         with contextlib.ExitStack() as stack:
             if filename:
                 logger.info("preparing output file: %s", filename)
+
                 def createOutputDir():
                     path = os.path.dirname(filename)
                     if not os.path.exists(path):
                         logger.debug("create output dir: %s", path)
                         os.makedirs(path)
+
                 measurement.startedHandlers.append(lambda: createOutputDir())
                 fp = stack.enter_context(open(filename, 'w', newline=''))
                 writer = Writer(fp)
@@ -119,9 +118,9 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.worker: Worker = Worker(self)
         self.worker.failed.connect(self.handleException)
 
-        self.state = {'rpc_state': 'idle'}
-        self.cache = {}
-        self.rpc_params = {}
+        self.state: Dict[str, Any] = {'rpc_state': 'idle'}
+        self.cache: Dict[str, Any] = {}
+        self.rpc_params: Dict[str, Any] = {}
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")

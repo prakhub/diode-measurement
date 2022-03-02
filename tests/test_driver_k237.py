@@ -4,6 +4,7 @@ from diode_measurement.driver.k237 import K237
 
 from . import FakeResource
 
+
 class DriverK237Test(unittest.TestCase):
 
     def test_driver_k237(self):

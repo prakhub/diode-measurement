@@ -1,4 +1,6 @@
 import logging
+
+from typing import Callable
 from threading import Event, Thread
 from queue import Queue, Empty
 
@@ -14,7 +16,7 @@ class Worker(QtCore.QObject):
     failed = QtCore.pyqtSignal(Exception)
     finished = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtCore.QObject = None) -> None:
         super().__init__(parent)
         self._shutdownEvent: Event = Event()
         self._queue: Queue = Queue()
@@ -26,7 +28,7 @@ class Worker(QtCore.QObject):
     def stop(self) -> None:
         self._shutdownEvent.set()
 
-    def request(self, callback) -> None:
+    def request(self, callback: Callable) -> None:
         self._queue.put(callback)
 
     def handleRequest(self) -> None:

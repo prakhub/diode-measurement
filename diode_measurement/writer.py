@@ -1,7 +1,7 @@
 import csv
 import math
 
-from typing import Any
+from typing import Any, Optional
 
 
 def safe_format(value, format_spec=''):
@@ -16,7 +16,7 @@ class Writer:
     def __init__(self, fp) -> None:
         self._fp = fp
         self._writer = csv.writer(fp, delimiter='\t')
-        self._current_table = None
+        self._current_table: Optional[str] = None
 
     def flush(self) -> None:
         self._fp.flush()

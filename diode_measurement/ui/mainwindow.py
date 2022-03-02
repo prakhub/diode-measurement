@@ -1,6 +1,8 @@
 import logging
 import webbrowser
 
+from typing import Dict, List, Optional
+
 from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
@@ -22,7 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     prepareChangeVoltage = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setProperty("locked", False)
 
@@ -32,7 +34,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._createLayout()
         self._createDialogs()
 
-    def _createActions(self):
+    def _createActions(self) -> None:
         self.importAction = QtWidgets.QAction("&Import File...")
         self.importAction.setStatusTip("Import measurement data")
 
@@ -73,7 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.aboutAction.setStatusTip("About the application")
         self.aboutAction.triggered.connect(self.showAbout)
 
-    def _createMenus(self):
+    def _createMenus(self) -> None:
         self.fileMenu = self.menuBar().addMenu("&File")
         self.fileMenu.addAction(self.importAction)
         self.fileMenu.addSeparator()
@@ -94,7 +96,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.helpMenu.addAction(self.aboutQtAction)
         self.helpMenu.addAction(self.aboutAction)
 
-    def _createWidgets(self):
+    def _createWidgets(self) -> None:
         self.ivPlotWidget = IVPlotWidget()
 
         self.itPlotWidget = ItPlotWidget()
@@ -136,7 +138,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generalWidget = GeneralWidget()
         self.generalWidget.changeVoltageButton.clicked.connect(self.changeVoltageAction.trigger)
 
-        self.roleWidgets = {}
+        self.roleWidgets: Dict[str, RoleWidget] = {}
 
         self.controlTabWidget = QtWidgets.QTabWidget()
         self.controlTabWidget.addTab(self.generalWidget, self.generalWidget.windowTitle())
@@ -193,8 +195,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dmmTemperatureLineEdit.setReadOnly(True)
         self.dmmTemperatureLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
-        self.centralWidget = QtWidgets.QWidget()
-        self.setCentralWidget(self.centralWidget)
+        centralWidget = QtWidgets.QWidget()
+        self.setCentralWidget(centralWidget)
 
         self.messageLabel = QtWidgets.QLabel()
         self.statusBar().addPermanentWidget(self.messageLabel)
@@ -203,7 +205,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.setFixedWidth(240)
         self.statusBar().addPermanentWidget(self.progressBar)
 
-    def _createLayout(self):
+    def _createLayout(self) -> None:
         ivLayout = QtWidgets.QHBoxLayout(self.ivWidget)
         ivLayout.addWidget(self.ivPlotWidget)
         ivLayout.addWidget(self.itPlotWidget)
@@ -297,32 +299,32 @@ class MainWindow(QtWidgets.QMainWindow):
         bottomLayout.setStretch(1, 7)
         bottomLayout.setStretch(2, 3)
 
-        layout = QtWidgets.QVBoxLayout(self.centralWidget)
+        layout = QtWidgets.QVBoxLayout(self.centralWidget())
         layout.addWidget(self.dataTabWidget)
         layout.addLayout(bottomLayout)
 
-    def _createDialogs(self):
+    def _createDialogs(self) -> None:
         self.logWindow = LogWindow()
         self.logWindow.addLogger(logging.getLogger())
         self.logWindow.setLevel(logging.DEBUG)
         self.logWindow.resize(640, 420)
         self.logWindow.hide()
 
-    def addRole(self, name):
+    def addRole(self, name: str) -> RoleWidget:
         if name in self.roleWidgets:
-            raise KeyError(name)
+            raise KeyError(f"No suc role: {name}")
         widget = RoleWidget(name)
         self.roleWidgets[name] = widget
         self.controlTabWidget.addTab(widget, widget.name())
         return widget
 
-    def findRole(self, title):
-        return self.roleWidgets.get(title)
+    def findRole(self, name: str) -> Optional[RoleWidget]:
+        return self.roleWidgets.get(name)
 
-    def roles(self):
+    def roles(self) -> List:
         return list(self.roleWidgets.values())
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear displayed data in plots and inputs."""
         self.ivPlotWidget.clear()
         self.ivPlotWidget.reset()
@@ -343,7 +345,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrOutputStateLineEdit.setText("---")
         self.dmmTemperatureLineEdit.setText("---")
 
-    def setIdleState(self):
+    def setIdleState(self) -> None:
         self.importAction.setEnabled(True)
         self.startAction.setEnabled(True)
         self.stopAction.setEnabled(False)
@@ -359,7 +361,7 @@ class MainWindow(QtWidgets.QMainWindow):
             role.unlock()
         self.setProperty("locked", False)
 
-    def setRunningState(self):
+    def setRunningState(self) -> None:
         self.setProperty("locked", True)
         self.importAction.setEnabled(False)
         self.startAction.setEnabled(False)
@@ -375,39 +377,39 @@ class MainWindow(QtWidgets.QMainWindow):
         for role in self.roles():
             role.lock()
 
-    def setStoppingState(self):
+    def setStoppingState(self) -> None:
         self.generalWidget.setStoppingState()
 
-    def setMessage(self, message):
+    def setMessage(self, message: str) -> None:
         self.messageLabel.show()
         self.messageLabel.setText(message)
 
-    def clearMessage(self):
+    def clearMessage(self) -> None:
         self.messageLabel.hide()
         self.messageLabel.clear()
 
-    def setProgress(self, minimum, maximum, value):
+    def setProgress(self, minimum: int, maximum: int, value: int) -> None:
         self.progressBar.show()
         self.progressBar.setRange(minimum, maximum)
         self.progressBar.setValue(value)
 
-    def clearProgress(self):
+    def clearProgress(self) -> None:
         self.progressBar.hide()
         self.progressBar.setRange(0, 1)
         self.progressBar.setValue(0)
 
-    def raiseIVTab(self):
+    def raiseIVTab(self) -> None:
         index = self.dataTabWidget.indexOf(self.ivWidget)
         self.dataTabWidget.setCurrentIndex(index)
 
-    def raiseCVTab(self):
+    def raiseCVTab(self) -> None:
         index = self.dataTabWidget.indexOf(self.cvWidget)
         self.dataTabWidget.setCurrentIndex(index)
 
-    def isContinuous(self):
+    def isContinuous(self) -> bool:
         return self.continuousAction.isChecked()
 
-    def setContinuous(self, enabled):
+    def setContinuous(self, enabled: bool) -> None:
         self.continuousAction.setChecked(enabled)
         self.continuousCheckBox.setChecked(enabled)
 
@@ -418,23 +420,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.changeVoltageAction.setEnabled(state)
         self.generalWidget.changeVoltageButton.setEnabled(state)
 
-    def isReset(self):
+    def isReset(self) -> bool:
         return self.resetCheckBox.isChecked()
 
-    def setReset(self, enabled):
+    def setReset(self, enabled: bool) -> None:
         return self.resetCheckBox.setChecked(enabled)
 
-    def setSourceEnabled(self, source, enabled):
+    def setSourceEnabled(self, source: str, enabled: bool) -> None:
         for widget in self.roles():
             if widget.name() == source:
                 index = self.controlTabWidget.indexOf(widget)
                 self.controlTabWidget.setTabEnabled(index, enabled)
         self.generalWidget.setSourceEnabled(source, enabled)
 
-    def updateSourceVoltage(self, voltage):
+    def updateSourceVoltage(self, voltage: float) -> None:
         self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
 
-    def updateSourceOutputState(self, state):
+    def updateSourceOutputState(self, state: bool) -> None:
         if self.smuGroupBox.isEnabled():
             self.smuOutputStateLineEdit.setText(format_switch(state))
         elif self.elmGroupBox.isEnabled():
@@ -442,43 +444,40 @@ class MainWindow(QtWidgets.QMainWindow):
         elif self.lcrGroupBox.isEnabled():
             self.lcrOutputStateLineEdit.setText(format_switch(state))
 
-    def updateSMUCurrent(self, current):
+    def updateSMUCurrent(self, current: float) -> None:
         self.smuCurrentLineEdit.setText(format_metric(current, "A"))
 
-    def updateELMVoltage(self, voltage):
+    def updateELMVoltage(self, voltage: float) -> None:
         self.elmVoltageLineEdit.setText(format_metric(voltage, "V"))
 
-    def updateELMCurrent(self, current):
+    def updateELMCurrent(self, current: float) -> None:
         self.elmCurrentLineEdit.setText(format_metric(current, "A"))
 
-    def updateLCRCapacity(self, capacity):
+    def updateLCRCapacity(self, capacity: float) -> None:
         self.lcrCurrentLineEdit.setText(format_metric(capacity, "F"))
 
-    def updateDMMTemperature(self, temperature):
+    def updateDMMTemperature(self, temperature: float) -> None:
         self.dmmTemperatureLineEdit.setText(format_metric(temperature, "°C"))
 
-    def showLogWindow(self):
+    def showLogWindow(self) -> None:
         self.logWindow.show()
         self.logWindow.raise_()
 
-    @QtCore.pyqtSlot()
-    def showContents(self):
+    def showContents(self) -> None:
         webbrowser.open(self.property("contentsUrl"))
 
-    @QtCore.pyqtSlot()
-    def showAboutQt(self):
+    def showAboutQt(self) -> None:
         QtWidgets.QMessageBox.aboutQt(self)
 
-    @QtCore.pyqtSlot()
-    def showAbout(self):
+    def showAbout(self) -> None:
         QtWidgets.QMessageBox.about(self, "About", self.property("about"))
 
-    def showActiveInfo(self):
+    def showActiveInfo(self) -> None:
         title = "Measurement active"
         text = "Stop the current measurement to exiting the application."
         QtWidgets.QMessageBox.information(self, title, text)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: QtCore.QEvent) -> None:
         if self.property("locked"):
             self.showActiveInfo()
             event.ignore()

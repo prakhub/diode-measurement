@@ -1,7 +1,8 @@
 import contextlib
 import logging
-import math
 import time
+
+from typing import Any, Callable, Dict, List
 
 from PyQt5 import QtCore
 
@@ -10,7 +11,6 @@ from ..driver import driver_factory
 
 from ..functions import LinearRange
 from ..estimate import Estimate
-from ..writer import Writer
 
 __all__ = ['Measurement', 'RangeMeasurement']
 
@@ -24,14 +24,14 @@ class Measurement(QtCore.QObject):
     update = QtCore.pyqtSignal(dict)
     failed = QtCore.pyqtSignal(object)
 
-    def __init__(self, state):
+    def __init__(self, state: Dict[str, Any]) -> None:
         super().__init__()
-        self.state = state
-        self.contexts = {}
-        self._registered = {}
-        self._drivers = {}
-        self.startedHandlers = []
-        self.finishedHandlers = []
+        self.state: Dict[str, Any] = state
+        self.contexts: Dict = {}
+        self._registered: Dict = {}
+        self._drivers: Dict = {}
+        self.startedHandlers: List[Callable] = []
+        self.finishedHandlers: List[Callable] = []
 
     def registerInstrument(self, name: str, cls, resource) -> None:
         self._registered[name] = cls, resource

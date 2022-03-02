@@ -1,12 +1,11 @@
-import contextlib
 import logging
 import math
 import time
 
+from typing import Any, Callable, Dict, List
+
 from PyQt5 import QtCore
 
-from ..functions import LinearRange
-from ..estimate import Estimate
 from ..utils import inverse_square
 
 from . import RangeMeasurement
@@ -20,9 +19,9 @@ class CVMeasurement(RangeMeasurement):
 
     cvReading = QtCore.pyqtSignal(dict)
 
-    def __init__(self, state):
+    def __init__(self, state: Dict[str, Any]) -> None:
         super().__init__(state)
-        self.cvReadingHandlers = []
+        self.cvReadingHandlers: List[Callable] = []
 
     def extendCVReading(self, reading: dict) -> dict:
         # Calcualte 1c^2 as c2_lcr

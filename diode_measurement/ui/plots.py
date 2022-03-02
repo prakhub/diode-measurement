@@ -1,5 +1,7 @@
 import os
 
+from typing import Any, Dict
+
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 from PyQt5 import QtChart
@@ -16,7 +18,7 @@ __all__ = [
 
 class DynamicValueAxis(QtChart.QValueAxis):
 
-    def __init__(self, axis: QtChart.QValueAxis, unit):
+    def __init__(self, axis: QtChart.QValueAxis, unit: str) -> None:
         super().__init__(axis)
         self.setProperty('axis', axis)
         self.setUnit(unit)
@@ -32,7 +34,7 @@ class DynamicValueAxis(QtChart.QValueAxis):
         return self.property('unit')
 
     def setUnit(self, unit: str) -> None:
-        return self.setProperty('unit', unit)
+        self.setProperty('unit', unit)
 
     def setLocked(self, state: bool) -> None:
         self.setProperty('locked', state)
@@ -54,7 +56,7 @@ class DynamicValueAxis(QtChart.QValueAxis):
 
 class LimitsAggregator(QtCore.QObject):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtCore.QObject = None) -> None:
         super().__init__(parent)
         self._minimum: float = 0.
         self._maximum: float = 0.
@@ -86,21 +88,21 @@ class LimitsAggregator(QtCore.QObject):
 
 class PlotToolButton(QtWidgets.QPushButton):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setFixedSize(18, 18)
 
 
 class PlotWidget(QtChart.QChartView):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
-        self.chart = QtChart.QChart()
-        self.chart.setMargins(QtCore.QMargins(4, 4, 4, 4))
-        self.chart.layout().setContentsMargins(0, 0, 0, 0)
-        self.chart.setBackgroundRoundness(0)
-        self.chart.legend().setAlignment(QtCore.Qt.AlignRight)
-        self.setChart(self.chart)
+        chart = QtChart.QChart()
+        chart.setMargins(QtCore.QMargins(4, 4, 4, 4))
+        chart.layout().setContentsMargins(0, 0, 0, 0)
+        chart.setBackgroundRoundness(0)
+        chart.legend().setAlignment(QtCore.Qt.AlignRight)
+        self.setChart(chart)
 
         self.setRubberBand(QtChart.QChartView.RectangleRubberBand)
 
@@ -133,7 +135,7 @@ class PlotWidget(QtChart.QChartView):
         layout.addWidget(self.resetButton)
         layout.addWidget(self.saveAsButton)
 
-        self.series: dict = {}
+        self.series: Dict[str, Any] = {}
 
     def mouseMoveEvent(self, event) -> None:
         self.toolbar.setVisible(self.underMouse())
@@ -143,11 +145,9 @@ class PlotWidget(QtChart.QChartView):
         self.toolbar.hide()
         super().leaveEvent(event)
 
-    @QtCore.pyqtSlot()
     def reset(self) -> None:
-        self.chart.zoomReset()
+        self.chart().zoomReset()
 
-    @QtCore.pyqtSlot()
     def saveAs(self) -> None:
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
@@ -164,11 +164,11 @@ class PlotWidget(QtChart.QChartView):
                 pass
 
     def clear(self) -> None:
-        for series in self.chart.series():
+        for series in self.chart().series():
             series.clear()
 
-    def isReverse(self) -> None:
-        for series in self.chart.series():
+    def isReverse(self) -> bool:
+        for series in self.chart().series():
             if series.count():
                 if series.at(series.count() - 1).x() < series.at(0).x():
                     return True
@@ -177,38 +177,38 @@ class PlotWidget(QtChart.QChartView):
 
 class IVPlotWidget(PlotWidget):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
-        self.chart.setTitle("I vs. V")
+        self.chart().setTitle("I vs. V")
 
         self.smuSeries = QtChart.QLineSeries()
         self.smuSeries.setName("SMU")
         self.smuSeries.setColor(QtCore.Qt.red)
         self.smuSeries.setPointsVisible(True)
-        self.chart.addSeries(self.smuSeries)
+        self.chart().addSeries(self.smuSeries)
 
         self.elmSeries = QtChart.QLineSeries()
         self.elmSeries.setName("ELM")
         self.elmSeries.setColor(QtCore.Qt.blue)
         self.elmSeries.setPointsVisible(True)
-        self.chart.addSeries(self.elmSeries)
+        self.chart().addSeries(self.elmSeries)
 
         self.iAxis = QtChart.QValueAxis()
-        self.chart.addAxis(self.iAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
         self.iDynamicAxis = DynamicValueAxis(self.iAxis, 'A')
         self.iDynamicAxis.setTitleText("Current")
         self.iDynamicAxis.setTickCount(9)
-        self.chart.addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
         self.iAxis.setRange(0, 200e-9)
 
         self.vAxis = QtChart.QValueAxis()
         self.vAxis.setTitleText("Voltage")
         self.vAxis.setLabelFormat("%g V")
         self.vAxis.setRange(-100, +100)
-        self.chart.addAxis(self.vAxis, QtCore.Qt.AlignBottom)
+        self.chart().addAxis(self.vAxis, QtCore.Qt.AlignBottom)
         self.smuSeries.attachAxis(self.vAxis)
         self.elmSeries.attachAxis(self.vAxis)
 
@@ -243,7 +243,7 @@ class IVPlotWidget(PlotWidget):
         self.iAxis.applyNiceNumbers()
 
     def fit(self) -> None:
-        if self.chart.isZoomed():
+        if self.chart().isZoomed():
             return
         self.fitVAxis()
         self.fitIAxis()
@@ -264,40 +264,40 @@ class IVPlotWidget(PlotWidget):
 
 class ItPlotWidget(PlotWidget):
 
-    MAX_POINTS = 60 * 60 * 24
+    MAX_POINTS: int = 60 * 60 * 24
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
-        self.chart.setTitle("I vs. t")
+        self.chart().setTitle("I vs. t")
 
         self.smuSeries = QtChart.QLineSeries()
         self.smuSeries.setName("SMU")
         self.smuSeries.setColor(QtCore.Qt.red)
         self.smuSeries.setPointsVisible(True)
-        self.chart.addSeries(self.smuSeries)
+        self.chart().addSeries(self.smuSeries)
 
         self.elmSeries = QtChart.QLineSeries()
         self.elmSeries.setName("ELM")
         self.elmSeries.setColor(QtCore.Qt.blue)
         self.elmSeries.setPointsVisible(True)
-        self.chart.addSeries(self.elmSeries)
+        self.chart().addSeries(self.elmSeries)
 
         self.iAxis = QtChart.QValueAxis()
         self.iAxis.hide()
-        self.chart.addAxis(self.iAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
         self.iDynamicAxis = DynamicValueAxis(self.iAxis, 'A')
         self.iDynamicAxis.setTitleText("Current")
         self.iDynamicAxis.setTickCount(9)
-        self.chart.addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
         self.iAxis.setRange(0, 200e-9)
 
         self.tAxis = QtChart.QDateTimeAxis()
         self.tAxis.setTitleText("Time")
         self.tAxis.setTickCount(3)
-        self.chart.addAxis(self.tAxis, QtCore.Qt.AlignBottom)
+        self.chart().addAxis(self.tAxis, QtCore.Qt.AlignBottom)
         self.smuSeries.attachAxis(self.tAxis)
         self.elmSeries.attachAxis(self.tAxis)
 
@@ -334,8 +334,8 @@ class ItPlotWidget(PlotWidget):
         self.iDynamicAxis.setLocked(False)
         self.iAxis.applyNiceNumbers()
 
-    def fit(self):
-        if self.chart.isZoomed():
+    def fit(self) -> None:
+        if self.chart().isZoomed():
             return
         self.fitTAxis()
         self.fitIAxis()
@@ -358,23 +358,23 @@ class ItPlotWidget(PlotWidget):
 
 class CVPlotWidget(PlotWidget):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
-        self.chart.setTitle("C vs. V")
+        self.chart().setTitle("C vs. V")
 
         self.lcrSeries = QtChart.QLineSeries()
         self.lcrSeries.setName("LCR")
         self.lcrSeries.setColor(QtCore.Qt.magenta)
-        self.chart.addSeries(self.lcrSeries)
+        self.chart().addSeries(self.lcrSeries)
 
         self.cAxis = QtChart.QValueAxis()
-        self.chart.addAxis(self.cAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.cAxis, QtCore.Qt.AlignLeft)
         self.lcrSeries.attachAxis(self.cAxis)
 
         self.cDynamicAxis = DynamicValueAxis(self.cAxis, 'F')
         self.cDynamicAxis.setTitleText("Capacitance")
         self.cDynamicAxis.setTickCount(9)
-        self.chart.addAxis(self.cDynamicAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.cDynamicAxis, QtCore.Qt.AlignLeft)
         self.cAxis.setRange(0, 200e-9)
 
         self.vAxis = QtChart.QValueAxis()
@@ -382,7 +382,7 @@ class CVPlotWidget(PlotWidget):
         self.vAxis.setLabelFormat("%g V")
         self.vAxis.setRange(0, 200)
         self.vAxis.setTickCount(9)
-        self.chart.addAxis(self.vAxis, QtCore.Qt.AlignBottom)
+        self.chart().addAxis(self.vAxis, QtCore.Qt.AlignBottom)
         self.lcrSeries.attachAxis(self.vAxis)
 
         self.cLimits = LimitsAggregator(self)
@@ -391,7 +391,7 @@ class CVPlotWidget(PlotWidget):
         self.series['lcr'] = self.lcrSeries
 
     def fit(self) -> None:
-        if self.chart.isZoomed():
+        if self.chart().isZoomed():
             return
         minimum: float = self.vLimits.minimum()
         maximum: float = self.vLimits.maximum()
@@ -419,21 +419,21 @@ class CVPlotWidget(PlotWidget):
 
 class CV2PlotWidget(PlotWidget):
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
-        self.chart.setTitle("1/C^2 vs. V")
+        self.chart().setTitle("1/C^2 vs. V")
 
         self.lcrSeries = QtChart.QLineSeries()
         self.lcrSeries.setName("LCR")
         self.lcrSeries.setColor(QtCore.Qt.magenta)
-        self.chart.addSeries(self.lcrSeries)
+        self.chart().addSeries(self.lcrSeries)
 
         self.cAxis = QtChart.QValueAxis()
         self.cAxis.setTitleText("Capacitance [1/pF^2]")
         self.cAxis.setLabelFormat("%g")
         self.cAxis.setRange(0, 1 / 200**2)
         self.cAxis.setTickCount(9)
-        self.chart.addAxis(self.cAxis, QtCore.Qt.AlignLeft)
+        self.chart().addAxis(self.cAxis, QtCore.Qt.AlignLeft)
         self.lcrSeries.attachAxis(self.cAxis)
 
         self.vAxis = QtChart.QValueAxis()
@@ -441,7 +441,7 @@ class CV2PlotWidget(PlotWidget):
         self.vAxis.setLabelFormat("%g V")
         self.vAxis.setRange(0, 200)
         self.vAxis.setTickCount(9)
-        self.chart.addAxis(self.vAxis, QtCore.Qt.AlignBottom)
+        self.chart().addAxis(self.vAxis, QtCore.Qt.AlignBottom)
         self.lcrSeries.attachAxis(self.vAxis)
 
         self.cLimits = LimitsAggregator(self)
@@ -450,7 +450,7 @@ class CV2PlotWidget(PlotWidget):
         self.series['lcr'] = self.lcrSeries
 
     def fit(self) -> None:
-        if self.chart.isZoomed():
+        if self.chart().isZoomed():
             return
         minimum = self.vLimits.minimum()
         maximum = self.vLimits.maximum()

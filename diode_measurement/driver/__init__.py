@@ -1,3 +1,5 @@
+from typing import Dict
+
 # Drivers
 from .k237 import K237
 from .k595 import K595
@@ -11,7 +13,7 @@ from .e4980a import E4980A
 
 __all__ = ['driver_factory']
 
-DRIVERS = {
+DRIVERS: Dict[str, type] = {
     'K237': K237,
     'K595': K595,
     'K2410': K2410,
@@ -26,6 +28,7 @@ DRIVERS = {
 
 def driver_factory(model: str) -> type:
     """Return driver class referenced by model."""
-    if model in DRIVERS:
-        return DRIVERS.get(model)
-    raise ValueError(f"No such driver: {model}")
+    driver = DRIVERS.get(model)
+    if driver is None:
+        raise ValueError(f"No such driver: {model}")
+    return driver

@@ -2,6 +2,7 @@ import unittest
 
 from diode_measurement.resource import Resource
 
+
 class ResourceTest(unittest.TestCase):
 
     def test_resource(self):

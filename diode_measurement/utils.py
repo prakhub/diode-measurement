@@ -1,6 +1,8 @@
 import re
 import pint
 
+from typing import Iterable, Tuple
+
 __all__ = [
     'ureg',
     'safe_filename',
@@ -14,7 +16,7 @@ __all__ = [
 ureg = pint.UnitRegistry()
 
 
-def get_resource(resource_name):
+def get_resource(resource_name: str) -> Tuple[str, str]:
     """Create valid VISA resource name for short descriptors."""
     resource_name = resource_name.strip()
 
@@ -37,11 +39,11 @@ def get_resource(resource_name):
     return resource_name, visa_library
 
 
-def safe_filename(filename):
+def safe_filename(filename: str) -> str:
     return re.sub(r'[^a-zA-Z0-9\_\/\.\-]+', '_', filename)
 
 
-def auto_scale(value):
+def auto_scale(value: float) -> Tuple[float, str, str]:
     scales = (
         (1e+24, 'Y', 'yotta'),
         (1e+21, 'Z', 'zetta'),
@@ -67,7 +69,7 @@ def auto_scale(value):
     return 1e0, '', ''
 
 
-def format_metric(value, unit, decimals=3):
+def format_metric(value: float, unit: str, decimals: int = 3) -> str:
     """Pretty format metric units.
     >>> format_metric(.0042, 'A')
     '4.200 mA'
@@ -78,17 +80,17 @@ def format_metric(value, unit, decimals=3):
     return f"{value * (1 / scale):.{decimals}f} {prefix}{unit}"
 
 
-def format_switch(value, default=None):
+def format_switch(value: bool) -> str:
     """Pretty format for instrument output states.
     >>> format_switch(False)
     'OFF'
     """
-    return {False: "OFF", True: "ON"}.get(value) or default
+    return {False: "OFF", True: "ON"}.get(value) or "N/A"
 
 
-def limits(iterable) -> tuple:
+def limits(iterable: Iterable) -> Tuple:
     """Calculate limits of 2D point series."""
-    limits = tuple()
+    limits: Tuple = tuple()
     for x, y in iterable:
         if not limits:
             limits = (x, x, y, y)

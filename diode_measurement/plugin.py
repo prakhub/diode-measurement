@@ -29,7 +29,7 @@ class PluginRegistryMixin:
         """Return list of installed plugins."""
         return [plugin for plugin in self.__plugins]
 
-    def uninstallPlugins(self)-> None:
+    def uninstallPlugins(self) -> None:
         """Uninstall all plugins."""
         for plugin in self.__plugins:
             plugin.uninstall(self)

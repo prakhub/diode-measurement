@@ -28,7 +28,7 @@ class ResourceWidget(QtWidgets.QGroupBox):
     terminationChanged = QtCore.pyqtSignal(str)
     timeoutChanged = QtCore.pyqtSignal(float)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setTitle("Instrument")
 
@@ -90,45 +90,45 @@ class ResourceWidget(QtWidgets.QGroupBox):
         layout.addLayout(hbox)
         layout.addStretch()
 
-    def lock(self):
+    def lock(self) -> None:
         self.modelComboBox.setEnabled(False)
         self.resourceLineEdit.setEnabled(False)
         self.terminationComboBox.setEnabled(False)
         self.timeoutSpinBox.setEnabled(False)
 
-    def unlock(self):
+    def unlock(self) -> None:
         self.modelComboBox.setEnabled(True)
         self.resourceLineEdit.setEnabled(True)
         self.terminationComboBox.setEnabled(True)
         self.timeoutSpinBox.setEnabled(True)
 
-    def model(self):
+    def model(self) -> str:
         return self.modelComboBox.currentText()
 
-    def setModel(self, model):
+    def setModel(self, model: str) -> None:
         index = self.modelComboBox.findText(model)
         self.modelComboBox.setCurrentIndex(max(0, index))
         self.modelChanged.emit(self.modelComboBox.itemText(max(0, index)))
 
-    def addModel(self, model):
+    def addModel(self, model: str) -> None:
         self.modelComboBox.addItem(model)
 
-    def resourceName(self):
+    def resourceName(self) -> str:
         return self.resourceLineEdit.text().strip()
 
-    def setResourceName(self, resource):
+    def setResourceName(self, resource: str) -> None:
         self.resourceLineEdit.setText(resource)
 
-    def termination(self):
+    def termination(self) -> str:
         return self.terminationComboBox.currentData()
 
-    def setTermination(self, termination):
+    def setTermination(self, termination: str) -> None:
         index = self.terminationComboBox.findData(termination)
         self.terminationComboBox.setCurrentIndex(max(0, index))
         self.terminationChanged.emit(self.terminationComboBox.itemData(max(0, index)))
 
-    def timeout(self):
+    def timeout(self) -> float:
         return self.timeoutSpinBox.value()
 
-    def setTimeout(self, timeout):
+    def setTimeout(self, timeout: float) -> None:
         self.timeoutSpinBox.setValue(timeout)
