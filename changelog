@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.7.dev5] - 2022-03-02
+### Added
+- Setup tools configuration file (`setup.cfg`).
+
 ### Fixed
 - Occasional `TypeError` from `QDateTime.fromMSecsSinceEpoch` (#18).
 
@@ -18,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Protocol history for JSON-RPC (#5).
 - Optional parameters for JSON-RPC start method (#5).
+
 ### Changed
 - Removed error state for JSON-RPC (#5).
 
@@ -96,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev4...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev5...HEAD
+[0.7.dev5]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev4...0.7.dev5
 [0.7.dev4]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev3...0.7.dev4
 [0.7.dev3]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev2...0.7.dev3
 [0.7.dev2]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev1...0.7.dev2
