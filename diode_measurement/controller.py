@@ -119,7 +119,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.worker: Worker = Worker(self)
         self.worker.failed.connect(self.handleException)
 
-        self.state: Dict[str, Any] = {'rpc_state': 'idle'}
+        self.state: Dict[str, Any] = {}
         self.cache: Dict[str, Any] = {}
         self.cacheLock: threading.RLock = threading.RLock()
         self.rpc_params: Dict[str, Any] = {}
@@ -225,7 +225,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         """Return application state snapshot."""
         with self.cacheLock:
             snapshot = {}
-            snapshot['state'] = self.state.get('rpc_state')
+            snapshot['state'] = self.cache.get('rpc_state', 'idle')
             snapshot['measurement_type'] = self.cache.get('measurement_type')
             snapshot['sample'] = self.cache.get('sample')
             snapshot['source_voltage'] = self.cache.get('source_voltage')

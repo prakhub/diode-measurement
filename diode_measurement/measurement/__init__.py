@@ -68,6 +68,9 @@ class Measurement(QtCore.QObject):
         if code:
             raise RuntimeError(f"Instrument Error: {code}: {message}")
 
+    def update_rpc_state(self, state) -> None:
+        self.update.emit({'rpc_state': state})
+
     @property
     def stop_requested(self) -> bool:
         return self.state.get('stop_requested') is True
@@ -84,7 +87,7 @@ class Measurement(QtCore.QObject):
     def run(self):
         try:
             logger.debug("run measurement...")
-            self.state.update({'rpc_state': 'configure'})
+            self.update_rpc_state('configure')
             self.started.emit()
             logger.debug("handle started callbacks...")
             for handler in self.startedHandlers:
@@ -111,7 +114,7 @@ class Measurement(QtCore.QObject):
                     self.failed.emit(exc)
                 finally:
                     logger.debug("finalize...")
-                    self.state.update({'rpc_state': 'stopping'})
+                    self.update_rpc_state('stopping')
                     self.finalize()
                     logger.debug("finalize... done.")
         except Exception as exc:
@@ -124,7 +127,7 @@ class Measurement(QtCore.QObject):
             logger.debug("handle finished callbacks... done.")
             self.contexts.clear()
             self.finished.emit()
-            self.state.update({'rpc_state': 'idle'})
+            self.update_rpc_state('idle')
             logger.debug("run measurement... done.")
 
 
@@ -208,9 +211,10 @@ class RangeMeasurement(Measurement):
         params = self.state.get('change_voltage_continuous')
         if params is not None:
             del self.state['change_voltage_continuous']
-            self.state.update({'rpc_state': 'ramping'})
+            self.update_rpc_state('ramping')
             self.rampToContinuous(params.get("end_voltage"), params.get("step_voltage"), params.get("waiting_time"))
-            self.state.update({'rpc_state': 'continuous'})
+            if not self.stop_requested:  # hack
+                self.update_rpc_state('continuous')
         self.itChangeVoltageReady.emit()
 
     def update_message(self, message: str) -> None:
@@ -307,7 +311,7 @@ class RangeMeasurement(Measurement):
         self.update_message(f"Ramp to {ramp.end} V")
         estimate = Estimate(len(ramp))
 
-        self.state.update({'rpc_state': 'ramping'})
+        self.update_rpc_state('ramping')
 
         for step, voltage in enumerate(ramp):
             self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
@@ -326,7 +330,7 @@ class RangeMeasurement(Measurement):
 
             estimate.advance()
 
-        self.state.update({'rpc_state': 'measure'})
+        self.update_rpc_state('measure')
 
         self.update_message("")
 
@@ -336,7 +340,7 @@ class RangeMeasurement(Measurement):
 
         if self.is_continuous:
             self.update_message("Continuous measurement...")
-            self.state.update({'rpc_state': 'continuous'})
+            self.update_rpc_state('continuous')
             self.acquireContinuousReading()
 
     def finalize(self):

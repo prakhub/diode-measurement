@@ -83,6 +83,9 @@ class IVMeasurement(RangeMeasurement):
 
             self.apply_change_voltage()
 
+            if self.stop_requested:
+                break
+
             self.apply_waiting_time_continuous(estimate)
 
             self.update_estimate_message_continuous("Reading...", estimate)
