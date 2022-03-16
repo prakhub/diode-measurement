@@ -214,6 +214,10 @@ class TCPServerPlugin(Plugin):
         self._q = []
         self._enabled = threading.Event()
         self._reconnect = False
+        self._messageCache = []
+        self._messageCacheLock = threading.RLock()
+        self._messageTimer = QtCore.QTimer()
+        self._messageTimer.timeout.connect(self.appendCachedMessages)
 
     def install(self, context):
         self.failed.connect(context.handleException)
@@ -221,8 +225,10 @@ class TCPServerPlugin(Plugin):
         self.rpcHandler = RPCHandler(context)
         self.loadSettings()
         self._startServer()
+        self._messageTimer.start(250)
 
     def uninstall(self, context):
+        self._messageTimer.stop()
         self.failed.disconnect(context.handleException)
         self._enabled.clear()
         while self._q:
@@ -268,8 +274,17 @@ class TCPServerPlugin(Plugin):
         self.messageReady.connect(self.appendProtocol)
 
     def appendProtocol(self, message: str) -> None:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        text = f"{timestamp} {message}"
+        with self._messageCacheLock:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            self._messageCache.append(f"{timestamp} {message}")
+
+    def appendCachedMessages(self) -> None:
+        messages = []
+        with self._messageCacheLock:
+            messages = self._messageCache[:]
+            self._messageCache.clear()
+        if not messages:
+            return
         textEdit = self.rpcWidget.protocolTextEdit
         # Get current scrollbar position
         scrollbar = textEdit.verticalScrollBar()
@@ -278,8 +293,9 @@ class TCPServerPlugin(Plugin):
         lock = False
         if pos + 1 >= scrollbar.maximum():
             lock = True
-        # Append message
-        textEdit.append(text)
+        # Append messages
+        for message in messages:
+            textEdit.append(message)
         # Scroll to bottom
         if lock:
             scrollbar.setValue(scrollbar.maximum())

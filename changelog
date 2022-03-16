@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.dev6] - 2022-03-16
 ### Added
 - Lock for cached values accessed by JSON-RPC thread.
+- Caching of log messages to improve performance.
 - `pyproject.toml` and `tox.ini`.
 
 ## [0.7.dev5] - 2022-03-02

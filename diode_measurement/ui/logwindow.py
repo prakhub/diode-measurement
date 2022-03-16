@@ -1,5 +1,6 @@
-import logging
 import html
+import logging
+import threading
 
 from typing import Callable
 
@@ -35,6 +36,11 @@ class LogWidget(QtWidgets.QTextEdit):
         self.handler = LogHandler(self.message.emit)
         self.setLevel(logging.INFO)
         self.message.connect(self.appendRecord)
+        self.recordCache = []
+        self.recordCacheLock = threading.RLock()
+        self.recordTimer = QtCore.QTimer()
+        self.recordTimer.timeout.connect(self.applyCachedRecords)
+        self.recordTimer.start(250)
 
     def setLevel(self, level: int) -> None:
         """Set log level of widget."""
@@ -49,7 +55,18 @@ class LogWidget(QtWidgets.QTextEdit):
         logger.removeHandler(self.handler)
 
     def appendRecord(self, record: logging.LogRecord) -> None:
-        """Append log record to log widget."""
+        """Append log record to log cache."""
+        with self.recordCacheLock:
+            self.recordCache.append(record)
+
+    def applyCachedRecords(self) -> None:
+        """Append cached log records to log widget."""
+        records = []
+        with self.recordCacheLock:
+            records = self.recordCache[:]
+            self.recordCache.clear()
+        if not records:
+            return
         # Get current scrollbar position
         scrollbar = self.verticalScrollBar()
         position = scrollbar.value()
@@ -57,8 +74,9 @@ class LogWidget(QtWidgets.QTextEdit):
         lock = False
         if position + 1 >= scrollbar.maximum():
             lock = True
-        # Append foramtted log message
-        self.append(self.formatRecord(record))
+        # Append foramtted log messages
+        for record in records:
+            self.append(self.formatRecord(record))
         # Scroll to bottom
         if lock:
             scrollbar.setValue(scrollbar.maximum())
