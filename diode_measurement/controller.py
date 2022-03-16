@@ -525,18 +525,27 @@ class Controller(PluginRegistryMixin, AbstractController):
         showException(exc, self.view)
 
     def onUpdate(self, data):
-        with self.cacheLock:
-            self.cache.update(data)
+        def update_cache(key):
+            with self.cacheLock:
+                value = data.get(key)
+                self.cache.update({key: value})
+        if 'rpc_state' in data:
+            update_cache('rpc_state')
         if 'source_voltage' in data:
             self.view.updateSourceVoltage(data.get('source_voltage'))
+            update_cache('source_voltage')
         if 'smu_current' in data:
             self.view.updateSMUCurrent(data.get('smu_current'))
+            update_cache('smu_current')
         if 'elm_current' in data:
             self.view.updateELMCurrent(data.get('elm_current'))
+            update_cache('elm_current')
         if 'lcr_capacity' in data:
             self.view.updateLCRCapacity(data.get('lcr_capacity'))
+            update_cache('lcr_capacity')
         if 'dmm_temperature' in data:
             self.view.updateDMMTemperature(data.get('dmm_temperature'))
+            update_cache('dmm_temperature')
         if 'source_output_state' in data:
             self.view.updateSourceOutputState(data.get('source_output_state'))
         if 'message' in data:
