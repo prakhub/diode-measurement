@@ -1,8 +1,9 @@
-import os
-import math
-import time
-import logging
 import contextlib
+import logging
+import math
+import os
+import threading
+import time
 
 from datetime import datetime
 from typing import Any, Dict, List
@@ -120,6 +121,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         self.state: Dict[str, Any] = {'rpc_state': 'idle'}
         self.cache: Dict[str, Any] = {}
+        self.cacheLock: threading.RLock = threading.RLock()
         self.rpc_params: Dict[str, Any] = {}
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
@@ -221,16 +223,17 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def snapshot(self):
         """Return application state snapshot."""
-        snapshot = {}
-        snapshot['state'] = self.state.get('rpc_state')
-        snapshot['measurement_type'] = self.cache.get('measurement_type')
-        snapshot['sample'] = self.cache.get('sample')
-        snapshot['source_voltage'] = self.cache.get('source_voltage')
-        snapshot['smu_current'] = self.cache.get('smu_current')
-        snapshot['elm_current'] = self.cache.get('elm_current')
-        snapshot['lcr_capacity'] = self.cache.get('lcr_capacity')
-        snapshot['temperature'] = self.cache.get('dmm_temperature')
-        return snapshot
+        with self.cacheLock:
+            snapshot = {}
+            snapshot['state'] = self.state.get('rpc_state')
+            snapshot['measurement_type'] = self.cache.get('measurement_type')
+            snapshot['sample'] = self.cache.get('sample')
+            snapshot['source_voltage'] = self.cache.get('source_voltage')
+            snapshot['smu_current'] = self.cache.get('smu_current')
+            snapshot['elm_current'] = self.cache.get('elm_current')
+            snapshot['lcr_capacity'] = self.cache.get('lcr_capacity')
+            snapshot['temperature'] = self.cache.get('dmm_temperature')
+            return snapshot
 
     def prepareState(self):
         state = {}
@@ -501,7 +504,8 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.view.clearMessage()
         self.view.clearProgress()
         self.updateContinuousOption()
-        self.cache.clear()
+        with self.cacheLock:
+            self.cache.clear()
 
     def setRunningState(self):
         self.view.setRunningState()
@@ -521,7 +525,8 @@ class Controller(PluginRegistryMixin, AbstractController):
         showException(exc, self.view)
 
     def onUpdate(self, data):
-        self.cache.update(data)
+        with self.cacheLock:
+            self.cache.update(data)
         if 'source_voltage' in data:
             self.view.updateSourceVoltage(data.get('source_voltage'))
         if 'smu_current' in data:
@@ -719,10 +724,11 @@ class Controller(PluginRegistryMixin, AbstractController):
             self.state.update(state)
             self.state.update({'stop_requested': False})
 
-            self.cache.update({
-                'measurement_type': state.get('measurement_type'),
-                'sample': state.get('sample')
-            })
+            with self.cacheLock:
+                self.cache.update({
+                    'measurement_type': state.get('measurement_type'),
+                    'sample': state.get('sample')
+                })
 
             # Filename
             outputEnabled = self.view.generalWidget.isOutputEnabled()
