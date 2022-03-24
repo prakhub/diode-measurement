@@ -113,6 +113,8 @@ class Controller(PluginRegistryMixin, AbstractController):
     aborted = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
 
+    requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
+
     def __init__(self, view, parent=None) -> None:
         super().__init__(view, parent)
 
@@ -131,6 +133,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.ivPlotsController = IVPlotsController(self.view, self)
         self.cvPlotsController = CVPlotsController(self.view, self)
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
+        self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
 
         # Source meter unit
         role = self.view.addRole("SMU")

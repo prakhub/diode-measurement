@@ -79,8 +79,7 @@ class RPCHandler:
 
     def on_change_voltage(self, end_voltage: float, step_voltage: float = 1.0,
                           waiting_time: float = 1.0) -> None:
-        controller = self.controller.changeVoltageController
-        controller.onRequestChangeVoltage(end_voltage, step_voltage, waiting_time)
+        self.controller.requestChangeVoltage.emit(end_voltage, step_voltage, waiting_time)
 
     def on_state(self) -> Dict[str, Union[None, int, float, str]]:
         return json_dict(self.controller.snapshot())
@@ -278,29 +277,31 @@ class TCPServerPlugin(Plugin):
             timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             self._messageCache.append(f"{timestamp} {message}")
 
-    def appendCachedMessages(self) -> None:
-        messages = []
+    def fetchCachedMessages(self) -> list:
         with self._messageCacheLock:
             messages = self._messageCache[:]
             self._messageCache.clear()
-        if not messages:
-            return
-        textEdit = self.rpcWidget.protocolTextEdit
-        # Get current scrollbar position
-        scrollbar = textEdit.verticalScrollBar()
-        pos = scrollbar.value()
-        # Lock to current position or to bottom
-        lock = False
-        if pos + 1 >= scrollbar.maximum():
-            lock = True
-        # Append messages
-        for message in messages:
-            textEdit.append(message)
-        # Scroll to bottom
-        if lock:
-            scrollbar.setValue(scrollbar.maximum())
-        else:
-            scrollbar.setValue(pos)
+            return messages
+
+    def appendCachedMessages(self) -> None:
+        messages = self.fetchCachedMessages()
+        if messages:
+            textEdit = self.rpcWidget.protocolTextEdit
+            # Get current scrollbar position
+            scrollbar = textEdit.verticalScrollBar()
+            pos = scrollbar.value()
+            # Lock to current position or to bottom
+            lock = False
+            if pos + 1 >= scrollbar.maximum():
+                lock = True
+            # Append messages
+            for message in messages:
+                textEdit.append(message)
+            # Scroll to bottom
+            if lock:
+                scrollbar.setValue(scrollbar.maximum())
+            else:
+                scrollbar.setValue(pos)
 
     def _startServer(self):
         self._enabled.set()
