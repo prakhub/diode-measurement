@@ -6,7 +6,7 @@ import threading
 import time
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Iterator
 
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
@@ -68,6 +68,34 @@ def handle_exception(method):
     return handle_exception
 
 
+class Cache:
+    """Lockable value cache."""
+
+    def __init__(self) -> None:
+        self._lock: threading.RLock = threading.RLock()
+        self._items: Dict[str, Any] = {}
+
+    def __enter__(self) -> "Cache":
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, *exc) -> bool:
+        self._lock.release()
+        return False
+
+    def __iter__(self) -> Iterator:
+        return iter(self._items)
+
+    def get(self, key: str, default=None):
+        return self._items.get(key, default)
+
+    def update(self, items: Dict[str, Any]) -> None:
+        self._items.update(items)
+
+    def clear(self) -> None:
+        self._items.clear()
+
+
 class MeasurementRunner:
 
     def __init__(self, measurement: Measurement) -> None:
@@ -122,9 +150,8 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.worker.failed.connect(self.handleException)
 
         self.state: Dict[str, Any] = {}
-        self.cache: Dict[str, Any] = {}
-        self.cacheLock: threading.RLock = threading.RLock()
-        self.rpc_params: Dict[str, Any] = {}
+        self.cache: Cache = Cache()
+        self.rpc_params: Cache = Cache()
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
@@ -226,7 +253,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def snapshot(self):
         """Return application state snapshot."""
-        with self.cacheLock:
+        with self.cache:
             snapshot = {}
             snapshot['state'] = self.cache.get('rpc_state', 'idle')
             snapshot['measurement_type'] = self.cache.get('measurement_type')
@@ -507,7 +534,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.view.clearMessage()
         self.view.clearProgress()
         self.updateContinuousOption()
-        with self.cacheLock:
+        with self.cache:
             self.cache.clear()
 
     def setRunningState(self):
@@ -528,33 +555,32 @@ class Controller(PluginRegistryMixin, AbstractController):
         showException(exc, self.view)
 
     def onUpdate(self, data):
-        def update_cache(key):
-            with self.cacheLock:
-                value = data.get(key)
-                self.cache.update({key: value})
+        cache = {}
         if 'rpc_state' in data:
-            update_cache('rpc_state')
+            cache.update({'rpc_state': data.get('rpc_state')})
         if 'source_voltage' in data:
             self.view.updateSourceVoltage(data.get('source_voltage'))
-            update_cache('source_voltage')
+            cache.update({'source_voltage': data.get('source_voltage')})
         if 'smu_current' in data:
             self.view.updateSMUCurrent(data.get('smu_current'))
-            update_cache('smu_current')
+            cache.update({'smu_current': data.get('smu_current')})
         if 'elm_current' in data:
             self.view.updateELMCurrent(data.get('elm_current'))
-            update_cache('elm_current')
+            cache.update({'elm_current': data.get('elm_current')})
         if 'lcr_capacity' in data:
             self.view.updateLCRCapacity(data.get('lcr_capacity'))
-            update_cache('lcr_capacity')
+            cache.update({'lcr_capacity': data.get('lcr_capacity')})
         if 'dmm_temperature' in data:
             self.view.updateDMMTemperature(data.get('dmm_temperature'))
-            update_cache('dmm_temperature')
+            cache.update({'dmm_temperature': data.get('dmm_temperature')})
         if 'source_output_state' in data:
             self.view.updateSourceOutputState(data.get('source_output_state'))
         if 'message' in data:
             self.view.setMessage(data.get('message', ''))
         if 'progress' in data:
             self.view.setProgress(*data.get('progress', (0, 0, 0)))
+        with self.cache:
+            self.cache.update(cache)
 
     def onContinuousToggled(self, checked):
         self.view.setContinuous(checked)
@@ -705,24 +731,25 @@ class Controller(PluginRegistryMixin, AbstractController):
     def startMeasurement(self) -> None:
         try:
             logger.debug("handle RPC params...")
-            rpc_params = self.rpc_params.copy()
-            self.rpc_params.clear()
-            if 'reset' in rpc_params:
-                self.view.setReset(rpc_params.get('reset'))
-            if 'continuous' in rpc_params:
-                self.view.setContinuous(rpc_params.get('continuous'))
-            if 'end_voltage' in rpc_params:
-                self.view.generalWidget.setEndVoltage(rpc_params.get('end_voltage'))
-            if 'begin_voltage' in rpc_params:
-                self.view.generalWidget.setBeginVoltage(rpc_params.get('begin_voltage'))
-            if 'step_voltage' in rpc_params:
-                self.view.generalWidget.setStepVoltage(rpc_params.get('step_voltage'))
-            if 'waiting_time' in rpc_params:
-                self.view.generalWidget.setWaitingTime(rpc_params.get('waiting_time'))
-            if 'compliance' in rpc_params:
-                self.view.generalWidget.setCurrentCompliance(rpc_params.get('compliance'))
-            if 'waiting_time_continuous' in rpc_params:
-                self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get('waiting_time_continuous'))
+            with self.rpc_params:
+                rpc_params = self.rpc_params
+                if 'reset' in rpc_params:
+                    self.view.setReset(rpc_params.get('reset'))
+                if 'continuous' in rpc_params:
+                    self.view.setContinuous(rpc_params.get('continuous'))
+                if 'end_voltage' in rpc_params:
+                    self.view.generalWidget.setEndVoltage(rpc_params.get('end_voltage'))
+                if 'begin_voltage' in rpc_params:
+                    self.view.generalWidget.setBeginVoltage(rpc_params.get('begin_voltage'))
+                if 'step_voltage' in rpc_params:
+                    self.view.generalWidget.setStepVoltage(rpc_params.get('step_voltage'))
+                if 'waiting_time' in rpc_params:
+                    self.view.generalWidget.setWaitingTime(rpc_params.get('waiting_time'))
+                if 'compliance' in rpc_params:
+                    self.view.generalWidget.setCurrentCompliance(rpc_params.get('compliance'))
+                if 'waiting_time_continuous' in rpc_params:
+                    self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get('waiting_time_continuous'))
+                self.rpc_params.clear()
             logger.debug("handle RPC params... done.")
 
             logger.debug("preparing state...")
@@ -736,7 +763,7 @@ class Controller(PluginRegistryMixin, AbstractController):
             self.state.update(state)
             self.state.update({'stop_requested': False})
 
-            with self.cacheLock:
+            with self.cache:
                 self.cache.update({
                     'measurement_type': state.get('measurement_type'),
                     'sample': state.get('sample')
