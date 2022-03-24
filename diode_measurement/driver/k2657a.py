@@ -35,7 +35,7 @@ class K2657A(SourceMeter):
 
     def set_output_enabled(self, enabled: bool) -> None:
         value = {False: 'OFF', True: 'ON'}[enabled]
-        self._write(f'smua.source.output = smua.OUTPUT{value}')
+        self._write(f'smua.source.output = smua.OUTPUT_{value}')
 
     def get_voltage_level(self) -> float:
         return float(self._print('smua.source.levelv'))
