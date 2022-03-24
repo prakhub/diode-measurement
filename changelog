@@ -6,54 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.dev8] - 2022-03-24
-### Changed
-- Refactored value cache.
-- Refactored TCP Server user interface.
+## [0.7.0] - 2022-03-24
 
-## [0.7.dev7] - 2022-03-24
-### Fixed
-- Emitting change voltage via JSON-RPC using signal.
-
-## [0.7.dev6] - 2022-03-16
 ### Added
-- Lock for cached values accessed by JSON-RPC thread.
-- Caching of log messages to improve performance.
-- `pyproject.toml` and `tox.ini`.
-
-## [0.7.dev5] - 2022-03-02
-### Added
-- Setup tools configuration file (`setup.cfg`).
-
-### Fixed
-- Occasional `TypeError` from `QDateTime.fromMSecsSinceEpoch` (#18).
-
-## [0.7.dev4] - 2022-03-01
-### Fixed
-- JSON-RPC return None instead of NaN (#5).
-
-## [0.7.dev3] - 2022-02-16
-### Added
-- Protocol history for JSON-RPC (#5).
-- Optional parameters for JSON-RPC start method (#5).
-
-### Changed
-- Removed error state for JSON-RPC (#5).
-
-## [0.7.dev2] - 2022-02-11
-### Added
-- Exposing application state to JSON-RPC (#5).
-
-## [0.7.dev1] - 2022-01-11
-### Added
-- Logging debug messages.
-
-## [0.7.dev0] - 2021-12-16
-### Added
+- Basic plugin system.
 - JSON-RPC remote control TCP server (#5).
 - Show average loop iteration time (#12).
 - DMM role for reading temperature (#13).
-- Basic plugin system.
+- Caching of log messages to improve performance.
+- `setup.cfg`, `pyproject.toml` and `tox.ini`.
 
 ### Changed
 - Refactored measurement module.
@@ -61,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.2] - 2021-11-19
 ### Fixed
 - CV yields division by zero (#8).
-- Invalid plot values yield unhandled exceptions(#9)
+- Invalid plot values yield unhandled exceptions (#9).
 - Crashes on file permission errors (#10).
 
 ## [0.6.1] - 2021-11-10
@@ -115,16 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev8...HEAD
-[0.7.dev8]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev7...0.7.dev8
-[0.7.dev7]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev6...0.7.dev7
-[0.7.dev6]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev5...0.7.dev6
-[0.7.dev5]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev4...0.7.dev5
-[0.7.dev4]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev3...0.7.dev4
-[0.7.dev3]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev2...0.7.dev3
-[0.7.dev2]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev1...0.7.dev2
-[0.7.dev1]: https://github.com/hephy-dd/diode-measurement/compare/0.7.dev0...0.7.dev1
-[0.7.dev0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.dev0
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.0
 [0.6.1]: https://github.com/hephy-dd/diode-measurement/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/hephy-dd/diode-measurement/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/hephy-dd/diode-measurement/compare/0.4.0...0.5.0
