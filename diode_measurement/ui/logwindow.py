@@ -1,6 +1,8 @@
+import html
 import logging
 import threading
-import html
+
+from typing import Callable
 
 from PyQt5 import QtCore
 from PyQt5 import QtGui
@@ -9,94 +11,93 @@ from PyQt5 import QtWidgets
 __all__ = ['LogWindow', 'LogWidget']
 
 
-class LogHandlerObject(QtCore.QObject):
-
-    message = QtCore.pyqtSignal(object)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-
 class LogHandler(logging.Handler):
 
-    def __init__(self, parent=None):
+    def __init__(self, callback: Callable) -> None:
         super().__init__()
-        self.object = LogHandlerObject(parent)
+        self._callback = callback
 
     def emit(self, record):
-        self.object.message.emit(record)
+        self._callback(record)
 
 
 class LogWidget(QtWidgets.QTextEdit):
 
-    MaximumEntries = 1024 * 1024
+    MaximumEntries: int = 1024 * 1024
+    """Maximum number of visible log entries."""
 
-    def __init__(self, parent=None):
+    message = QtCore.pyqtSignal(object)
+
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setReadOnly(True)
+        self.document().setMaximumBlockCount(type(self).MaximumEntries)
         self.setFont(QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont))
-        self.mutex = threading.RLock()
-        self.handler = LogHandler(self)
-        self.handler.object.message.connect(self.appendRecord)
+        self.handler = LogHandler(self.message.emit)
         self.setLevel(logging.INFO)
-        self.__entries = 0
+        self.message.connect(self.appendRecord)
+        self.recordCache = []
+        self.recordCacheLock = threading.RLock()
+        self.recordTimer = QtCore.QTimer()
+        self.recordTimer.timeout.connect(self.applyCachedRecords)
+        self.recordTimer.start(250)
 
-    @property
-    def entries(self):
-        return self.__entries
-
-    def setLevel(self, level):
+    def setLevel(self, level: int) -> None:
+        """Set log level of widget."""
         self.handler.setLevel(level)
 
-    def addLogger(self, logger):
+    def addLogger(self, logger: logging.Logger) -> None:
+        """Add logger to widget."""
         logger.addHandler(self.handler)
 
-    def removeLogger(self, logger):
+    def removeLogger(self, logger: logging.Logger) -> None:
+        """Remove logger from widget."""
         logger.removeHandler(self.handler)
 
-    def toBottom(self):
+    def appendRecord(self, record: logging.LogRecord) -> None:
+        """Append log record to log cache."""
+        with self.recordCacheLock:
+            self.recordCache.append(record)
+
+    def applyCachedRecords(self) -> None:
+        """Append cached log records to log widget."""
+        records = []
+        with self.recordCacheLock:
+            records = self.recordCache[:]
+            self.recordCache.clear()
+        if not records:
+            return
+        # Get current scrollbar position
         scrollbar = self.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-
-    @QtCore.pyqtSlot(object)
-    def appendRecord(self, record):
-        with self.mutex:
-            # Clear when exceeding maximum allowed entries...
-            if self.entries > self.MaximumEntries:
-                self.clear()  # TODO
-            # Get current scrollbar position
-            scrollbar = self.verticalScrollBar()
-            current_pos = scrollbar.value()
-            # Lock to current position or to bottom
-            lock_bottom = False
-            if current_pos + 1 >= scrollbar.maximum():
-                lock_bottom = True
-            # Append foramtted log message
+        position = scrollbar.value()
+        # Lock to current position or to bottom
+        lock = False
+        if position + 1 >= scrollbar.maximum():
+            lock = True
+        # Append foramtted log messages
+        for record in records:
             self.append(self.formatRecord(record))
-            self.__entries += 1
-            # Scroll to bottom
-            if lock_bottom:
-                self.toBottom()
-            else:
-                scrollbar.setValue(current_pos)
-
-    def clear(self):
-        super().clear()
-        self.__entries = 0
+        # Scroll to bottom
+        if lock:
+            scrollbar.setValue(scrollbar.maximum())
+        else:
+            scrollbar.setValue(position)
 
     @classmethod
-    def formatTime(cls, seconds):
-        dt = QtCore.QDateTime.fromMSecsSinceEpoch(seconds * 1000)
+    def formatTime(cls, seconds: float) -> str:
+        """Format timestamp for log record."""
+        dt = QtCore.QDateTime.fromMSecsSinceEpoch(int(seconds * 1e3))
         return dt.toString("yyyy-MM-dd hh:mm:ss")
 
     @classmethod
-    def formatRecord(cls, record):
+    def formatRecord(cls, record: logging.LogRecord) -> str:
+        """Format colored log record."""
         if record.levelno >= logging.ERROR:
             color = 'red'
         elif record.levelno >= logging.WARNING:
             color = 'orange'
         elif record.levelno >= logging.INFO:
-            color = 'blue'
+            color = 'inherit'
         elif record.levelno >= logging.DEBUG:
             color = 'darkgrey'
         else:
@@ -111,38 +112,38 @@ class LogWidget(QtWidgets.QTextEdit):
 
 class LogWindow(QtWidgets.QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(self.tr("Logging"))
+
         self.logHeader = QtWidgets.QLabel()
         self.logHeader.setTextFormat(QtCore.Qt.RichText)
         self.logHeader.setText("<span style=\"white-space:pre\">Time\t\tLevel\tMessage</span>")
+
         self.logWidget = LogWidget()
+
         self.buttonBox = QtWidgets.QDialogButtonBox()
         self.buttonBox.setStandardButtons(self.buttonBox.Close)
         self.buttonBox.rejected.connect(lambda: self.hide())
+
         layout = QtWidgets.QGridLayout()
         layout.addWidget(self.logHeader)
         layout.addWidget(self.logWidget)
         layout.addWidget(self.buttonBox)
         self.setLayout(layout)
 
-    def setLevel(self, level):
+    def setLevel(self, level: int) -> None:
+        """Set log level of widget."""
         self.logWidget.setLevel(level)
 
-    def addLogger(self, logger):
+    def addLogger(self, logger: logging.Logger) -> None:
+        """Add logger to widget."""
         self.logWidget.addLogger(logger)
 
-    def removeLogger(self, logger):
+    def removeLogger(self, logger: logging.Logger) -> None:
+        """Remove logger from widget."""
         self.logWidget.removeLogger(logger)
 
-    def toBottom(self):
-        self.logWidget.toBottom()
-
-    @QtCore.pyqtSlot()
-    def clear(self):
+    def clear(self) -> None:
+        """Clear log history."""
         self.logWidget.clear()
-
-    @QtCore.pyqtSlot(object)
-    def appendRecord(self, record):
-        self.logWidget.appendRecord(record)

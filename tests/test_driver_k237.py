@@ -1,9 +1,9 @@
-import os
 import unittest
 
 from diode_measurement.driver.k237 import K237
 
 from . import FakeResource
+
 
 class DriverK237Test(unittest.TestCase):
 

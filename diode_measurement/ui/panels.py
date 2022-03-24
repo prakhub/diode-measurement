@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 from PyQt5 import QtWidgets
 
 __all__ = [
@@ -6,6 +8,7 @@ __all__ = [
     'K2410Panel',
     'K2470Panel',
     'K2657APanel',
+    'K2700Panel',
     'K6514Panel',
     'K6517BPanel',
     'E4285Panel',
@@ -15,32 +18,32 @@ __all__ = [
 
 class InstrumentPanel(QtWidgets.QWidget):
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model: str, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setModel(model)
 
-    def model(self):
+    def model(self) -> str:
         return self.property("model")
 
-    def setModel(self, model):
+    def setModel(self, model: str) -> None:
         self.setProperty("model", model)
 
-    def lock(self):
+    def lock(self) -> None:
         pass
 
-    def unlock(self):
+    def unlock(self) -> None:
         pass
 
-    def config(self):
+    def config(self) -> Dict[str, Any]:
         return {}
 
-    def setConfig(self, config):
+    def setConfig(self, config: Dict[str, Any]) -> None:
         pass
 
 
 class K237Panel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K237", parent)
 
         self.filterGroupBox = QtWidgets.QGroupBox()
@@ -56,23 +59,23 @@ class K237Panel(InstrumentPanel):
         self.filterModeComboBox.addItem("16-readings", 4)
         self.filterModeComboBox.addItem("32-readings", 5)
 
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+        filterLayout.addStretch()
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.filterGroupBox)
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-        layout = QtWidgets.QVBoxLayout(self.filterGroupBox)
-        layout.addWidget(self.filterModeLabel)
-        layout.addWidget(self.filterModeComboBox)
-        layout.addStretch()
-
-    def config(self):
+    def config(self) -> Dict[str, Any]:
         config = {}
         config["filter.mode"] = self.filterModeComboBox.currentData()
         return config
 
-    def setConfig(self, config):
+    def setConfig(self, config: Dict[str, Any]) -> None:
         filter_mode = config.get("filter.mode")
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
@@ -81,13 +84,13 @@ class K237Panel(InstrumentPanel):
 
 class K595Panel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K595", parent)
 
 
 class K2410Panel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K2410", parent)
 
         self.filterGroupBox = QtWidgets.QGroupBox()
@@ -106,38 +109,38 @@ class K2410Panel(InstrumentPanel):
         self.filterModeComboBox.addItem("Repeat", "REP")
         self.filterModeComboBox.addItem("Moving", "MOV")
 
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterEnableCheckBox)
+        filterLayout.addWidget(self.filterCountLabel)
+        filterLayout.addWidget(self.filterCountSpinBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+        filterLayout.addStretch()
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.filterGroupBox)
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-        layout = QtWidgets.QVBoxLayout(self.filterGroupBox)
-        layout.addWidget(self.filterEnableCheckBox)
-        layout.addWidget(self.filterCountLabel)
-        layout.addWidget(self.filterCountSpinBox)
-        layout.addWidget(self.filterModeLabel)
-        layout.addWidget(self.filterModeComboBox)
-        layout.addStretch()
-
-    def lock(self):
+    def lock(self) -> None:
         self.filterEnableCheckBox.setEnabled(False)
         self.filterCountSpinBox.setEnabled(False)
         self.filterModeComboBox.setEnabled(False)
 
-    def unlock(self):
+    def unlock(self) -> None:
         self.filterEnableCheckBox.setEnabled(True)
         self.filterCountSpinBox.setEnabled(True)
         self.filterModeComboBox.setEnabled(True)
 
-    def config(self):
-        params = {}
+    def config(self) -> Dict[str, Any]:
+        params: Dict[str, Any] = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
         return params
 
-    def setConfig(self, config):
+    def setConfig(self, config: Dict[str, Any]) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
@@ -152,7 +155,7 @@ class K2410Panel(InstrumentPanel):
 
 class K2470Panel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K2470", parent)
 
         self.filterGroupBox = QtWidgets.QGroupBox()
@@ -171,38 +174,38 @@ class K2470Panel(InstrumentPanel):
         self.filterModeComboBox.addItem("Repeat", "REP")
         self.filterModeComboBox.addItem("Moving", "MOV")
 
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterEnableCheckBox)
+        filterLayout.addWidget(self.filterCountLabel)
+        filterLayout.addWidget(self.filterCountSpinBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+        filterLayout.addStretch()
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.filterGroupBox)
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-        layout = QtWidgets.QVBoxLayout(self.filterGroupBox)
-        layout.addWidget(self.filterEnableCheckBox)
-        layout.addWidget(self.filterCountLabel)
-        layout.addWidget(self.filterCountSpinBox)
-        layout.addWidget(self.filterModeLabel)
-        layout.addWidget(self.filterModeComboBox)
-        layout.addStretch()
-
-    def lock(self):
+    def lock(self) -> None:
         self.filterEnableCheckBox.setEnabled(False)
         self.filterCountSpinBox.setEnabled(False)
         self.filterModeComboBox.setEnabled(False)
 
-    def unlock(self):
+    def unlock(self) -> None:
         self.filterEnableCheckBox.setEnabled(True)
         self.filterCountSpinBox.setEnabled(True)
         self.filterModeComboBox.setEnabled(True)
 
-    def config(self):
-        params = {}
+    def config(self) -> Dict[str, Any]:
+        params: Dict[str, Any] = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
         return params
 
-    def setConfig(self, config):
+    def setConfig(self, config: Dict[str, Any]) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
@@ -217,7 +220,7 @@ class K2470Panel(InstrumentPanel):
 
 class K2657APanel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K2657A", parent)
 
         self.filterGroupBox = QtWidgets.QGroupBox()
@@ -237,38 +240,38 @@ class K2657APanel(InstrumentPanel):
         self.filterModeComboBox.addItem("Moving", "MOVING_AVG")
         self.filterModeComboBox.addItem("Median", "MEDIAN")
 
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterEnableCheckBox)
+        filterLayout.addWidget(self.filterCountLabel)
+        filterLayout.addWidget(self.filterCountSpinBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+        filterLayout.addStretch()
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.filterGroupBox)
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-        layout = QtWidgets.QVBoxLayout(self.filterGroupBox)
-        layout.addWidget(self.filterEnableCheckBox)
-        layout.addWidget(self.filterCountLabel)
-        layout.addWidget(self.filterCountSpinBox)
-        layout.addWidget(self.filterModeLabel)
-        layout.addWidget(self.filterModeComboBox)
-        layout.addStretch()
-
-    def lock(self):
+    def lock(self) -> None:
         self.filterEnableCheckBox.setEnabled(False)
         self.filterCountSpinBox.setEnabled(False)
         self.filterModeComboBox.setEnabled(False)
 
-    def unlock(self):
+    def unlock(self) -> None:
         self.filterEnableCheckBox.setEnabled(True)
         self.filterCountSpinBox.setEnabled(True)
         self.filterModeComboBox.setEnabled(True)
 
-    def config(self):
-        params = {}
+    def config(self) -> Dict[str, Any]:
+        params: Dict[str, Any] = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
         return params
 
-    def setConfig(self, config):
+    def setConfig(self, config: Dict[str, Any]) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
@@ -281,25 +284,31 @@ class K2657APanel(InstrumentPanel):
             self.filterModeComboBox.setCurrentIndex(index)
 
 
+class K2700Panel(InstrumentPanel):
+
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
+        super().__init__("K2700", parent)
+
+
 class K6514Panel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K6514", parent)
 
 
 class K6517BPanel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K6517B", parent)
 
 
 class E4285Panel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("E4285", parent)
 
 
 class E4980APanel(InstrumentPanel):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("E4980A", parent)

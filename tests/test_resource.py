@@ -1,7 +1,7 @@
-import os
 import unittest
 
 from diode_measurement.resource import Resource
+
 
 class ResourceTest(unittest.TestCase):
 

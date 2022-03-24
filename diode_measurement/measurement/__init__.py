@@ -1,37 +1,20 @@
 import contextlib
 import logging
-import math
 import time
+
+from typing import Any, Callable, Dict, List
 
 from PyQt5 import QtCore
 
-from .resource import Resource
+from ..resource import Resource
+from ..driver import driver_factory
 
-from .driver.k237 import K237
-from .driver.k595 import K595
-from .driver.k2410 import K2410
-from .driver.k2470 import K2470
-from .driver.k2657a import K2657A
-from .driver.k6514 import K6514
-from .driver.k6517b import K6517B
-from .driver.e4980a import E4980A
+from ..functions import LinearRange
+from ..estimate import Estimate
 
-from .functions import LinearRange
-from .estimate import Estimate
-from .utils import inverse_square
+__all__ = ['Measurement', 'RangeMeasurement']
 
 logger = logging.getLogger(__name__)
-
-DRIVERS = {
-    'K237': K237,
-    'K595': K595,
-    'K2410': K2410,
-    'K2470': K2470,
-    'K2657A': K2657A,
-    'K6514': K6514,
-    'K6517B': K6517B,
-    'E4980A': E4980A
-}
 
 
 class Measurement(QtCore.QObject):
@@ -39,19 +22,24 @@ class Measurement(QtCore.QObject):
     started = QtCore.pyqtSignal()
     finished = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
+    failed = QtCore.pyqtSignal(object)
 
-    def __init__(self, state):
+    def __init__(self, state: Dict[str, Any]) -> None:
         super().__init__()
-        self.state = state
-        self.contexts = {}
-        self._registered = {}
-        self.startedHandlers = []
-        self.finishedHandlers = []
+        self.state: Dict[str, Any] = state
+        self.contexts: Dict = {}
+        self._registered: Dict = {}
+        self._drivers: Dict = {}
+        self.startedHandlers: List[Callable] = []
+        self.finishedHandlers: List[Callable] = []
 
-    def registerInstrument(self, name, cls, resource):
+    def registerInstrument(self, name: str, cls, resource) -> None:
         self._registered[name] = cls, resource
 
-    def prepareDriver(self, name):
+    def registerDriver(self, name: str, cls) -> None:
+        self._drivers[name] = cls
+
+    def prepareDriver(self, name: str):
         role = self.state.get(name, {})
         if not role.get("enabled"):
             return None
@@ -62,7 +50,7 @@ class Measurement(QtCore.QObject):
         visa_library = role.get('visa_library')
         termination = role.get('termination')
         timeout = role.get('timeout') * 1000  # in millisecs
-        cls = DRIVERS.get(model)
+        cls = driver_factory(model)
         if not cls:
             logger.warning("No such driver: %s", model)
             return None
@@ -80,6 +68,13 @@ class Measurement(QtCore.QObject):
         if code:
             raise RuntimeError(f"Instrument Error: {code}: {message}")
 
+    def update_rpc_state(self, state) -> None:
+        self.update.emit({'rpc_state': state})
+
+    @property
+    def stop_requested(self) -> bool:
+        return self.state.get('stop_requested') is True
+
     def initialize(self):
         pass
 
@@ -91,31 +86,59 @@ class Measurement(QtCore.QObject):
 
     def run(self):
         try:
+            logger.debug("run measurement...")
+            self.update_rpc_state('configure')
             self.started.emit()
+            logger.debug("handle started callbacks...")
             for handler in self.startedHandlers:
                 handler()
+            logger.debug("handle started callbacks... done.")
             self.contexts.clear()
             with contextlib.ExitStack() as stack:
+                logger.debug("creating instrument contexts...")
                 for key, value in self._registered.items():
                     cls, resource = value
+                    logger.debug("creating instrument context %s: %s...", key, cls.__name__)
                     context = cls(stack.enter_context(resource))
                     self.contexts[key] = context
+                logger.debug("creating instrument contexts... done.")
                 try:
+                    logger.debug("initialize...")
                     self.initialize()
+                    logger.debug("initialize... done.")
+                    logger.debug("measure...")
                     self.measure()
+                    logger.debug("measure... done.")
+                except Exception as exc:
+                    logger.exception(exc)
+                    self.failed.emit(exc)
                 finally:
+                    logger.debug("finalize...")
+                    self.update_rpc_state('stopping')
                     self.finalize()
+                    logger.debug("finalize... done.")
+        except Exception as exc:
+            logger.exception(exc)
+            self.failed.emit(exc)
         finally:
+            logger.debug("handle finished callbacks...")
             for handler in self.finishedHandlers:
                 handler()
+            logger.debug("handle finished callbacks... done.")
             self.contexts.clear()
             self.finished.emit()
+            self.update_rpc_state('idle')
+            logger.debug("run measurement... done.")
 
 
 class RangeMeasurement(Measurement):
 
     def __init__(self, state):
         super().__init__(state)
+
+    @property
+    def is_continuous(self) -> bool:
+        return self.state.get('continuous') is True
 
     def get_source_output_state(self):
         return self.source_instrument.get_output_enabled()
@@ -164,7 +187,7 @@ class RangeMeasurement(Measurement):
         logger.info("Waiting for %.2f sec", waiting_time)
         time.sleep(waiting_time)
 
-    def apply_waiting_time_continuous(self):
+    def apply_waiting_time_continuous(self, estimate):
         waiting_time = self.state.get('waiting_time_continuous', 1.0)
         logger.info("Waiting for %.2f sec", waiting_time)
         interval = 1.0
@@ -174,13 +197,13 @@ class RangeMeasurement(Measurement):
             now = time.time()
             threshold = now + waiting_time
             while now < threshold:
-                if self.state.get('stop_requested'):
+                if self.stop_requested:
                     self.update_message("Stopping...")
                     break
                 if self.state.get('change_voltage_continuous'):
                     break
                 remaining = round(threshold - now)
-                self.update_message(f"Next reading in {remaining:d} sec...")
+                self.update_estimate_message_continuous(f"Next reading in {remaining:d} sec...", estimate)
                 time.sleep(interval)
                 now = time.time()
 
@@ -188,7 +211,10 @@ class RangeMeasurement(Measurement):
         params = self.state.get('change_voltage_continuous')
         if params is not None:
             del self.state['change_voltage_continuous']
+            self.update_rpc_state('ramping')
             self.rampToContinuous(params.get("end_voltage"), params.get("step_voltage"), params.get("waiting_time"))
+            if not self.stop_requested:  # hack
+                self.update_rpc_state('continuous')
         self.itChangeVoltageReady.emit()
 
     def update_message(self, message: str) -> None:
@@ -199,11 +225,18 @@ class RangeMeasurement(Measurement):
         """Emit update progress event."""
         self.update.emit({"progress": (begin, end, step)})
 
-    def update_estimate_message(self, voltage: float, estimate: Estimate) -> None:
+    def update_estimate_message(self, message: str, estimate: Estimate) -> None:
         """Emit update message event for ramp iterations."""
         elapsed_time = format(estimate.elapsed).split('.')[0]
         remaining_time = format(estimate.remaining).split('.')[0]
-        self.update_message(f"Ramp to {voltage} V | Elapsed {elapsed_time} | Remaining {remaining_time}")
+        average_time = format(estimate.average.total_seconds(), '.2f')
+        self.update_message(f"{message} | Elapsed {elapsed_time} | Remaining {remaining_time} | Average {average_time} s")
+
+    def update_estimate_message_continuous(self, message: str, estimate: Estimate) -> None:
+        """Emit update message event for continuous iterations."""
+        elapsed_time = format(estimate.elapsed).split('.')[0]
+        average_time = format(estimate.average.total_seconds(), '.2f')
+        self.update_message(f"{message} | Elapsed {elapsed_time} | Average {average_time} s")
 
     def update_estimate_progress(self, estimate: Estimate) -> None:
         """Emit update progress event for ramp iterations."""
@@ -216,10 +249,17 @@ class RangeMeasurement(Measurement):
         else:
             raise RuntimeError("No source instrument set")
 
+        logger.debug("querying context identities...")
         for key, context in self.contexts.items():
-            logging.info("%s IDN: %s", key.upper(), context.identity())
+            logger.debug("reading %s identity...", key.upper())
+            identity = context.identity()
+            logger.debug("reading %s identity... done.", key.upper())
+            logger.info("%s IDN: %s", key.upper(), identity)
+        logger.debug("querying context identities... done.")
 
+        logger.debug("get source output state...")
         source_output_state = self.get_source_output_state()
+        logger.debug("get source output state... done.")
 
         if source_output_state:
             self.rampZero()
@@ -229,18 +269,21 @@ class RangeMeasurement(Measurement):
         # Reset (optional)
         if self.state.get('reset'):
             for key, context in self.contexts.items():
-                logging.info("Reset %s...", key.upper())
+                logger.info("Reset %s...", key.upper())
                 context.reset()
+                logger.info("Reset %s... done.", key.upper())
 
         # Clear state
         for key, context in self.contexts.items():
-            logging.info("Clear %s...", key.upper())
+            logger.info("Clear %s...", key.upper())
             context.clear()
+            logger.info("Clear %s... done.", key.upper())
 
         # Configure
         for key, context in self.contexts.items():
-            logging.info("%s IDN: %s", key.upper(), context.identity())
+            logger.info("Configure %s...", key.upper())
             context.configure()
+            logger.info("Configure %s... done.", key.upper())
             self.checkErrorState(context)
 
         # Compliance
@@ -254,7 +297,9 @@ class RangeMeasurement(Measurement):
         self.rampBegin()
 
         # Wait after output enable/ramp
+        logger.debug("apply settle time...")
         time.sleep(1.0)
+        logger.debug("apply settle time... done.")
 
     def measure(self):
         ramp = LinearRange(
@@ -266,11 +311,13 @@ class RangeMeasurement(Measurement):
         self.update_message(f"Ramp to {ramp.end} V")
         estimate = Estimate(len(ramp))
 
+        self.update_rpc_state('ramping')
+
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
-            if self.state.get('stop_requested'):
+            if self.stop_requested:
                 self.update_message("Stopping...")
                 return
             self.set_source_voltage(voltage)
@@ -283,14 +330,17 @@ class RangeMeasurement(Measurement):
 
             estimate.advance()
 
+        self.update_rpc_state('measure')
+
         self.update_message("")
 
-        if self.state.get('stop_requested'):
+        if self.stop_requested:
             self.update_message("Stopping...")
             return
 
-        if self.state.get('continuous'):
+        if self.is_continuous:
             self.update_message("Continuous measurement...")
+            self.update_rpc_state('continuous')
             self.acquireContinuousReading()
 
     def finalize(self):
@@ -302,7 +352,8 @@ class RangeMeasurement(Measurement):
                 'source_voltage': None,
                 'smu_current': None,
                 'elm_current': None,
-                'lcr_capacity': None
+                'lcr_capacity': None,
+                'dmm_temperature': None
             })
 
     def acquireReading(self):
@@ -325,10 +376,10 @@ class RangeMeasurement(Measurement):
         estimate = Estimate(len(ramp))
 
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
-            if self.state.get('stop_requested'):
+            if self.stop_requested:
                 break
             self.set_source_voltage(voltage)
             time.sleep(.250)
@@ -339,12 +390,13 @@ class RangeMeasurement(Measurement):
         self.update.emit({
             'smu_current': None,
             'elm_current': None,
-            'lcr_capacity': None
+            'lcr_capacity': None,
+            'dmm_temperature': None
         })
         ramp = LinearRange(source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
             self.set_source_voltage(voltage)
@@ -362,10 +414,10 @@ class RangeMeasurement(Measurement):
             self.set_source_voltage_range(ramp.end)
 
         for step, voltage in enumerate(ramp):
-            self.update_estimate_message(ramp.end, estimate)
+            self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
 
-            if self.state.get('stop_requested'):
+            if self.stop_requested:
                 self.update_message("Stopping...")
                 return
 
@@ -374,7 +426,7 @@ class RangeMeasurement(Measurement):
             time.sleep(waiting_time)
 
             reading = self.acquireReadingData()
-            logging.info(reading)
+            logger.info(reading)
             self.itReading.emit(reading)
             self.update.emit({
                 'smu_current': reading.get('i_smu'),
@@ -389,120 +441,3 @@ class RangeMeasurement(Measurement):
         # If end voltage lower, set new range after ramp.
         if abs(ramp.end) < abs(ramp.begin):
             self.set_source_voltage_range(ramp.end)
-
-
-class IVMeasurement(RangeMeasurement):
-
-    ivReading = QtCore.pyqtSignal(dict)
-    itReading = QtCore.pyqtSignal(dict)
-    itChangeVoltageReady = QtCore.pyqtSignal()
-
-    def __init__(self, state):
-        super().__init__(state)
-        self.ivReadingHandlers = []
-        self.itReadingHandlers = []
-
-    def measure(self):
-        super().measure()
-        if self.state.get('continuous'):
-            self.acquireContinuousReading()
-
-    def acquireReadingData(self):
-        smu = self.contexts.get('smu')
-        elm = self.contexts.get('elm')
-        voltage = self.get_source_voltage()
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float('NaN')
-        if elm:
-            i_elm = elm.read_current()
-        else:
-            i_elm = float('NaN')
-        return {
-            'timestamp': time.time(),
-            'voltage': voltage,
-            'i_smu': i_smu,
-            'i_elm': i_elm
-        }
-
-    def acquireReading(self):
-        reading = self.acquireReadingData()
-        logging.info(reading)
-        self.ivReading.emit(reading)
-        self.update.emit({
-            'smu_current': reading.get('i_smu'),
-            'elm_current': reading.get('i_elm')
-        })
-        for handler in self.ivReadingHandlers:
-            handler(reading)
-
-    def acquireContinuousReading(self):
-        while not self.state.get('stop_requested'):
-            self.update_message("Reading...")
-            self.update_progress(0, 0, 0)
-            reading = self.acquireReadingData()
-            logging.info(reading)
-            self.itReading.emit(reading)
-            self.update.emit({
-                'smu_current': reading.get('i_smu'),
-                'elm_current': reading.get('i_elm')
-            })
-            for handler in self.itReadingHandlers:
-                handler(reading)
-
-            self.check_current_compliance()
-            self.update_current_compliance()
-
-            self.apply_change_voltage()
-
-            self.apply_waiting_time_continuous()
-
-
-class CVMeasurement(RangeMeasurement):
-
-    cvReading = QtCore.pyqtSignal(dict)
-
-    def __init__(self, state):
-        super().__init__(state)
-        self.cvReadingHandlers = []
-
-    def extendCVReading(self, reading: dict) -> dict:
-        # Calcualte 1c^2 as c2_lcr
-        c_lcr = reading.get('c_lcr', math.nan)
-        if math.isfinite(c_lcr) and c_lcr:
-            reading['c2_lcr'] = inverse_square(c_lcr)
-        else:
-            reading['c2_lcr'] = math.nan
-        return reading
-
-    def acquireReadingData(self):
-        smu = self.contexts.get('smu')
-        lcr = self.contexts.get('lcr')
-        voltage = self.get_source_voltage()
-        if lcr:
-            c_lcr = lcr.read_capacity()
-        else:
-            c_lcr = float('NaN')
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float('NaN')
-        return {
-            'timestamp': time.time(),
-            'voltage': voltage,
-            'i_smu': i_smu,
-            'c_lcr': c_lcr
-        }
-
-    def acquireReading(self):
-        reading = self.acquireReadingData()
-        self.extendCVReading(reading)
-        self.cvReading.emit(reading)
-        self.update.emit({
-            'smu_current': reading.get('i_smu'),
-            'elm_current': reading.get('i_elm'),
-            'lcr_capacity': reading.get('c_lcr')
-        })
-        for handler in self.cvReadingHandlers:
-            handler(reading)

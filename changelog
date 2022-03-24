@@ -6,10 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2022-03-24
+
+### Added
+- Basic plugin system.
+- JSON-RPC remote control TCP server (#5).
+- Show average loop iteration time (#12).
+- DMM role for reading temperature (#13).
+- Caching of log messages to improve performance.
+- `setup.cfg`, `pyproject.toml` and `tox.ini`.
+
+### Changed
+- Refactored measurement module.
+
 ## [0.6.2] - 2021-11-19
 ### Fixed
 - CV yields division by zero (#8).
-- Invalid plot values yield unhandled exceptions(#9)
+- Invalid plot values yield unhandled exceptions (#9).
 - Crashes on file permission errors (#10).
 
 ## [0.6.1] - 2021-11-10
@@ -63,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.0
 [0.6.1]: https://github.com/hephy-dd/diode-measurement/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/hephy-dd/diode-measurement/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/hephy-dd/diode-measurement/compare/0.4.0...0.5.0

@@ -11,7 +11,6 @@ class GeneralWidget(QtWidgets.QWidget):
     currentComplianceChanged = QtCore.pyqtSignal(float)
     continueInComplianceChanged = QtCore.pyqtSignal(bool)
     waitingTimeContinuousChanged = QtCore.pyqtSignal(float)
-    changeVoltageContinuousRequested = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -26,6 +25,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.smuCheckBox = QtWidgets.QCheckBox("SMU")
         self.elmCheckBox = QtWidgets.QCheckBox("ELM")
         self.lcrCheckBox = QtWidgets.QCheckBox("LCR")
+        self.dmmCheckBox = QtWidgets.QCheckBox("DMM")
 
         self.beginVoltageSpinBox = QtWidgets.QDoubleSpinBox()
         self.beginVoltageSpinBox.setDecimals(3)
@@ -73,23 +73,20 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.outputToolButton = QtWidgets.QToolButton()
         self.outputToolButton.setText("...")
-        self.outputToolButton.setStatusTip("Select output directory.")
+        self.outputToolButton.setStatusTip("Select output directory")
         self.outputToolButton.clicked.connect(self.selectOutput)
 
         self.waitingTimeContinuousSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeContinuousSpinBox.setSuffix(" s")
-        self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement.")
+        self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement")
         self.waitingTimeContinuousSpinBox.editingFinished.connect(
             lambda: self.waitingTimeContinuousChanged.emit(self.waitingTimeContinuous())
         )
 
         self.changeVoltageButton = QtWidgets.QToolButton()
-        self.changeVoltageButton.setText("Change Voltage...")
+        self.changeVoltageButton.setText("&Change Voltage...")
+        self.changeVoltageButton.setStatusTip("Change voltage in continuous measurement")
         self.changeVoltageButton.setEnabled(False)
-        self.changeVoltageButton.clicked.connect(
-            lambda: (self.changeVoltageContinuousRequested.emit(),
-                     self.changeVoltageButton.setEnabled(False))
-        )
 
         self.measurementGroupBox = QtWidgets.QGroupBox()
         self.measurementGroupBox.setTitle("Measurement")
@@ -119,6 +116,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.instrumentLayout.addWidget(self.smuCheckBox)
         self.instrumentLayout.addWidget(self.elmCheckBox)
         self.instrumentLayout.addWidget(self.lcrCheckBox)
+        self.instrumentLayout.addWidget(self.dmmCheckBox)
         self.instrumentLayout.addStretch()
         self.instrumentLayout.setContentsMargins(0, 0, 0, 0)
 
@@ -190,6 +188,14 @@ class GeneralWidget(QtWidgets.QWidget):
         self.stepVoltageSpinBox.setEnabled(True)
         self.waitingTimeSpinBox.setEnabled(True)
         self.changeVoltageButton.setEnabled(False)
+        self.currentComplianceSpinBox.setEnabled(True)
+        self.continueInComplianceCheckBox.setEnabled(True)
+        self.waitingTimeContinuousSpinBox.setEnabled(True)
+
+    def setStoppingState(self):
+        self.currentComplianceSpinBox.setEnabled(False)
+        self.continueInComplianceCheckBox.setEnabled(False)
+        self.waitingTimeContinuousSpinBox.setEnabled(False)
 
     def addMeasurement(self, spec):
         self.measurementComboBox.addItem(spec.get("title"), spec)
@@ -214,6 +220,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setLCREnabled(self, enabled):
         return self.lcrCheckBox.setChecked(enabled)
+
+    def isDMMEnabled(self):
+        return self.dmmCheckBox.isChecked()
+
+    def setDMMEnabled(self, enabled):
+        return self.dmmCheckBox.setChecked(enabled)
 
     def isOutputEnabled(self):
         return self.outputGroupBox.isChecked()

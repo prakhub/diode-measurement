@@ -12,7 +12,7 @@ class ResourceError(Exception):
 
 class Resource:
 
-    def __init__(self, resource_name, visa_library, **options):
+    def __init__(self, resource_name: str, visa_library: str, **options):
         self.resource_name = resource_name
         self.visa_library = visa_library
         self.options = {

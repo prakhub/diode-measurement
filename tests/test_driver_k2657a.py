@@ -1,9 +1,9 @@
-import os
 import unittest
 
 from diode_measurement.driver.k2657a import K2657A
 
 from . import FakeResource
+
 
 class DriverK2657ATest(unittest.TestCase):
 

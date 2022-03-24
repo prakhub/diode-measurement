@@ -1,7 +1,7 @@
-import os
 import unittest
 
 from diode_measurement import utils
+
 
 class UtilsTest(unittest.TestCase):
 

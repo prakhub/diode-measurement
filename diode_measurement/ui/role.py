@@ -1,6 +1,8 @@
-from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 
+from typing import Any, Dict
+
+from .panels import InstrumentPanel
 from .widgets import ResourceWidget
 
 __all__ = ['RoleWidget']
@@ -8,7 +10,7 @@ __all__ = ['RoleWidget']
 
 class RoleWidget(QtWidgets.QWidget):
 
-    def __init__(self, name, parent=None):
+    def __init__(self, name, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setName(name)
 
@@ -24,37 +26,37 @@ class RoleWidget(QtWidgets.QWidget):
         layout.addWidget(self.stackedWidget)
         layout.addStretch()
 
-    def name(self):
+    def name(self) -> str:
         return self.property("name")
 
-    def setName(self, name):
+    def setName(self, name: str) -> None:
         self.setProperty("name", name)
 
-    def model(self):
+    def model(self) -> str:
         return self.resourceWidget.model()
 
-    def setModel(self, model):
+    def setModel(self, model: str) -> None:
         self.resourceWidget.setModel(model)
 
-    def resourceName(self):
+    def resourceName(self) -> str:
         return self.resourceWidget.resourceName()
 
-    def setResourceName(self, resource):
+    def setResourceName(self, resource: str) -> None:
         self.resourceWidget.setResourceName(resource)
 
-    def termination(self):
+    def termination(self) -> str:
         return self.resourceWidget.termination()
 
-    def setTermination(self, termination):
+    def setTermination(self, termination: str) -> None:
         self.resourceWidget.setTermination(termination)
 
-    def timeout(self):
+    def timeout(self) -> float:
         return self.resourceWidget.timeout()
 
-    def setTimeout(self, timeout):
+    def setTimeout(self, timeout: float) -> None:
         self.resourceWidget.setTimeout(timeout)
 
-    def config(self):
+    def config(self) -> Dict[str, Any]:
         config = {}
         # config["model"] = self.resourceWidget.model()
         # config["resource_name"] = self.resourceWidget.resourceName()
@@ -63,29 +65,28 @@ class RoleWidget(QtWidgets.QWidget):
             config.update(widget.config())
         return config
 
-    def setConfig(self, config):
+    def setConfig(self, config: Dict[str, Any]) -> None:
         for index in range(1, self.stackedWidget.count()):
             widget = self.stackedWidget.widget(index)
             if widget is not self.emptyWidget:
                 if widget.model() == self.model():
                     widget.setConfig(config)
 
-    def lock(self):
+    def lock(self) -> None:
         self.resourceWidget.lock()
         for index in range(1, self.stackedWidget.count()):
             self.stackedWidget.widget(index).lock()
 
-    def unlock(self):
+    def unlock(self) -> None:
         self.resourceWidget.unlock()
         for index in range(1, self.stackedWidget.count()):
             self.stackedWidget.widget(index).unlock()
 
-    def addInstrument(self, widget):
+    def addInstrument(self, widget: InstrumentPanel) -> None:
         self.resourceWidget.addModel(widget.model())
         self.stackedWidget.addWidget(widget)
 
-    @QtCore.pyqtSlot(str)
-    def modelChanged(self, model):
+    def modelChanged(self, model: str) -> None:
         for index in range(1, self.stackedWidget.count()):
             widget = self.stackedWidget.widget(index)
             if widget.model() == model:

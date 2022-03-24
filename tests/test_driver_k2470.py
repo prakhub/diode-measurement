@@ -1,9 +1,9 @@
-import os
 import unittest
 
 from diode_measurement.driver.k2470 import K2470
 
 from . import FakeResource
+
 
 class DriverK2470Test(unittest.TestCase):
 

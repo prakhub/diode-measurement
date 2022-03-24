@@ -1,7 +1,7 @@
 import csv
 import math
 
-from typing import Any
+from typing import Any, Optional
 
 
 def safe_format(value, format_spec=''):
@@ -16,7 +16,7 @@ class Writer:
     def __init__(self, fp) -> None:
         self._fp = fp
         self._writer = csv.writer(fp, delimiter='\t')
-        self._current_table = None
+        self._current_table: Optional[str] = None
 
     def flush(self) -> None:
         self._fp.flush()
@@ -51,13 +51,15 @@ class Writer:
                 "timestamp[s]",
                 "voltage[V]",
                 "i_smu[A]",
-                "i_elm[A]"
+                "i_elm[A]",
+                "temperature[degC]"
             ])
         self.write_table_row([
             safe_format(data.get('timestamp'), '.2f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('i_elm'), '+.3E'),
+            safe_format(data.get('t_dmm'), '+.3E')
         ])
         self.flush()
 
@@ -68,13 +70,15 @@ class Writer:
                 "timestamp[s]",
                 "voltage[V]",
                 "i_smu[A]",
-                "i_elm[A]"
+                "i_elm[A]",
+                "temperature[degC]"
             ])
         self.write_table_row([
             safe_format(data.get('timestamp'), '.2f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('i_elm'), '+.3E'),
+            safe_format(data.get('t_dmm'), '+.3E')
         ])
         self.flush()
 
@@ -86,7 +90,8 @@ class Writer:
                 "voltage[V]",
                 "i_smu[A]",
                 "c_lcr[F]",
-                "c2_lcr[1/F^2]"
+                "c2_lcr[1/F^2]",
+                "temperature[degC]"
             ])
         self.write_table_row([
             safe_format(data.get('timestamp'), '.2f'),
@@ -94,5 +99,6 @@ class Writer:
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('c_lcr'), '+.3E'),
             safe_format(data.get('c2_lcr'), '+.3E'),
+            safe_format(data.get('t_dmm'), '+.3E')
         ])
         self.flush()

@@ -1,12 +1,12 @@
-import os
-import math
-import time
-import logging
-import threading
 import contextlib
-from datetime import datetime
+import logging
+import math
+import os
+import threading
+import time
 
-from typing import List, Union
+from datetime import datetime
+from typing import Any, Dict, List, Iterator
 
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
@@ -25,14 +25,21 @@ from .ui.panels import K6517BPanel
 
 # LCR meters
 from .ui.panels import K595Panel
-from .ui.panels import E4285Panel
+# from .ui.panels import E4285Panel
 from .ui.panels import E4980APanel
+
+# DMM
+from .ui.panels import K2700Panel
 
 from .ui.widgets import showException
 from .ui.dialogs import ChangeVoltageDialog
 
-from .measurement import IVMeasurement
-from .measurement import CVMeasurement
+from .measurement import Measurement
+from .measurement.iv import IVMeasurement
+from .measurement.cv import CVMeasurement
+
+from .plugin import PluginRegistryMixin
+from .worker import Worker
 
 from .reader import Reader
 from .writer import Writer
@@ -45,6 +52,11 @@ from .settings import SPECS
 
 logger = logging.getLogger(__name__)
 
+MEASUREMENTS = {
+    "iv": IVMeasurement,
+    "cv": CVMeasurement,
+}
+
 
 def handle_exception(method):
     def handle_exception(self, *args, **kwargs):
@@ -52,24 +64,103 @@ def handle_exception(method):
             return method(self, *args, **kwargs)
         except Exception as exc:
             logger.exception(exc)
-            self.onFailed(exc)
+            self.handleException(exc)
     return handle_exception
 
 
-class Controller(QtCore.QObject):
+class Cache:
+    """Lockable value cache."""
 
-    failed = QtCore.pyqtSignal(object)
-    finished = QtCore.pyqtSignal()
-    update = QtCore.pyqtSignal(dict)
-    itChangeVoltageReady = QtCore.pyqtSignal()
+    def __init__(self) -> None:
+        self._lock: threading.RLock = threading.RLock()
+        self._items: Dict[str, Any] = {}
 
-    def __init__(self, view):
-        super().__init__()
-        self.measurementThread: threading.Thread = None
+    def __enter__(self) -> "Cache":
+        self._lock.acquire()
+        return self
 
+    def __exit__(self, *exc) -> bool:
+        self._lock.release()
+        return False
+
+    def __iter__(self) -> Iterator:
+        return iter(self._items)
+
+    def get(self, key: str, default=None):
+        return self._items.get(key, default)
+
+    def update(self, items: Dict[str, Any]) -> None:
+        self._items.update(items)
+
+    def clear(self) -> None:
+        self._items.clear()
+
+
+class MeasurementRunner:
+
+    def __init__(self, measurement: Measurement) -> None:
+        self.measurement = measurement
+
+    def __call__(self) -> None:
+        measurement = self.measurement
+        filename = measurement.state.get("filename")
+        with contextlib.ExitStack() as stack:
+            if filename:
+                logger.info("preparing output file: %s", filename)
+
+                def createOutputDir():
+                    path = os.path.dirname(filename)
+                    if not os.path.exists(path):
+                        logger.debug("create output dir: %s", path)
+                        os.makedirs(path)
+
+                measurement.startedHandlers.append(lambda: createOutputDir())
+                fp = stack.enter_context(open(filename, 'w', newline=''))
+                writer = Writer(fp)
+                # Note: using signals executes slots in main thread, should be worker thread
+                measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
+                if isinstance(measurement, IVMeasurement):
+                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
+                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                if isinstance(measurement, CVMeasurement):
+                    measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
+                measurement.finishedHandlers.append(lambda: writer.flush())
+            measurement.run()
+
+
+class AbstractController(QtCore.QObject):
+
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(parent)
         self.view = view
+
+
+class Controller(PluginRegistryMixin, AbstractController):
+
+    started = QtCore.pyqtSignal()
+    aborted = QtCore.pyqtSignal()
+    update = QtCore.pyqtSignal(dict)
+
+    requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
+
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(view, parent)
+
+        self.worker: Worker = Worker(self)
+        self.worker.failed.connect(self.handleException)
+
+        self.state: Dict[str, Any] = {}
+        self.cache: Cache = Cache()
+        self.rpc_params: Cache = Cache()
+
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
         self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
+
+        # Controller
+        self.ivPlotsController = IVPlotsController(self.view, self)
+        self.cvPlotsController = CVPlotsController(self.view, self)
+        self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
+        self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -91,17 +182,16 @@ class Controller(QtCore.QObject):
         role.addInstrument(E4980APanel())
 
         # Temperatur
-        # role = self.view.addRole("Temperature")
-
-        self.state = {}
+        role = self.view.addRole("DMM")
+        role.addInstrument(K2700Panel())
 
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
-        self.view.startAction.triggered.connect(lambda: self.onStart())
-        self.view.startButton.clicked.connect(lambda: self.onStart())
+        self.view.startAction.triggered.connect(self.started)
+        self.view.startButton.clicked.connect(self.view.startAction.trigger)
 
-        self.view.stopAction.triggered.connect(lambda: self.onStop())
-        self.view.stopButton.clicked.connect(lambda: self.onStop())
+        self.view.stopAction.triggered.connect(self.aborted)
+        self.view.stopButton.clicked.connect(self.view.stopAction.trigger)
 
         self.view.continuousAction.toggled.connect(self.onContinuousToggled)
         self.view.continuousCheckBox.stateChanged.connect(self.onContinuousChanged)
@@ -114,25 +204,66 @@ class Controller(QtCore.QObject):
         self.view.generalWidget.currentComplianceChanged.connect(self.onCurrentComplianceChanged)
         self.view.generalWidget.continueInComplianceChanged.connect(self.onContinueInComplianceChanged)
         self.view.generalWidget.waitingTimeContinuousChanged.connect(self.onWaitingTimeContinuousChanged)
-        self.view.generalWidget.changeVoltageContinuousRequested.connect(self.onChangeVoltageRequested)
 
-        self.view.unlock()
         self.onMeasurementChanged(0)
 
-        self.finished.connect(self.onFinished)
-        self.failed.connect(self.onFailed)
         self.update.connect(self.onUpdate)
-        self.itChangeVoltageReady.connect(self.onChangeVoltageReady)
+
+        self.onToggleLcr(False)
+        self.onToggleDmm(False)
 
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
         self.view.generalWidget.elmCheckBox.toggled.connect(self.onToggleElm)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
+        self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
 
-        self.ivPlotsController = IVPlotsController(self.view, self)
-        self.cvPlotsController = CVPlotsController(self.view, self)
+        # States
+
+        self.idleState = QtCore.QState()
+        self.idleState.entered.connect(self.setIdleState)
+
+        self.runningState = QtCore.QState()
+        self.runningState.entered.connect(self.setRunningState)
+
+        self.stoppingState = QtCore.QState()
+        self.stoppingState.entered.connect(self.setStoppingState)
+
+        # Transitions
+
+        self.idleState.addTransition(self.started, self.runningState)
+
+        self.runningState.addTransition(self.worker.finished, self.idleState)
+        self.runningState.addTransition(self.aborted, self.stoppingState)
+
+        self.stoppingState.addTransition(self.worker.finished, self.idleState)
+
+        # State machine
+
+        self.stateMachine = QtCore.QStateMachine()
+        self.stateMachine.addState(self.idleState)
+        self.stateMachine.addState(self.runningState)
+        self.stateMachine.addState(self.stoppingState)
+        self.stateMachine.setInitialState(self.idleState)
+        self.stateMachine.start()
+
+        self.worker.start()
+
+    def snapshot(self):
+        """Return application state snapshot."""
+        with self.cache:
+            snapshot = {}
+            snapshot['state'] = self.cache.get('rpc_state', 'idle')
+            snapshot['measurement_type'] = self.cache.get('measurement_type')
+            snapshot['sample'] = self.cache.get('sample')
+            snapshot['source_voltage'] = self.cache.get('source_voltage')
+            snapshot['smu_current'] = self.cache.get('smu_current')
+            snapshot['elm_current'] = self.cache.get('elm_current')
+            snapshot['lcr_capacity'] = self.cache.get('lcr_capacity')
+            snapshot['temperature'] = self.cache.get('dmm_temperature')
+            return snapshot
 
     def prepareState(self):
         state = {}
@@ -175,11 +306,17 @@ class Controller(QtCore.QObject):
         state.get("smu").update({"enabled": self.view.generalWidget.isSMUEnabled()})
         state.get("elm").update({"enabled": self.view.generalWidget.isELMEnabled()})
         state.get("lcr").update({"enabled": self.view.generalWidget.isLCREnabled()})
+        state.get("dmm").update({"enabled": self.view.generalWidget.isDMMEnabled()})
 
         for key, value in state.items():
             logger.info('> %s: %s', key, value)
 
         return state
+
+    def shutdown(self):
+        self.stateMachine.stop()
+        self.worker.stop()
+        self.uninstallPlugins()
 
     @handle_exception
     def loadSettings(self):
@@ -210,6 +347,9 @@ class Controller(QtCore.QObject):
 
         enabled = settings.value("lcr/enabled", False, bool)
         self.view.generalWidget.setLCREnabled(enabled)
+
+        enabled = settings.value("dmm/enabled", False, bool)
+        self.view.generalWidget.setDMMEnabled(enabled)
 
         enabled = settings.value("outputEnabled", False, bool)
         self.view.generalWidget.setOutputEnabled(enabled)
@@ -287,6 +427,9 @@ class Controller(QtCore.QObject):
         enabled = self.view.generalWidget.isLCREnabled()
         settings.setValue("lcr/enabled", enabled)
 
+        enabled = self.view.generalWidget.isDMMEnabled()
+        settings.setValue("dmm/enabled", enabled)
+
         enabled = self.view.generalWidget.isOutputEnabled()
         settings.setValue("outputEnabled", enabled)
 
@@ -343,7 +486,7 @@ class Controller(QtCore.QObject):
         )
         if filename:
             logger.info("Importing measurement file: %s", filename)
-            self.view.lock()
+            self.view.setEnabled(False)
             self.view.clear()
             try:
                 # Open in binary mode!
@@ -382,47 +525,62 @@ class Controller(QtCore.QObject):
                     self.cvPlotsController.onLoadCVReadings(data)
                     self.cvPlotsController.onLoadCV2Readings(data)
             finally:
-                self.view.unlock()
+                self.view.setEnabled(True)
 
-    def onStart(self):
-        try:
-            self.view.lock()
-            self.view.clear()
-            self.startMeasurement()
-        except Exception as exc:
-            logger.exception(exc)
-            self.onFailed(exc)
-            self.onFinished()
+    # State slots
 
-    def onStop(self):
-        self.state.update({"stop_requested": True})
-        self.view.setMessage("Stop requested...")
-
-    def onFinished(self):
-        self.view.unlock()
-        self.view.setMessage("")
-        self.view.messageLabel.hide()
-        self.view.progressBar.hide()
+    def setIdleState(self):
+        self.view.setIdleState()
+        self.view.clearMessage()
+        self.view.clearProgress()
         self.updateContinuousOption()
+        with self.cache:
+            self.cache.clear()
 
-    def onFailed(self, exc):
+    def setRunningState(self):
+        self.view.setRunningState()
+        self.view.clear()
+        self.startMeasurement()
+
+    def setStoppingState(self):
+        self.view.setStoppingState()
+        self.view.setMessage("Stop requested...")
+        self.view.stopAction.setEnabled(False)
+        self.view.stopButton.setEnabled(False)
+        self.state.update({"stop_requested": True})
+
+    # Slots
+
+    def handleException(self, exc):
         showException(exc, self.view)
 
     def onUpdate(self, data):
+        cache = {}
+        if 'rpc_state' in data:
+            cache.update({'rpc_state': data.get('rpc_state')})
         if 'source_voltage' in data:
             self.view.updateSourceVoltage(data.get('source_voltage'))
+            cache.update({'source_voltage': data.get('source_voltage')})
         if 'smu_current' in data:
             self.view.updateSMUCurrent(data.get('smu_current'))
+            cache.update({'smu_current': data.get('smu_current')})
         if 'elm_current' in data:
             self.view.updateELMCurrent(data.get('elm_current'))
+            cache.update({'elm_current': data.get('elm_current')})
         if 'lcr_capacity' in data:
             self.view.updateLCRCapacity(data.get('lcr_capacity'))
+            cache.update({'lcr_capacity': data.get('lcr_capacity')})
+        if 'dmm_temperature' in data:
+            self.view.updateDMMTemperature(data.get('dmm_temperature'))
+            cache.update({'dmm_temperature': data.get('dmm_temperature')})
         if 'source_output_state' in data:
             self.view.updateSourceOutputState(data.get('source_output_state'))
         if 'message' in data:
             self.view.setMessage(data.get('message', ''))
         if 'progress' in data:
             self.view.setProgress(*data.get('progress', (0, 0, 0)))
+        with self.cache:
+            self.cache.update(cache)
 
     def onContinuousToggled(self, checked):
         self.view.setContinuous(checked)
@@ -494,50 +652,40 @@ class Controller(QtCore.QObject):
         self.view.ivPlotWidget.smuSeries.setVisible(state)
         self.view.itPlotWidget.smuSeries.setVisible(state)
         self.view.smuGroupBox.setEnabled(state)
+        self.view.smuGroupBox.setVisible(state)
 
     def onToggleElm(self, state):
         self.view.ivPlotWidget.elmSeries.setVisible(state)
         self.view.itPlotWidget.elmSeries.setVisible(state)
         self.view.elmGroupBox.setEnabled(state)
+        self.view.elmGroupBox.setVisible(state)
 
     def onToggleLcr(self, state):
         self.view.lcrGroupBox.setEnabled(state)
+        self.view.lcrGroupBox.setVisible(state)
+
+    def onToggleDmm(self, state):
+        self.view.dmmGroupBox.setEnabled(state)
+        self.view.dmmGroupBox.setVisible(state)
 
     def onOutputEditingFinished(self):
         if not self.view.generalWidget.outputLineEdit.text().strip():
             self.view.generalWidget.outputLineEdit.setText(os.path.expanduser("~"))
 
     def onCurrentComplianceChanged(self, value):
-        logging.info("updated current_compliance: %s", format_metric(value, 'A'))
+        logger.info("updated current_compliance: %s", format_metric(value, 'A'))
         self.state.update({"current_compliance": value})
 
     def onContinueInComplianceChanged(self, checked):
-        logging.info("updated continue_in_compliance: %s", checked)
+        logger.info("updated continue_in_compliance: %s", checked)
         self.state.update({"continue_in_compliance": checked})
 
     def onWaitingTimeContinuousChanged(self, value):
-        logging.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
+        logger.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
         self.state.update({"waiting_time_continuous": value})
 
-    def onChangeVoltageReady(self):
-        self.view.generalWidget.changeVoltageButton.setEnabled(True)
-
-    def onChangeVoltageRequested(self):
-        dialog = ChangeVoltageDialog(self.view)
-        dialog.setEndVoltage(self.sourceVoltage())
-        dialog.setStepVoltage(self.view.generalWidget.stepVoltage())
-        dialog.setWaitingTime(self.view.generalWidget.waitingTime())
-        dialog.exec()
-        if dialog.result() == dialog.Accepted:
-            logging.info("updated change_voltage_continuous: %s", format_metric(dialog.endVoltage(), 'V'))
-            self.state.update({"change_voltage_continuous": {
-                "end_voltage": dialog.endVoltage(),
-                "step_voltage": dialog.stepVoltage(),
-                "waiting_time": dialog.waitingTime()
-            }})
-
     def updateContinuousOption(self):
-        # Tweak continous option
+        # Tweak continuous option
         validTypes = ["iv"]
         currentMeasurement = self.view.generalWidget.currentMeasurement()
         enabled = False
@@ -545,11 +693,6 @@ class Controller(QtCore.QObject):
             measurementType = currentMeasurement.get("type")
             enabled = measurementType in validTypes
         self.view.continuousCheckBox.setEnabled(enabled)
-
-    def sourceVoltage(self):
-        if self.state.get('source_voltage') is not None:
-            return self.state.get('source_voltage')
-        return self.view.generalWidget.endVoltage()
 
     def createFilename(self):
         path = self.view.generalWidget.outputDir()
@@ -561,20 +704,16 @@ class Controller(QtCore.QObject):
     def connectIVPlots(self, measurement) -> None:
         measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
         measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
-        measurement.itChangeVoltageReady.connect(lambda: self.itChangeVoltageReady.emit())
+        measurement.itChangeVoltageReady.connect(lambda: self.changeVoltageController.onChangeVoltageReady())
 
     def connectCVPlots(self, measurement) -> None:
         measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
 
     def createMeasurement(self):
-        measurements = {
-            "iv": IVMeasurement,
-            "cv": CVMeasurement,
-        }
         measurementType = self.state.get("measurement_type")
-        measurement = measurements.get(measurementType)(self.state)
+        measurement = MEASUREMENTS.get(measurementType)(self.state)
 
-        measurement.update.connect(lambda data: self.update.emit(data))
+        measurement.update.connect(self.update)
 
         if isinstance(measurement, IVMeasurement):
             self.connectIVPlots(measurement)
@@ -585,64 +724,73 @@ class Controller(QtCore.QObject):
         for role in self.view.roles():
             measurement.prepareDriver(role.name().lower())
 
+        measurement.failed.connect(self.handleException)
+
         return measurement
 
     def startMeasurement(self) -> None:
-        state = self.prepareState()
-
-        if not state.get("source"):
-            raise RuntimeError("No source instrument selected.")
-
-        # Update state
-        self.state.update(state)
-        self.state.update({"stop_requested": False})
-
-        # Filename
-        outputEnabled = self.view.generalWidget.isOutputEnabled()
-        filename = self.createFilename() if outputEnabled else None
-        self.state.update({"filename": filename})
-
-        # Create and run measurement
-        measurement = self.createMeasurement()
-        self.measurementThread = threading.Thread(target=self._runMeasurement, args=[measurement])
-        self.measurementThread.start()
-
-    def _runMeasurement(self, measurement) -> None:
         try:
-            filename = measurement.state.get("filename")
-            with contextlib.ExitStack() as stack:
-                if filename:
-                    def createOutputDir(filename):
-                        path = os.path.dirname(filename)
-                        if not os.path.exists(path):
-                            os.makedirs(path)
-                    measurement.startedHandlers.append(lambda: createOutputDir(filename))
-                    fp = stack.enter_context(open(filename, 'w', newline=''))
-                    writer = Writer(fp)
-                    # Note: using signals executes slots in main thread, shoyld be this thread
-                    measurement.startedHandlers.append(lambda: writer.write_meta(measurement.state))
-                    if isinstance(measurement, IVMeasurement):
-                        measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
-                        measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
-                    if isinstance(measurement, CVMeasurement):
-                        measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
-                    measurement.finishedHandlers.append(lambda: writer.flush())
-                measurement.run()
+            logger.debug("handle RPC params...")
+            with self.rpc_params:
+                rpc_params = self.rpc_params
+                if 'reset' in rpc_params:
+                    self.view.setReset(rpc_params.get('reset'))
+                if 'continuous' in rpc_params:
+                    self.view.setContinuous(rpc_params.get('continuous'))
+                if 'end_voltage' in rpc_params:
+                    self.view.generalWidget.setEndVoltage(rpc_params.get('end_voltage'))
+                if 'begin_voltage' in rpc_params:
+                    self.view.generalWidget.setBeginVoltage(rpc_params.get('begin_voltage'))
+                if 'step_voltage' in rpc_params:
+                    self.view.generalWidget.setStepVoltage(rpc_params.get('step_voltage'))
+                if 'waiting_time' in rpc_params:
+                    self.view.generalWidget.setWaitingTime(rpc_params.get('waiting_time'))
+                if 'compliance' in rpc_params:
+                    self.view.generalWidget.setCurrentCompliance(rpc_params.get('compliance'))
+                if 'waiting_time_continuous' in rpc_params:
+                    self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get('waiting_time_continuous'))
+                self.rpc_params.clear()
+            logger.debug("handle RPC params... done.")
+
+            logger.debug("preparing state...")
+            state = self.prepareState()
+            logger.debug("preparing state... done.")
+
+            if not state.get("source"):
+                raise RuntimeError("No source instrument selected.")
+
+            # Update state
+            self.state.update(state)
+            self.state.update({'stop_requested': False})
+
+            with self.cache:
+                self.cache.update({
+                    'measurement_type': state.get('measurement_type'),
+                    'sample': state.get('sample')
+                })
+
+            # Filename
+            outputEnabled = self.view.generalWidget.isOutputEnabled()
+            filename = self.createFilename() if outputEnabled else None
+            self.state.update({"filename": filename})
+
+            # Create and run measurement
+            measurement = self.createMeasurement()
+            self.worker.request(MeasurementRunner(measurement))
+
         except Exception as exc:
             logger.exception(exc)
-            self.failed.emit(exc)
-        finally:
-            self.finished.emit()
+            self.worker.failed.emit(exc)
+            self.aborted.emit()
 
 
-class IVPlotsController(QtCore.QObject):
+class IVPlotsController(AbstractController):
 
     ivReading = QtCore.pyqtSignal(dict)
     itReading = QtCore.pyqtSignal(dict)
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
+        super().__init__(view, parent)
         self.ivReading.connect(self.onIVReading)
         self.itReading.connect(self.onItReading)
 
@@ -709,13 +857,12 @@ class IVPlotsController(QtCore.QObject):
         widget.fit()
 
 
-class CVPlotsController(QtCore.QObject):
+class CVPlotsController(AbstractController):
 
     cvReading = QtCore.pyqtSignal(dict)
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
+        super().__init__(view, parent)
         self.cvReading.connect(self.onCVReading)
 
     def onCVReading(self, reading: dict) -> None:
@@ -754,3 +901,48 @@ class CVPlotsController(QtCore.QObject):
                 widget.vLimits.append(voltage)
         widget.series.get('lcr').replace(lcr2Points)
         widget.fit()
+
+
+class ChangeVoltageController(AbstractController):
+
+    def __init__(self, view, state, parent=None) -> None:
+        super().__init__(view, parent)
+        self.state = state
+        # Connect signals
+        self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)
+
+    def sourceVoltage(self):
+        if self.state.get('source_voltage') is not None:
+            return self.state.get('source_voltage')
+        return self.view.generalWidget.endVoltage()
+
+    def onPrepareChangeVoltage(self) -> None:
+        dialog = ChangeVoltageDialog(self.view)
+        dialog.setEndVoltage(self.sourceVoltage())
+        dialog.setStepVoltage(self.view.generalWidget.stepVoltage())
+        dialog.setWaitingTime(self.view.generalWidget.waitingTime())
+        dialog.exec()
+        if dialog.result() == dialog.Accepted:
+            self.onRequestChangeVoltage(
+                dialog.endVoltage(),
+                dialog.stepVoltage(),
+                dialog.waitingTime()
+            )
+
+    def onRequestChangeVoltage(self, endVoltage: float, stepVoltage: float, waitingTime: float) -> None:
+        if self.view.isChangeVoltageEnabled():
+            logger.info(
+                "updated change_voltage_continuous: end_voltage=%s, step_voltage=%s, waiting_time=%s",
+                format_metric(endVoltage, 'V'),
+                format_metric(stepVoltage, 'V'),
+                format_metric(waitingTime, 's')
+            )
+            self.state.update({"change_voltage_continuous": {
+                "end_voltage": endVoltage,
+                "step_voltage": stepVoltage,
+                "waiting_time": waitingTime
+            }})
+            self.view.setChangeVoltageEnabled(False)
+
+    def onChangeVoltageReady(self) -> None:
+        self.view.setChangeVoltageEnabled(True)
