@@ -63,30 +63,46 @@ class IVMeasurement(RangeMeasurement):
             handler(reading)
 
     def acquireContinuousReading(self):
+        t = time.time()
+        interval = 1.0
+
         estimate = Estimate(1)
-        while not self.stop_requested:
-            # self.update_message("Reading...")
-            self.update_progress(0, 0, 0)
-            reading = self.acquireReadingData()
+
+        self.update_progress(0, 0, 0)
+
+        def handle_reading(reading):
+            """Handle a single reading, update UI and write to files."""
             logger.info(reading)
+
             self.itReading.emit(reading)
+
+            for handler in self.itReadingHandlers:
+                handler(reading)
+
             self.update.emit({
                 'smu_current': reading.get('i_smu'),
                 'elm_current': reading.get('i_elm'),
                 'dmm_temperature': reading.get('t_dmm')
             })
-            for handler in self.itReadingHandlers:
-                handler(reading)
 
-            self.check_current_compliance()
-            self.update_current_compliance()
+        while not self.stop_requested:
+            dt = time.time() - t
 
-            self.apply_change_voltage()
+            reading = self.acquireReadingData()
+            handle_reading(reading)
+
+            # Limit some actions for fast measurements
+            if dt > interval:
+                self.check_current_compliance()
+                self.update_current_compliance()
+                self.apply_change_voltage()
+
+                t = time.time()
 
             if self.stop_requested:
                 break
 
             self.apply_waiting_time_continuous(estimate)
-
             self.update_estimate_message_continuous("Reading...", estimate)
+
             estimate.advance()
