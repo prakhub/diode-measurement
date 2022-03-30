@@ -24,7 +24,8 @@ class RoleWidget(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout(self)
         layout.addWidget(self.resourceWidget)
         layout.addWidget(self.stackedWidget)
-        layout.addStretch()
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 2)
 
     def name(self) -> str:
         return self.property("name")

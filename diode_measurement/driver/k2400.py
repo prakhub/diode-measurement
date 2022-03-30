@@ -23,12 +23,19 @@ class K2400(SourceMeter):
     def configure(self, **options) -> None:
         self._write(':SYST:BEEP:STAT OFF')
         self._write(':SOUR:FUNC VOLT')
+        self._write(':FORM:ELEM CURR')  # return only current for read/fetch
+
         filter_mode = options.get('filter.mode', 'MOV')
         self._write(f':SENS:AVER:TCON {filter_mode}')
+
         filter_count = options.get('filter.count', 1)
         self._write(f':SENS:AVER:COUN {filter_count:d}')
+
         filter_enable = options.get('filter.enable', False)
         self._write(f':SENS:AVER:STAT {filter_enable:d}')
+
+        nplc = options.get('nplc', 1.0)
+        self._write(f':SENS:CURR:NPLC {nplc:E}')
 
     def get_output_enabled(self) -> bool:
         return self._query(':OUTP:STAT?') == '1'
@@ -53,7 +60,6 @@ class K2400(SourceMeter):
         return self._query(':SENS:CURR:PROT:TRIP?') == '1'
 
     def read_current(self) -> float:
-        self._write(':FORM:ELEM CURR')
         return float(self._query(':READ?').split(',')[0])
 
     @handle_exception

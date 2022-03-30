@@ -22,12 +22,18 @@ class K2470(SourceMeter):
 
     def configure(self, **options) -> None:
         self._write(':SOUR:FUNC VOLT')
+
         filter_mode = options.get('filter.mode', 'MOV')
         self._write(f':SENS:CURR:AVER:TCON {filter_mode}')
+
         filter_count = options.get('filter.count', 1)
         self._write(f':SENS:CURR:AVER:COUN {filter_count:d}')
+
         filter_enable = options.get('filter.enable', False)
         self._write(f':SENS:CURR:AVER:STAT {filter_enable:d}')
+
+        nplc = options.get('nplc', 1.0)
+        self._write(f':SENS:CURR:NPLC {nplc:E}')
 
     def get_output_enabled(self) -> bool:
         return self._query(':OUTP:STAT?') == '1'

@@ -23,12 +23,18 @@ class K2657A(SourceMeter):
     def configure(self, **options) -> None:
         self._write('beeper.enable = 0')
         self._write('smua.source.func = smua.OUTPUT_DCVOLTS')
+
         filter_mode = options.get('filter.mode', 'REPEAT_AVG')
         self._write(f'smua.measure.filter.type = smua.FILTER_{filter_mode}')
+
         filter_count = options.get('filter.count', 1)
         self._write(f'smua.measure.filter.count = {filter_count:d}')
+
         filter_enable = options.get('filter.enable', False)
         self._write(f'smua.measure.filter.enable = {filter_enable:d}')
+
+        nplc = options.get('nplc', 1.0)
+        self._write(f'smua.measure.nplc = {nplc:E}')
 
     def get_output_enabled(self) -> bool:
         return self._print('smua.source.output') == '1'

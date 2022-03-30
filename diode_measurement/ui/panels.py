@@ -46,6 +46,8 @@ class K237Panel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K237", parent)
 
+        # Filter
+
         self.filterGroupBox = QtWidgets.QGroupBox()
         self.filterGroupBox.setTitle("Filter")
 
@@ -64,9 +66,12 @@ class K237Panel(InstrumentPanel):
         filterLayout.addWidget(self.filterModeComboBox)
         filterLayout.addStretch()
 
+        # Layout
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.filterGroupBox)
+        layout.addStretch()
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
@@ -93,6 +98,8 @@ class K2410Panel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K2410", parent)
 
+        # Filter
+
         self.filterGroupBox = QtWidgets.QGroupBox()
         self.filterGroupBox.setTitle("Filter")
         self.filterEnableCheckBox = QtWidgets.QCheckBox("Enabled")
@@ -115,11 +122,37 @@ class K2410Panel(InstrumentPanel):
         filterLayout.addWidget(self.filterCountSpinBox)
         filterLayout.addWidget(self.filterModeLabel)
         filterLayout.addWidget(self.filterModeComboBox)
-        filterLayout.addStretch()
+
+        # Integration Time
+
+        self.integrationTimeGroupBox = QtWidgets.QGroupBox()
+        self.integrationTimeGroupBox.setTitle("Integration Time")
+
+        self.nplcLabel = QtWidgets.QLabel("NPLC")
+
+        self.nplcSpinBox = QtWidgets.QDoubleSpinBox()
+        self.nplcSpinBox.setStatusTip("Number of Power Line Cycles (0.01 to 10)")
+        self.nplcSpinBox.setRange(0.01, 10.0)
+        self.nplcSpinBox.setDecimals(2)
+        self.nplcSpinBox.setSingleStep(0.1)
+        self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
+        self.nplcSpinBox.setValue(1.0)
+
+        integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
+        integrationTimeLayout.addWidget(self.nplcLabel)
+        integrationTimeLayout.addWidget(self.nplcSpinBox)
+        integrationTimeLayout.addStretch()
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.filterGroupBox)
+        leftLayout.addWidget(self.integrationTimeGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.filterGroupBox)
+        layout.addLayout(leftLayout)
+        layout.addStretch()
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
@@ -127,30 +160,39 @@ class K2410Panel(InstrumentPanel):
         self.filterEnableCheckBox.setEnabled(False)
         self.filterCountSpinBox.setEnabled(False)
         self.filterModeComboBox.setEnabled(False)
+        self.nplcSpinBox.setEnabled(False)
 
     def unlock(self) -> None:
         self.filterEnableCheckBox.setEnabled(True)
         self.filterCountSpinBox.setEnabled(True)
         self.filterModeComboBox.setEnabled(True)
+        self.nplcSpinBox.setEnabled(True)
 
     def config(self) -> Dict[str, Any]:
         params: Dict[str, Any] = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
+        params["nplc"] = self.nplcSpinBox.value()
         return params
 
     def setConfig(self, config: Dict[str, Any]) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
+
         filter_count = config.get("filter.count")
         if filter_count is not None:
             self.filterCountSpinBox.setValue(filter_count)
+
         filter_mode = config.get("filter.mode")
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
+
+        nplc = config.get("nplc", None)
+        if nplc is not None:
+            self.nplcSpinBox.setValue(nplc)
 
 
 class K2470Panel(InstrumentPanel):
@@ -158,6 +200,8 @@ class K2470Panel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K2470", parent)
 
+        # Filter
+
         self.filterGroupBox = QtWidgets.QGroupBox()
         self.filterGroupBox.setTitle("Filter")
         self.filterEnableCheckBox = QtWidgets.QCheckBox("Enabled")
@@ -182,9 +226,36 @@ class K2470Panel(InstrumentPanel):
         filterLayout.addWidget(self.filterModeComboBox)
         filterLayout.addStretch()
 
+        # Integration Time
+
+        self.integrationTimeGroupBox = QtWidgets.QGroupBox()
+        self.integrationTimeGroupBox.setTitle("Integration Time")
+
+        self.nplcLabel = QtWidgets.QLabel("NPLC")
+
+        self.nplcSpinBox = QtWidgets.QDoubleSpinBox()
+        self.nplcSpinBox.setStatusTip("Number of Power Line Cycles (0.01 to 10)")
+        self.nplcSpinBox.setRange(0.01, 10.0)
+        self.nplcSpinBox.setDecimals(2)
+        self.nplcSpinBox.setSingleStep(0.1)
+        self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
+        self.nplcSpinBox.setValue(1.0)
+
+        integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
+        integrationTimeLayout.addWidget(self.nplcLabel)
+        integrationTimeLayout.addWidget(self.nplcSpinBox)
+        integrationTimeLayout.addStretch()
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.filterGroupBox)
+        leftLayout.addWidget(self.integrationTimeGroupBox)
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.filterGroupBox)
+        layout.addLayout(leftLayout)
+        layout.addStretch()
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
@@ -192,30 +263,39 @@ class K2470Panel(InstrumentPanel):
         self.filterEnableCheckBox.setEnabled(False)
         self.filterCountSpinBox.setEnabled(False)
         self.filterModeComboBox.setEnabled(False)
+        self.nplcSpinBox.setEnabled(False)
 
     def unlock(self) -> None:
         self.filterEnableCheckBox.setEnabled(True)
         self.filterCountSpinBox.setEnabled(True)
         self.filterModeComboBox.setEnabled(True)
+        self.nplcSpinBox.setEnabled(True)
 
     def config(self) -> Dict[str, Any]:
         params: Dict[str, Any] = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
+        params["nplc"] = self.nplcSpinBox.value()
         return params
 
     def setConfig(self, config: Dict[str, Any]) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
+
         filter_count = config.get("filter.count")
         if filter_count is not None:
             self.filterCountSpinBox.setValue(filter_count)
+
         filter_mode = config.get("filter.mode")
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
+
+        nplc = config.get("nplc")
+        if nplc is not None:
+            self.nplcSpinBox.setValue(nplc)
 
 
 class K2657APanel(InstrumentPanel):
@@ -248,9 +328,36 @@ class K2657APanel(InstrumentPanel):
         filterLayout.addWidget(self.filterModeComboBox)
         filterLayout.addStretch()
 
+        # Integration Time
+
+        self.integrationTimeGroupBox = QtWidgets.QGroupBox()
+        self.integrationTimeGroupBox.setTitle("Integration Time")
+
+        self.nplcLabel = QtWidgets.QLabel("NPLC")
+
+        self.nplcSpinBox = QtWidgets.QDoubleSpinBox()
+        self.nplcSpinBox.setStatusTip("Number of Power Line Cycles (0.001 to 25)")
+        self.nplcSpinBox.setRange(0.001, 25.0)
+        self.nplcSpinBox.setDecimals(3)
+        self.nplcSpinBox.setSingleStep(0.1)
+        self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
+        self.nplcSpinBox.setValue(1.0)
+
+        integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
+        integrationTimeLayout.addWidget(self.nplcLabel)
+        integrationTimeLayout.addWidget(self.nplcSpinBox)
+        integrationTimeLayout.addStretch()
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.filterGroupBox)
+        leftLayout.addWidget(self.integrationTimeGroupBox)
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.filterGroupBox)
+        layout.addLayout(leftLayout)
+        layout.addStretch()
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
@@ -258,30 +365,39 @@ class K2657APanel(InstrumentPanel):
         self.filterEnableCheckBox.setEnabled(False)
         self.filterCountSpinBox.setEnabled(False)
         self.filterModeComboBox.setEnabled(False)
+        self.nplcSpinBox.setEnabled(False)
 
     def unlock(self) -> None:
         self.filterEnableCheckBox.setEnabled(True)
         self.filterCountSpinBox.setEnabled(True)
         self.filterModeComboBox.setEnabled(True)
+        self.nplcSpinBox.setEnabled(True)
 
     def config(self) -> Dict[str, Any]:
         params: Dict[str, Any] = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
+        params["nplc"] = self.nplcSpinBox.value()
         return params
 
     def setConfig(self, config: Dict[str, Any]) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
+
         filter_count = config.get("filter.count")
         if filter_count is not None:
             self.filterCountSpinBox.setValue(filter_count)
+
         filter_mode = config.get("filter.mode")
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
             self.filterModeComboBox.setCurrentIndex(index)
+
+        nplc = config.get("nplc")
+        if nplc is not None:
+            self.nplcSpinBox.setValue(nplc)
 
 
 class K2700Panel(InstrumentPanel):
