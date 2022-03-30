@@ -25,11 +25,12 @@ class IVMeasurement(RangeMeasurement):
         self.ivReadingHandlers: List[Callable] = []
         self.itReadingHandlers: List[Callable] = []
 
-    def acquireReadingData(self):
+    def acquireReadingData(self, voltage=None):
         smu = self.contexts.get('smu')
         elm = self.contexts.get('elm')
         dmm = self.contexts.get('dmm')
-        voltage = self.get_source_voltage()
+        if voltage is None:
+            voltage = self.get_source_voltage()
         if smu:
             i_smu = smu.read_current()
         else:
@@ -63,30 +64,51 @@ class IVMeasurement(RangeMeasurement):
             handler(reading)
 
     def acquireContinuousReading(self):
+        t = time.time()
+        interval = 1.0
+
         estimate = Estimate(1)
-        while not self.stop_requested:
-            # self.update_message("Reading...")
-            self.update_progress(0, 0, 0)
-            reading = self.acquireReadingData()
+
+        self.update_progress(0, 0, 0)
+
+        def handle_reading(reading):
+            """Handle a single reading, update UI and write to files."""
             logger.info(reading)
+
             self.itReading.emit(reading)
+
+            for handler in self.itReadingHandlers:
+                handler(reading)
+
             self.update.emit({
                 'smu_current': reading.get('i_smu'),
                 'elm_current': reading.get('i_elm'),
                 'dmm_temperature': reading.get('t_dmm')
             })
-            for handler in self.itReadingHandlers:
-                handler(reading)
 
-            self.check_current_compliance()
-            self.update_current_compliance()
+        voltage = self.get_source_voltage()
 
-            self.apply_change_voltage()
+        while not self.stop_requested:
+            dt = time.time() - t
+
+            reading = self.acquireReadingData(voltage=voltage)
+            handle_reading(reading)
+
+            # Limit some actions for fast measurements
+            if dt > interval:
+                self.check_current_compliance()
+                self.update_current_compliance()
+
+                self.apply_change_voltage()
+
+                voltage = self.get_source_voltage()
+
+                t = time.time()
 
             if self.stop_requested:
                 break
 
             self.apply_waiting_time_continuous(estimate)
-
             self.update_estimate_message_continuous("Reading...", estimate)
+
             estimate.advance()
