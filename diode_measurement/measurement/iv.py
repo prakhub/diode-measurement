@@ -25,11 +25,12 @@ class IVMeasurement(RangeMeasurement):
         self.ivReadingHandlers: List[Callable] = []
         self.itReadingHandlers: List[Callable] = []
 
-    def acquireReadingData(self):
+    def acquireReadingData(self, voltage=None):
         smu = self.contexts.get('smu')
         elm = self.contexts.get('elm')
         dmm = self.contexts.get('dmm')
-        voltage = self.get_source_voltage()
+        if voltage is None:
+            voltage = self.get_source_voltage()
         if smu:
             i_smu = smu.read_current()
         else:
@@ -85,17 +86,22 @@ class IVMeasurement(RangeMeasurement):
                 'dmm_temperature': reading.get('t_dmm')
             })
 
+        voltage = self.get_source_voltage()
+
         while not self.stop_requested:
             dt = time.time() - t
 
-            reading = self.acquireReadingData()
+            reading = self.acquireReadingData(voltage=voltage)
             handle_reading(reading)
 
             # Limit some actions for fast measurements
             if dt > interval:
                 self.check_current_compliance()
                 self.update_current_compliance()
+
                 self.apply_change_voltage()
+
+                voltage = self.get_source_voltage()
 
                 t = time.time()
 
