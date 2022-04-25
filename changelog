@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2022-04-25
+
+### Changed
+- Timestamp precision to µs in output file for fast readings (#24).
+
 ## [0.8.0] - 2022-03-30
 
 ### Added
@@ -82,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.8.0...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.8.1...HEAD
+[0.8.1]: https://github.com/hephy-dd/diode-measurement/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/hephy-dd/diode-measurement/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.0
 [0.6.1]: https://github.com/hephy-dd/diode-measurement/compare/0.6.0...0.6.1
