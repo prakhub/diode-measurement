@@ -4,7 +4,8 @@ import math
 from typing import Any, Optional
 
 
-def safe_format(value, format_spec=''):
+def safe_format(value: Any, format_spec: str = '') -> str:
+    """Safe format any value, return `NAN` if format fails."""
     try:
         return format(value, format_spec)
     except Exception:
@@ -13,9 +14,11 @@ def safe_format(value, format_spec=''):
 
 class Writer:
 
+    delimiter = '\t'
+
     def __init__(self, fp) -> None:
         self._fp = fp
-        self._writer = csv.writer(fp, delimiter='\t')
+        self._writer = csv.writer(fp, delimiter=type(self).delimiter)
         self._current_table: Optional[str] = None
 
     def flush(self) -> None:
@@ -23,7 +26,7 @@ class Writer:
 
     def write_tag(self, key: str, value: Any) -> None:
         key = key.strip()
-        value = value.strip()
+        value = format(value).strip()
         self._writer.writerow([f"{key}: {value}"])
 
     def write_table_header(self, columns: list) -> None:
@@ -55,7 +58,7 @@ class Writer:
                 "temperature[degC]"
             ])
         self.write_table_row([
-            safe_format(data.get('timestamp'), '.2f'),
+            safe_format(data.get('timestamp'), '.6f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('i_elm'), '+.3E'),
@@ -74,7 +77,7 @@ class Writer:
                 "temperature[degC]"
             ])
         self.write_table_row([
-            safe_format(data.get('timestamp'), '.2f'),
+            safe_format(data.get('timestamp'), '.6f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('i_elm'), '+.3E'),
@@ -94,7 +97,7 @@ class Writer:
                 "temperature[degC]"
             ])
         self.write_table_row([
-            safe_format(data.get('timestamp'), '.2f'),
+            safe_format(data.get('timestamp'), '.6f'),
             safe_format(data.get('voltage'), '+.3E'),
             safe_format(data.get('i_smu'), '+.3E'),
             safe_format(data.get('c_lcr'), '+.3E'),
