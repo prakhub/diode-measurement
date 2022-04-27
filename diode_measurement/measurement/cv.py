@@ -17,8 +17,6 @@ logger = logging.getLogger(__name__)
 
 class CVMeasurement(RangeMeasurement):
 
-    cvReading = QtCore.pyqtSignal(dict)
-
     def __init__(self, state: Dict[str, Any]) -> None:
         super().__init__(state)
         self.cvReadingHandlers: List[Callable] = []
@@ -60,7 +58,8 @@ class CVMeasurement(RangeMeasurement):
     def acquireReading(self):
         reading = self.acquireReadingData()
         self.extendCVReading(reading)
-        self.cvReading.emit(reading)
+        with self.cvReadingLock:
+            self.cvReadingQueue.append(reading)
         self.update.emit({
             'smu_current': reading.get('i_smu'),
             'elm_current': reading.get('i_elm'),
