@@ -65,7 +65,7 @@ class IVMeasurement(RangeMeasurement):
 
     def acquireContinuousReading(self):
         t = time.time()
-        interval = 3.0
+        interval = 1.0
 
         estimate = Estimate(1)
 
