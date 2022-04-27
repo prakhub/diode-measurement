@@ -536,11 +536,17 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.updateContinuousOption()
         with self.cache:
             self.cache.clear()
+        self.ivPlotsController.updateTimer.stop()
+        self.cvPlotsController.updateTimer.stop()
 
     def setRunningState(self):
         self.view.setRunningState()
         self.view.clear()
         self.startMeasurement()
+        self.ivPlotsController.clear()
+        self.cvPlotsController.clear()
+        self.ivPlotsController.updateTimer.start(500)
+        self.cvPlotsController.updateTimer.start(500)
 
     def setStoppingState(self):
         self.view.setStoppingState()
@@ -702,12 +708,15 @@ class Controller(PluginRegistryMixin, AbstractController):
         return os.path.join(path, filename)
 
     def connectIVPlots(self, measurement) -> None:
-        measurement.ivReading.connect(lambda reading: self.ivPlotsController.ivReading.emit(reading))
-        measurement.itReading.connect(lambda reading: self.ivPlotsController.itReading.emit(reading))
+        measurement.ivReadingQueue = self.ivPlotsController.ivReadingQueue
+        measurement.ivReadingLock = self.ivPlotsController.ivReadingLock
+        measurement.itReadingQueue = self.ivPlotsController.itReadingQueue
+        measurement.itReadingLock = self.ivPlotsController.itReadingLock
         measurement.itChangeVoltageReady.connect(lambda: self.changeVoltageController.onChangeVoltageReady())
 
     def connectCVPlots(self, measurement) -> None:
-        measurement.cvReading.connect(lambda reading: self.cvPlotsController.cvReading.emit(reading))
+        measurement.cvReadingQueue = self.cvPlotsController.cvReadingQueue
+        measurement.cvReadingLock = self.ivPlotsController.cvReadingLock
 
     def createMeasurement(self):
         measurementType = self.state.get("measurement_type")
@@ -786,15 +795,33 @@ class Controller(PluginRegistryMixin, AbstractController):
 
 class IVPlotsController(AbstractController):
 
-    ivReading = QtCore.pyqtSignal(dict)
-    itReading = QtCore.pyqtSignal(dict)
-
     def __init__(self, view, parent=None) -> None:
         super().__init__(view, parent)
-        self.ivReading.connect(self.onIVReading)
-        self.itReading.connect(self.onItReading)
+        self.ivReadingQueue = []
+        self.ivReadingLock = threading.RLock()
+        self.itReadingQueue = []
+        self.itReadingLock = threading.RLock()
 
-    def onIVReading(self, reading: dict) -> None:
+        self.updateTimer = QtCore.QTimer()
+        self.updateTimer.timeout.connect(self.onFlushIVReadings)
+        self.updateTimer.timeout.connect(self.onFlushItReadings)
+
+    def clear(self):
+        self.ivReadingQueue.clear()
+        self.itReadingQueue.clear()
+        self.view.ivPlotWidget.clear()
+        self.view.itPlotWidget.clear()
+
+    def onFlushIVReadings(self) -> None:
+        with self.ivReadingLock:
+            readings = self.ivReadingQueue.copy()
+            self.ivReadingQueue.clear()
+        for reading in readings:
+            self.onIVReading(reading, fit=False)
+        if len(readings):
+            self.view.ivPlotWidget.fit()
+
+    def onIVReading(self, reading: dict, fit: bool = True) -> None:
         voltage: float = reading.get('voltage', math.nan)
         i_smu: float = reading.get('i_smu', math.nan)
         i_elm: float = reading.get('i_elm', math.nan)
@@ -802,6 +829,8 @@ class IVPlotsController(AbstractController):
             self.view.ivPlotWidget.append('smu', voltage, i_smu)
         if math.isfinite(voltage) and math.isfinite(i_elm):
             self.view.ivPlotWidget.append('elm', voltage, i_elm)
+        if fit:
+            self.view.ivPlotWidget.fit()
 
     def onLoadIVReadings(self, readings: List[dict]) -> None:
         smuPoints = []
@@ -823,6 +852,15 @@ class IVPlotsController(AbstractController):
         widget.series.get('smu').replace(smuPoints)
         widget.series.get('elm').replace(elmPoints)
         widget.fit()
+
+    def onFlushItReadings(self) -> None:
+        with self.itReadingLock:
+            readings = self.itReadingQueue.copy()
+            self.itReadingQueue.clear()
+        for reading in readings:
+            self.onItReading(reading, fit=False)
+        if len(readings):
+            self.view.itPlotWidget.fit()
 
     def onItReading(self, reading: dict, fit: bool = True) -> None:
         timestamp: float = reading.get('timestamp', math.nan)
@@ -859,13 +897,28 @@ class IVPlotsController(AbstractController):
 
 class CVPlotsController(AbstractController):
 
-    cvReading = QtCore.pyqtSignal(dict)
-
     def __init__(self, view, parent=None) -> None:
         super().__init__(view, parent)
-        self.cvReading.connect(self.onCVReading)
+        self.cvReadingQueue = []
+        self.cvReadingLock = threading.RLock()
 
-    def onCVReading(self, reading: dict) -> None:
+        self.updateTimer = QtCore.QTimer()
+        self.updateTimer.timeout.connect(self.onFlushCvReadings)
+
+    def clear(self):
+        self.cvReadingQueue.clear()
+        self.view.cvPlotWidget.clear()
+
+    def onFlushCvReadings(self) -> None:
+        with self.cvReadingLock:
+            readings = self.cvReadingQueue.copy()
+            self.cvReadingQueue.clear()
+        for reading in readings:
+            self.onCVReading(reading, fit=False)
+        if len(readings):
+            self.view.cvPlotWidget.fit()
+
+    def onCVReading(self, reading: dict, fit: bool = True) -> None:
         voltage: float = reading.get('voltage', math.nan)
         c_lcr: float = reading.get('c_lcr', math.nan)
         c2_lcr: float = reading.get('c2_lcr', math.nan)
@@ -873,6 +926,8 @@ class CVPlotsController(AbstractController):
             self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
         if math.isfinite(voltage) and math.isfinite(c2_lcr):
             self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
+        if fit:
+            self.view.itPlotWidget.fit()
 
     def onLoadCVReadings(self, readings: List[dict]) -> None:
         lcrPoints: List[QtCore.QPointF] = []

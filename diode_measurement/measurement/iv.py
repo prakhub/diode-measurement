@@ -1,5 +1,6 @@
 import logging
 import time
+import threading
 
 from typing import Any, Callable, Dict, List
 
@@ -16,8 +17,6 @@ logger = logging.getLogger(__name__)
 
 class IVMeasurement(RangeMeasurement):
 
-    ivReading = QtCore.pyqtSignal(dict)
-    itReading = QtCore.pyqtSignal(dict)
     itChangeVoltageReady = QtCore.pyqtSignal()
 
     def __init__(self, state: Dict[str, Any]) -> None:
@@ -54,7 +53,8 @@ class IVMeasurement(RangeMeasurement):
     def acquireReading(self):
         reading = self.acquireReadingData()
         logger.info(reading)
-        self.ivReading.emit(reading)
+        with self.ivReadingLock:
+            self.ivReadingQueue.append(reading)
         self.update.emit({
             'smu_current': reading.get('i_smu'),
             'elm_current': reading.get('i_elm'),
@@ -74,17 +74,8 @@ class IVMeasurement(RangeMeasurement):
         def handle_reading(reading):
             """Handle a single reading, update UI and write to files."""
             logger.info(reading)
-
-            self.itReading.emit(reading)
-
             for handler in self.itReadingHandlers:
                 handler(reading)
-
-            self.update.emit({
-                'smu_current': reading.get('i_smu'),
-                'elm_current': reading.get('i_elm'),
-                'dmm_temperature': reading.get('t_dmm')
-            })
 
         voltage = self.get_source_voltage()
 
@@ -94,6 +85,9 @@ class IVMeasurement(RangeMeasurement):
             reading = self.acquireReadingData(voltage=voltage)
             handle_reading(reading)
 
+            with self.itReadingLock:
+                self.itReadingQueue.append(reading)
+
             # Limit some actions for fast measurements
             if dt > interval:
                 self.check_current_compliance()
@@ -102,6 +96,12 @@ class IVMeasurement(RangeMeasurement):
                 self.apply_change_voltage()
 
                 voltage = self.get_source_voltage()
+
+                self.update.emit({
+                    'smu_current': reading.get('i_smu'),
+                    'elm_current': reading.get('i_elm'),
+                    'dmm_temperature': reading.get('t_dmm')
+                })
 
                 t = time.time()
 

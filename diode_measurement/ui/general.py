@@ -78,6 +78,7 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.waitingTimeContinuousSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeContinuousSpinBox.setSuffix(" s")
+        self.waitingTimeContinuousSpinBox.setDecimals(3)
         self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement")
         self.waitingTimeContinuousSpinBox.editingFinished.connect(
             lambda: self.waitingTimeContinuousChanged.emit(self.waitingTimeContinuous())
@@ -148,9 +149,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
         layout.addStretch()
 
+        waitingTimeLayout = QtWidgets.QHBoxLayout()
+        waitingTimeLayout.addWidget(self.waitingTimeContinuousSpinBox)
+
         layout = QtWidgets.QVBoxLayout(self.continuousGroupBox)
         layout.addWidget(QtWidgets.QLabel("Waiting Time"))
-        layout.addWidget(self.waitingTimeContinuousSpinBox)
+        layout.addLayout(waitingTimeLayout)
         layout.addWidget(self.changeVoltageButton)
         layout.addStretch()
 
@@ -261,7 +265,7 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setBeginVoltage(self, value):
         unit = self.beginVoltageSpinBox.suffix().strip()
-        return self.beginVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
+        self.beginVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
 
     def endVoltage(self):
         unit = self.endVoltageSpinBox.suffix().strip()
@@ -269,7 +273,7 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setEndVoltage(self, value):
         unit = self.endVoltageSpinBox.suffix().strip()
-        return self.endVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
+        self.endVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
 
     def stepVoltage(self):
         unit = self.stepVoltageSpinBox.suffix().strip()
@@ -277,13 +281,13 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setStepVoltage(self, value):
         unit = self.stepVoltageSpinBox.suffix().strip()
-        return self.stepVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
+        self.stepVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
 
     def waitingTime(self):
         return self.waitingTimeSpinBox.value()
 
     def setWaitingTime(self, value):
-        return self.waitingTimeSpinBox.setValue(value)
+        self.waitingTimeSpinBox.setValue(value)
 
     def setCurrentComplianceUnit(self, unit):
         self.currentComplianceSpinBox.setSuffix(f" {unit}")
@@ -303,7 +307,8 @@ class GeneralWidget(QtWidgets.QWidget):
         self.continueInComplianceCheckBox.setChecked(enabled)
 
     def waitingTimeContinuous(self):
-        return self.waitingTimeContinuousSpinBox.value()
+        text = self.waitingTimeContinuousSpinBox.text()
+        return ureg(text).to("s").m
 
     def setWaitingTimeContinuous(self, value):
-        return self.waitingTimeContinuousSpinBox.setValue(value)
+        self.waitingTimeContinuousSpinBox.setValue(value)

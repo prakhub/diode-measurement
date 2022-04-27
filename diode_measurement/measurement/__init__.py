@@ -235,7 +235,7 @@ class RangeMeasurement(Measurement):
     def update_estimate_message_continuous(self, message: str, estimate: Estimate) -> None:
         """Emit update message event for continuous iterations."""
         elapsed_time = format(estimate.elapsed).split('.')[0]
-        average_time = format(estimate.average.total_seconds(), '.2f')
+        average_time = format(estimate.average.total_seconds(), '.3f')
         self.update_message(f"{message} | Elapsed {elapsed_time} | Average {average_time} s")
 
     def update_estimate_progress(self, estimate: Estimate) -> None:
