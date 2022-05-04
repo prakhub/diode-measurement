@@ -122,6 +122,7 @@ class K2410Panel(InstrumentPanel):
         filterLayout.addWidget(self.filterCountSpinBox)
         filterLayout.addWidget(self.filterModeLabel)
         filterLayout.addWidget(self.filterModeComboBox)
+        filterLayout.addStretch()
 
         # Integration Time
 
@@ -141,18 +142,33 @@ class K2410Panel(InstrumentPanel):
         integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
         integrationTimeLayout.addWidget(self.nplcLabel)
         integrationTimeLayout.addWidget(self.nplcSpinBox)
-        integrationTimeLayout.addStretch()
+
+        # Route terminals
+
+        self.routeTerminalsGroupBox = QtWidgets.QGroupBox()
+        self.routeTerminalsGroupBox.setTitle("Route Terminals")
+
+        self.routeTerminalsComboBox = QtWidgets.QComboBox()
+        self.routeTerminalsComboBox.addItem("Front", "FRON")
+        self.routeTerminalsComboBox.addItem("Rear", "REAR")
+
+        routeTerminalsLayout = QtWidgets.QVBoxLayout(self.routeTerminalsGroupBox)
+        routeTerminalsLayout.addWidget(self.routeTerminalsComboBox)
+        routeTerminalsLayout.addStretch()
 
         # Layout
 
         leftLayout = QtWidgets.QVBoxLayout()
         leftLayout.addWidget(self.filterGroupBox)
-        leftLayout.addWidget(self.integrationTimeGroupBox)
+
+        rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.integrationTimeGroupBox)
+        rightLayout.addWidget(self.routeTerminalsGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(leftLayout)
-        layout.addStretch()
+        layout.addLayout(rightLayout)
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
@@ -174,6 +190,7 @@ class K2410Panel(InstrumentPanel):
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
         params["nplc"] = self.nplcSpinBox.value()
+        params["route.terminals"] = self.routeTerminalsComboBox.currentData()
         return params
 
     def setConfig(self, config: Dict[str, Any]) -> None:
@@ -193,6 +210,11 @@ class K2410Panel(InstrumentPanel):
         nplc = config.get("nplc", None)
         if nplc is not None:
             self.nplcSpinBox.setValue(nplc)
+
+        route_terminals = config.get("route.terminals")
+        if route_terminals is not None:
+            index = self.routeTerminalsComboBox.findData(route_terminals)
+            self.routeTerminalsComboBox.setCurrentIndex(index)
 
 
 class K2470Panel(InstrumentPanel):
@@ -244,18 +266,33 @@ class K2470Panel(InstrumentPanel):
         integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
         integrationTimeLayout.addWidget(self.nplcLabel)
         integrationTimeLayout.addWidget(self.nplcSpinBox)
-        integrationTimeLayout.addStretch()
+
+        # Route Terminals
+
+        self.routeTerminalsGroupBox = QtWidgets.QGroupBox()
+        self.routeTerminalsGroupBox.setTitle("Route Terminals")
+
+        self.routeTerminalsComboBox = QtWidgets.QComboBox()
+        self.routeTerminalsComboBox.addItem("Front", "FRON")
+        self.routeTerminalsComboBox.addItem("Rear", "REAR")
+
+        routeTerminalsLayout = QtWidgets.QVBoxLayout(self.routeTerminalsGroupBox)
+        routeTerminalsLayout.addWidget(self.routeTerminalsComboBox)
+        routeTerminalsLayout.addStretch()
 
         # Layout
 
         leftLayout = QtWidgets.QVBoxLayout()
         leftLayout.addWidget(self.filterGroupBox)
-        leftLayout.addWidget(self.integrationTimeGroupBox)
+
+        rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.integrationTimeGroupBox)
+        rightLayout.addWidget(self.routeTerminalsGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(leftLayout)
-        layout.addStretch()
+        layout.addLayout(rightLayout)
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
@@ -277,6 +314,7 @@ class K2470Panel(InstrumentPanel):
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
         params["nplc"] = self.nplcSpinBox.value()
+        params["route.terminals"] = self.routeTerminalsComboBox.currentData()
         return params
 
     def setConfig(self, config: Dict[str, Any]) -> None:
@@ -296,6 +334,11 @@ class K2470Panel(InstrumentPanel):
         nplc = config.get("nplc")
         if nplc is not None:
             self.nplcSpinBox.setValue(nplc)
+
+        route_terminals = config.get("route.terminals")
+        if route_terminals is not None:
+            index = self.routeTerminalsComboBox.findData(route_terminals)
+            self.routeTerminalsComboBox.setCurrentIndex(index)
 
 
 class K2657APanel(InstrumentPanel):

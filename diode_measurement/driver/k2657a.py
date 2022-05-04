@@ -21,7 +21,9 @@ class K2657A(SourceMeter):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write('beeper.enable = 0')
+        beeper_enable = options.get('beeper.enable', 'OFF')
+        self._write(f'beeper.enable = beeper.{beeper_enable}')
+
         self._write('smua.source.func = smua.OUTPUT_DCVOLTS')
 
         filter_mode = options.get('filter.mode', 'REPEAT_AVG')

@@ -21,7 +21,12 @@ class K2400(SourceMeter):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write(':SYST:BEEP:STAT OFF')
+        beeper_state = options.get('beeper.state', 'OFF')
+        self._write(f':SYST:BEEP:STAT {beeper_state}')
+
+        route_terminals = options.get('route.terminals', 'FRON')
+        self._write(f':ROUT:TERM {route_terminals}')
+
         self._write(':SOUR:FUNC VOLT')
         self._write(':FORM:ELEM CURR')  # return only current for read/fetch
 

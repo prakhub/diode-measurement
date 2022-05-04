@@ -21,7 +21,10 @@ class K2470(SourceMeter):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write(':SOUR:FUNC VOLT')
+        route_terminals = options.get('route.terminals', 'FRON')
+        self._write(f':ROUT:TERM {route_terminals}')
+
+        self._write(f':SOUR:FUNC VOLT')
 
         filter_mode = options.get('filter.mode', 'MOV')
         self._write(f':SENS:CURR:AVER:TCON {filter_mode}')
