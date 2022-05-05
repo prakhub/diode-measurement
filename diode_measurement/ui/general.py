@@ -307,8 +307,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.continueInComplianceCheckBox.setChecked(enabled)
 
     def waitingTimeContinuous(self):
-        text = self.waitingTimeContinuousSpinBox.text()
-        return ureg(text).to("s").m
+        return self.waitingTimeContinuousSpinBox.value()
 
     def setWaitingTimeContinuous(self, value):
         self.waitingTimeContinuousSpinBox.setValue(value)
