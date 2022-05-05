@@ -78,7 +78,7 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.waitingTimeContinuousSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeContinuousSpinBox.setSuffix(" s")
-        self.waitingTimeContinuousSpinBox.setDecimals(3)
+        self.waitingTimeContinuousSpinBox.setDecimals(2)
         self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement")
         self.waitingTimeContinuousSpinBox.editingFinished.connect(
             lambda: self.waitingTimeContinuousChanged.emit(self.waitingTimeContinuous())
@@ -307,8 +307,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.continueInComplianceCheckBox.setChecked(enabled)
 
     def waitingTimeContinuous(self):
-        text = self.waitingTimeContinuousSpinBox.text()
-        return ureg(text).to("s").m
+        return self.waitingTimeContinuousSpinBox.value()
 
     def setWaitingTimeContinuous(self, value):
         self.waitingTimeContinuousSpinBox.setValue(value)

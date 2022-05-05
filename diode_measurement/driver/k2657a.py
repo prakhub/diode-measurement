@@ -63,6 +63,9 @@ class K2657A(SourceMeter):
     def read_current(self) -> float:
         return float(self._print('smua.measure.i()'))
 
+    def read_voltage(self) -> float:
+        return float(self._print('smua.measure.v()'))
+
     @handle_exception
     def _write(self, message):
         self.resource.write(message)
