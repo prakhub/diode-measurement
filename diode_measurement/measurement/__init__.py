@@ -428,7 +428,13 @@ class RangeMeasurement(Measurement):
 
             reading = self.acquireReadingData()
             logger.info(reading)
-            self.itReading.emit(reading)
+
+            with self.itReadingLock:
+                self.itReadingQueue.append(reading)
+
+            for handler in self.itReadingHandlers:
+                handler(reading)
+
             self.update.emit({
                 'smu_current': reading.get('i_smu'),
                 'elm_current': reading.get('i_elm')
