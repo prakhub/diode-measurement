@@ -78,7 +78,7 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.waitingTimeContinuousSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeContinuousSpinBox.setSuffix(" s")
-        self.waitingTimeContinuousSpinBox.setDecimals(3)
+        self.waitingTimeContinuousSpinBox.setDecimals(2)
         self.waitingTimeContinuousSpinBox.setStatusTip("Waiting time for continuous measurement")
         self.waitingTimeContinuousSpinBox.editingFinished.connect(
             lambda: self.waitingTimeContinuousChanged.emit(self.waitingTimeContinuous())

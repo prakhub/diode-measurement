@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2022-05-05
+
+### Fixed
+- Wait until voltage settled before output disable (#31).
+- Reduced decimals for continuous waiting time.
+
 ## [0.9.1] - 2022-05-05
 
 ### Fixed

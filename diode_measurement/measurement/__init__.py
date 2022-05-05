@@ -347,8 +347,32 @@ class RangeMeasurement(Measurement):
     def finalize(self):
         try:
             self.rampZero()
-        finally:
+
+            # HACK: wait until capacitors discared before output disable
+            def read_source_voltage():
+                if hasattr(self.source_instrument, 'read_voltage'):
+                    return self.source_instrument.read_voltage()
+                logger.warning("Source instrument does not provide voltage readings.")
+                return 0.
+
+            threshold = 0.5  # Volt
+
+            self.update_message("Waiting for voltage settled...")
+            self.update_progress(0, 0, 0)
+
+            t = time.time()
+
+            while abs(read_source_voltage()) > threshold:
+                time.sleep(1.0)
+
+                dt = time.time() - t
+                if dt > 60.0:
+                    raise RuntimeError(f"Timeout while waiting for voltage to settle < {threshold} V, source output still enabled.")
+
+            # HACK: end
+
             self.set_source_output_state(False)
+        finally:
             self.update.emit({
                 'source_voltage': None,
                 'smu_current': None,

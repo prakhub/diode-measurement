@@ -5,6 +5,8 @@ __all__ = ['K2400']
 
 class K2400(SourceMeter):
 
+    _format_element = None
+
     def identity(self) -> str:
         return self._query('*IDN?')
 
@@ -29,6 +31,7 @@ class K2400(SourceMeter):
 
         self._write(':SOUR:FUNC VOLT')
         self._write(':FORM:ELEM CURR')  # return only current for read/fetch
+        self._format_element = 'CURR'
 
         filter_mode = options.get('filter.mode', 'MOV')
         self._write(f':SENS:AVER:TCON {filter_mode}')
@@ -65,6 +68,15 @@ class K2400(SourceMeter):
         return self._query(':SENS:CURR:PROT:TRIP?') == '1'
 
     def read_current(self) -> float:
+        if self._format_element != 'CURR':
+            self._write(':FORM:ELEM CURR')
+            self._format_element = 'CURR'
+        return float(self._query(':READ?').split(',')[0])
+
+    def read_voltage(self) -> float:
+        if self._format_element != 'VOLT':
+            self._write(':FORM:ELEM VOLT')
+            self._format_element = 'VOLT'
         return float(self._query(':READ?').split(',')[0])
 
     @handle_exception

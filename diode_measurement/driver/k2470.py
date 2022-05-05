@@ -63,6 +63,9 @@ class K2470(SourceMeter):
     def read_current(self) -> float:
         return float(self._query(':MEAS:CURR?'))
 
+    def read_voltage(self) -> float:
+        return float(self._query(':MEAS:VOLT?'))
+
     @handle_exception
     def _write(self, message):
         self.resource.write(message)
