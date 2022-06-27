@@ -716,7 +716,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def connectCVPlots(self, measurement) -> None:
         measurement.cvReadingQueue = self.cvPlotsController.cvReadingQueue
-        measurement.cvReadingLock = self.ivPlotsController.cvReadingLock
+        measurement.cvReadingLock = self.cvPlotsController.cvReadingLock
 
     def createMeasurement(self):
         measurementType = self.state.get("measurement_type")

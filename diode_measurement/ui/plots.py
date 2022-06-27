@@ -16,6 +16,15 @@ __all__ = [
 ]
 
 
+def limitRange(minimum, maximum, value):
+    """Limit range to a minimum value."""
+    diff = abs(maximum - minimum)
+    if diff < value:
+        maximum += (value * 0.5) - (diff * 0.5)
+        minimum -= (value * 0.5) - (diff * 0.5)
+    return minimum, maximum
+
+
 class DynamicValueAxis(QtChart.QValueAxis):
 
     def __init__(self, axis: QtChart.QValueAxis, unit: str) -> None:
@@ -399,7 +408,9 @@ class CVPlotWidget(PlotWidget):
         minimum, maximum = sorted((minimum, maximum))
         self.vAxis.setRange(minimum, maximum)
         self.cDynamicAxis.setLocked(True)
-        self.cAxis.setRange(self.cLimits.minimum(), self.cLimits.maximum())
+        # HACK limit axis range to 1 pF minimum
+        minimum, maximum = limitRange(self.cLimits.minimum(), self.cLimits.maximum(), 1e-12)
+        self.cAxis.setRange(minimum, maximum)
         self.cDynamicAxis.setLocked(False)
         self.cAxis.applyNiceNumbers()
 
