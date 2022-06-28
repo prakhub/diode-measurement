@@ -1,6 +1,9 @@
 include README.md
 include LICENSE
 include changelog
+include requirements.txt
 
 include pyinstaller.spec
+include diode_measurement/assets/icons/*.svg
+include diode_measurement/assets/icons/*.ico
 recursive-include tests *.py
