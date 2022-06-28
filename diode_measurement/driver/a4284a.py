@@ -2,10 +2,10 @@ import time
 
 from .driver import LCRMeter, handle_exception
 
-__all__ = ['E4980A']
+__all__ = ['A4284A']
 
 
-class E4980A(LCRMeter):
+class A4284A(LCRMeter):
 
     @handle_exception
     def _write(self, message):
@@ -32,22 +32,19 @@ class E4980A(LCRMeter):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write(':SYST:BEEP:STAT 0')
-        self._write(':BIAS:RANG:AUTO 1')
-
         function_type = options.get("function.type", "CPRP")
         self._write(f':FUN:IMP:TYPE {function_type}')
 
-        # Aperture
+        # Apterture
         integration_time = options.get("aperture.integration_time", "MED")
         assert integration_time in ["SHOR", "MED", "LONG"]
         averaging_rate = options.get("aperture.averaging_rate", 1)
-        assert 1 <= averaging_rate <= 256
+        assert 1 <= averaging_rate <= 128
         self._write(f':APER {integration_time},{averaging_rate:d}')
 
         # Correction cable length
         correction_length = options.get("correction.length", 0)
-        assert correction_length in [0, 1, 2, 4]
+        assert correction_length in [0, 1, 2]
         self._write(f':CORR:LENG {correction_length:d}')
 
         # Enable open correction
@@ -71,10 +68,10 @@ class E4980A(LCRMeter):
         pass  # TODO
 
     def set_current_compliance_level(self, level: float) -> None:
-        self._write(f':SENS:CURR:PROT:LEV {level:.3E}')
+        raise RuntimeError("current compliance not supported")
 
     def compliance_tripped(self) -> bool:
-        return self._query(':SENS:CURR:PROT:TRIP?') == '1'
+        raise RuntimeError("current compliance not supported")
 
     def read_current(self):
         return 0

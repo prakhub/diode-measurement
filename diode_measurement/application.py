@@ -1,8 +1,8 @@
 import logging
 import sys
+import os
 
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from . import __version__
 from .controller import Controller
@@ -10,6 +10,9 @@ from .ui.mainwindow import MainWindow
 from .tcpserver import TCPServerPlugin
 
 logger = logging.getLogger(__name__)
+
+PACKAGE_PATH = os.path.realpath(os.path.dirname(__file__))
+ASSETS_PATH = os.path.join(PACKAGE_PATH, "assets")
 
 
 class Application(QtWidgets.QApplication):
@@ -21,6 +24,9 @@ class Application(QtWidgets.QApplication):
         self.setApplicationDisplayName(f"Diode Measurement {__version__}")
         self.setOrganizationName("HEPHY")
         self.setOrganizationDomain("hephy.at")
+
+        icon = QtGui.QIcon(os.path.join(ASSETS_PATH, "icons", "diode-measurement.svg"))
+        self.setWindowIcon(icon)
 
     def bootstrap(self):
         # Initialize settings

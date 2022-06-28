@@ -109,7 +109,6 @@ class PlotWidget(QtChart.QChartView):
         chart = QtChart.QChart()
         chart.setMargins(QtCore.QMargins(4, 4, 4, 4))
         chart.layout().setContentsMargins(0, 0, 0, 0)
-        chart.setBackgroundRoundness(0)
         chart.legend().setAlignment(QtCore.Qt.AlignRight)
         self.setChart(chart)
 
@@ -244,8 +243,8 @@ class IVPlotWidget(PlotWidget):
         else:
             minimum = 0
             maximum = 200e-9
-        if minimum == maximum:
-            maximum += 0.1
+        # HACK limit axis range to 1 pF minimum
+        minimum, maximum = limitRange(minimum, maximum, 1e-12)
         self.iDynamicAxis.setLocked(True)
         self.iAxis.setRange(minimum, maximum)
         self.iDynamicAxis.setLocked(False)
@@ -336,8 +335,8 @@ class ItPlotWidget(PlotWidget):
         else:
             minimum = 0
             maximum = 200e-9
-        if minimum == maximum:
-            maximum += 0.1
+        # HACK limit axis range to 1 pF minimum
+        minimum, maximum = limitRange(minimum, maximum, 1e-12)
         self.iDynamicAxis.setLocked(True)
         self.iAxis.setRange(minimum, maximum)
         self.iDynamicAxis.setLocked(False)

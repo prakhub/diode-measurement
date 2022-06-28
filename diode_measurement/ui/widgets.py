@@ -90,17 +90,11 @@ class ResourceWidget(QtWidgets.QGroupBox):
         layout.addLayout(hbox)
         layout.addStretch()
 
-    def lock(self) -> None:
-        self.modelComboBox.setEnabled(False)
-        self.resourceLineEdit.setEnabled(False)
-        self.terminationComboBox.setEnabled(False)
-        self.timeoutSpinBox.setEnabled(False)
-
-    def unlock(self) -> None:
-        self.modelComboBox.setEnabled(True)
-        self.resourceLineEdit.setEnabled(True)
-        self.terminationComboBox.setEnabled(True)
-        self.timeoutSpinBox.setEnabled(True)
+    def setLocked(self, state: bool) -> None:
+        self.modelComboBox.setEnabled(not state)
+        self.resourceLineEdit.setEnabled(not state)
+        self.terminationComboBox.setEnabled(not state)
+        self.timeoutSpinBox.setEnabled(not state)
 
     def model(self) -> str:
         return self.modelComboBox.currentText()

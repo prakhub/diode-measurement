@@ -107,12 +107,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cv2PlotWidget = CV2PlotWidget()
 
         self.ivWidget = QtWidgets.QWidget()
+        # self.ivWidget.setContentsMargins(0, 0, 0, 0)
 
         self.cvWidget = QtWidgets.QWidget()
+        # self.cvWidget.setContentsMargins(0, 0, 0, 0)
 
-        self.dataTabWidget = QtWidgets.QTabWidget()
-        self.dataTabWidget.addTab(self.ivWidget, "IV")
-        self.dataTabWidget.addTab(self.cvWidget, "CV")
+        self.dataStackedWidget = QtWidgets.QStackedWidget()
+        self.dataStackedWidget.addWidget(self.ivWidget)
+        self.dataStackedWidget.addWidget(self.cvWidget)
+        # self.dataStackedWidget.setContentsMargins(0, 0, 0, 0)
 
         self.startButton = QtWidgets.QPushButton("&Start")
         self.startButton.setToolTip("Start a new measurement")
@@ -211,12 +214,14 @@ class MainWindow(QtWidgets.QMainWindow):
         ivLayout.addWidget(self.itPlotWidget)
         ivLayout.setStretch(0, 1)
         ivLayout.setStretch(1, 1)
+        ivLayout.setContentsMargins(0, 0, 0, 0)
 
         cvLayout = QtWidgets.QHBoxLayout(self.cvWidget)
         cvLayout.addWidget(self.cvPlotWidget)
         cvLayout.addWidget(self.cv2PlotWidget)
         cvLayout.setStretch(0, 1)
         cvLayout.setStretch(1, 1)
+        cvLayout.setContentsMargins(0, 0, 0, 0)
 
         controlLayout = QtWidgets.QVBoxLayout()
         controlLayout.addWidget(self.startButton)
@@ -300,7 +305,7 @@ class MainWindow(QtWidgets.QMainWindow):
         bottomLayout.setStretch(2, 3)
 
         layout = QtWidgets.QVBoxLayout(self.centralWidget())
-        layout.addWidget(self.dataTabWidget)
+        layout.addWidget(self.dataStackedWidget)
         layout.addLayout(bottomLayout)
 
     def _createDialogs(self) -> None:
@@ -356,9 +361,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopButton.setChecked(False)
         self.continuousCheckBox.setEnabled(True)
         self.resetCheckBox.setEnabled(True)
-        self.generalWidget.unlock()
+        self.generalWidget.setLocked(False)
         for role in self.roles():
-            role.unlock()
+            role.setLocked(False)
         self.setProperty("locked", False)
 
     def setRunningState(self) -> None:
@@ -373,11 +378,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopButton.setChecked(False)
         self.continuousCheckBox.setEnabled(False)
         self.resetCheckBox.setEnabled(False)
-        self.generalWidget.lock()
+        self.generalWidget.setLocked(True)
         for role in self.roles():
-            role.lock()
+            role.setLocked(True)
 
     def setStoppingState(self) -> None:
+        self.stopAction.setEnabled(False)
+        self.stopButton.setEnabled(False)
         self.generalWidget.setStoppingState()
 
     def setMessage(self, message: str) -> None:
@@ -398,13 +405,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.setRange(0, 1)
         self.progressBar.setValue(0)
 
-    def raiseIVTab(self) -> None:
-        index = self.dataTabWidget.indexOf(self.ivWidget)
-        self.dataTabWidget.setCurrentIndex(index)
+    def showIVPlots(self) -> None:
+        index = self.dataStackedWidget.indexOf(self.ivWidget)
+        self.dataStackedWidget.setCurrentIndex(index)
 
-    def raiseCVTab(self) -> None:
-        index = self.dataTabWidget.indexOf(self.cvWidget)
-        self.dataTabWidget.setCurrentIndex(index)
+    def showCVPlots(self) -> None:
+        index = self.dataStackedWidget.indexOf(self.cvWidget)
+        self.dataStackedWidget.setCurrentIndex(index)
 
     def isContinuous(self) -> bool:
         return self.continuousAction.isChecked()
