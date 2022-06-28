@@ -369,9 +369,12 @@ class RangeMeasurement(Measurement):
                 if dt > 60.0:
                     raise RuntimeError(f"Timeout while waiting for voltage to settle < {threshold} V, source output still enabled.")
 
+            self.update_message("")
+
             # HACK: end
 
             self.set_source_output_state(False)
+
         finally:
             self.update.emit({
                 'source_voltage': None,

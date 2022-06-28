@@ -39,7 +39,6 @@ from .measurement.iv import IVMeasurement
 from .measurement.cv import CVMeasurement
 
 from .plugin import PluginRegistryMixin
-from .worker import Worker
 
 from .reader import Reader
 from .writer import Writer
@@ -48,7 +47,7 @@ from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
 
-from .settings import SPECS
+from .settings import DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +116,7 @@ class MeasurementRunner:
                 measurement.startedHandlers.append(lambda: createOutputDir())
                 fp = stack.enter_context(open(filename, 'w', newline=''))
                 writer = Writer(fp)
+                # TODO
                 # Note: using signals executes slots in main thread, should be worker thread
                 measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
                 if isinstance(measurement, IVMeasurement):
@@ -140,27 +140,29 @@ class Controller(PluginRegistryMixin, AbstractController):
     started = QtCore.pyqtSignal()
     aborted = QtCore.pyqtSignal()
     update = QtCore.pyqtSignal(dict)
+    failed = QtCore.pyqtSignal(Exception)
+    finished = QtCore.pyqtSignal()
 
     requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
 
     def __init__(self, view, parent=None) -> None:
         super().__init__(view, parent)
 
-        self.worker: Worker = Worker(self)
-        self.worker.failed.connect(self.handleException)
-
+        self.abortRequested = threading.Event()
+        self.thread = None
         self.state: Dict[str, Any] = {}
         self.cache: Cache = Cache()
         self.rpc_params: Cache = Cache()
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
-        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
+        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021-2022 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
 
         # Controller
         self.ivPlotsController = IVPlotsController(self.view, self)
         self.cvPlotsController = CVPlotsController(self.view, self)
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
         self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
+        self.failed.connect(self.handleException)
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -195,7 +197,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.view.continuousAction.toggled.connect(self.onContinuousToggled)
         self.view.continuousCheckBox.stateChanged.connect(self.onContinuousChanged)
 
-        for spec in SPECS:
+        for spec in DEFAULTS:
             self.view.generalWidget.addMeasurement(spec)
         self.view.generalWidget.measurementComboBox.currentIndexChanged.connect(self.onMeasurementChanged)
 
@@ -208,13 +210,14 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         self.update.connect(self.onUpdate)
 
-        self.onToggleLcr(False)
-        self.onToggleDmm(False)
-
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
         self.view.generalWidget.elmCheckBox.toggled.connect(self.onToggleElm)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
         self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
+
+        self.onToggleElm(False)
+        self.onToggleLcr(False)
+        self.onToggleDmm(False)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
@@ -234,10 +237,10 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         self.idleState.addTransition(self.started, self.runningState)
 
-        self.runningState.addTransition(self.worker.finished, self.idleState)
+        self.runningState.addTransition(self.finished, self.idleState)
         self.runningState.addTransition(self.aborted, self.stoppingState)
 
-        self.stoppingState.addTransition(self.worker.finished, self.idleState)
+        self.stoppingState.addTransition(self.finished, self.idleState)
 
         # State machine
 
@@ -247,8 +250,6 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.stateMachine.addState(self.stoppingState)
         self.stateMachine.setInitialState(self.idleState)
         self.stateMachine.start()
-
-        self.worker.start()
 
     def snapshot(self):
         """Return application state snapshot."""
@@ -314,7 +315,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def shutdown(self):
         self.stateMachine.stop()
-        self.worker.stop()
+        self.abortRequested.set()
         self.uninstallPlugins()
 
     @handle_exception
@@ -550,8 +551,6 @@ class Controller(PluginRegistryMixin, AbstractController):
     def setStoppingState(self):
         self.view.setStoppingState()
         self.view.setMessage("Stop requested...")
-        self.view.stopAction.setEnabled(False)
-        self.view.stopButton.setEnabled(False)
         self.state.update({"stop_requested": True})
 
     # Slots
@@ -596,14 +595,14 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.onContinuousToggled(state == QtCore.Qt.Checked)
 
     def onMeasurementChanged(self, index):
-        spec = SPECS[index]
+        spec = DEFAULTS[index]
 
         if spec.get("type") == "iv":
-            self.view.raiseIVTab()
+            self.view.showIVPlots()
             self.view.continuousAction.setEnabled(True)
             self.view.generalWidget.continuousGroupBox.setEnabled(self.view.isContinuous())
         elif spec.get("type") == "cv":
-            self.view.raiseCVTab()
+            self.view.showCVPlots()
             self.view.continuousAction.setEnabled(False)
             self.view.generalWidget.continuousGroupBox.setEnabled(False)
         self.updateContinuousOption()
@@ -784,12 +783,25 @@ class Controller(PluginRegistryMixin, AbstractController):
 
             # Create and run measurement
             measurement = self.createMeasurement()
-            self.worker.request(MeasurementRunner(measurement))
+
+            self.abortRequested = threading.Event()
+            self.thread = threading.Thread(target=self.runMeasurement, args=[measurement])
+            self.thread.start()
 
         except Exception as exc:
             logger.exception(exc)
-            self.worker.failed.emit(exc)
+            self.failed.emit(exc)
             self.aborted.emit()
+            self.finished.emit()
+
+    def runMeasurement(self, measurement):
+        try:
+            MeasurementRunner(measurement)()
+        except Exception as exc:
+            logger.exception(exc)
+            self.failed.emit(exc)
+        finally:
+            self.finished.emit()
 
 
 class IVPlotsController(AbstractController):

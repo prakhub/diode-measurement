@@ -73,15 +73,10 @@ class RoleWidget(QtWidgets.QWidget):
                 if widget.model() == self.model():
                     widget.setConfig(config)
 
-    def lock(self) -> None:
-        self.resourceWidget.lock()
+    def setLocked(self, state: bool) -> None:
+        self.resourceWidget.setLocked(state)
         for index in range(1, self.stackedWidget.count()):
-            self.stackedWidget.widget(index).lock()
-
-    def unlock(self) -> None:
-        self.resourceWidget.unlock()
-        for index in range(1, self.stackedWidget.count()):
-            self.stackedWidget.widget(index).unlock()
+            self.stackedWidget.widget(index).setLocked(state)
 
     def addInstrument(self, widget: InstrumentPanel) -> None:
         self.resourceWidget.addModel(widget.model())

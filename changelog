@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.0] - 2022-06-28
 
 ### Added
-- Support for Agilent 4284A LCR Meter
+- Support for Agilent 4284A LCR Meter (#35).
+- Aperture and correction settings for LCR Meters.
+
+## Changed
+- Show only plots of selected measurement (#37).
+- Refactored measurement thread handling.
 
 ## [0.9.3] - 2022-06-27
 

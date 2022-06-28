@@ -32,7 +32,24 @@ class A4284A(LCRMeter):
         return code, message
 
     def configure(self, **options) -> None:
-        self._write(':FUN:IMP:TYPE CPRP')
+        function_type = options.get("function.type", "CPRP")
+        self._write(f':FUN:IMP:TYPE {function_type}')
+
+        # Apterture
+        integration_time = options.get("aperture.integration_time", "MED")
+        assert integration_time in ["SHOR", "MED", "LONG"]
+        averaging_rate = options.get("aperture.averaging_rate", 1)
+        assert 1 <= averaging_rate <= 128
+        self._write(f':APER {integration_time},{averaging_rate:d}')
+
+        # Correction cable length
+        correction_length = options.get("correction.length", 0)
+        assert correction_length in [0, 1, 2]
+        self._write(f':CORR:LENG {correction_length:d}')
+
+        # Enable open correction
+        correction_open_enabled = options.get("correction.open.enabled", False)
+        self._write(f':CORR:OPEN:STAT {correction_open_enabled:d}')
 
     def get_output_enabled(self) -> bool:
         return self._query(':BIAS:STAT?') == '1'

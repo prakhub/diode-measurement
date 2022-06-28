@@ -15,6 +15,8 @@ __all__ = [
     'A4284APanel',
 ]
 
+ConfigType = Dict[str, Any]
+
 
 class InstrumentPanel(QtWidgets.QWidget):
 
@@ -28,16 +30,16 @@ class InstrumentPanel(QtWidgets.QWidget):
     def setModel(self, model: str) -> None:
         self.setProperty("model", model)
 
-    def lock(self) -> None:
+    def restoreDefaults(self) -> None:
         pass
 
-    def unlock(self) -> None:
+    def setLocked(self, state: bool) -> None:
         pass
 
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> ConfigType:
         return {}
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
+    def setConfig(self, config: ConfigType) -> None:
         pass
 
 
@@ -75,12 +77,18 @@ class K237Panel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-    def config(self) -> Dict[str, Any]:
-        config = {}
+    def restoreDefaults(self) -> None:
+        self.filterModeComboBox.setCurrentIndex(0)
+
+    def setLocked(self, state: bool) -> None:
+        self.filterModeComboBox.setEnabled(not state)
+
+    def config(self) -> ConfigType:
+        config: ConfigType = {}
         config["filter.mode"] = self.filterModeComboBox.currentData()
         return config
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
+    def setConfig(self, config: ConfigType) -> None:
         filter_mode = config.get("filter.mode")
         if filter_mode is not None:
             index = self.filterModeComboBox.findData(filter_mode)
@@ -172,20 +180,22 @@ class K2410Panel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-    def lock(self) -> None:
-        self.filterEnableCheckBox.setEnabled(False)
-        self.filterCountSpinBox.setEnabled(False)
-        self.filterModeComboBox.setEnabled(False)
-        self.nplcSpinBox.setEnabled(False)
+    def restoreDefaults(self) -> None:
+        self.filterEnableCheckBox.setChecked(False)
+        self.filterCountSpinBox.setValue(0)
+        self.filterModeComboBox.setCurrentIndex(0)
+        self.nplcSpinBox.setValue(1.0)
+        self.routeTerminalsComboBox.setCurrentIndex(0)
 
-    def unlock(self) -> None:
-        self.filterEnableCheckBox.setEnabled(True)
-        self.filterCountSpinBox.setEnabled(True)
-        self.filterModeComboBox.setEnabled(True)
-        self.nplcSpinBox.setEnabled(True)
+    def setLocked(self, state: bool) -> None:
+        self.filterEnableCheckBox.setEnabled(not state)
+        self.filterCountSpinBox.setEnabled(not state)
+        self.filterModeComboBox.setEnabled(not state)
+        self.nplcSpinBox.setEnabled(not state)
+        self.routeTerminalsComboBox.setEnabled(not state)
 
-    def config(self) -> Dict[str, Any]:
-        params: Dict[str, Any] = {}
+    def config(self) -> ConfigType:
+        params: ConfigType = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
@@ -193,7 +203,7 @@ class K2410Panel(InstrumentPanel):
         params["route.terminals"] = self.routeTerminalsComboBox.currentData()
         return params
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
+    def setConfig(self, config: ConfigType) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
@@ -296,20 +306,22 @@ class K2470Panel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-    def lock(self) -> None:
-        self.filterEnableCheckBox.setEnabled(False)
-        self.filterCountSpinBox.setEnabled(False)
-        self.filterModeComboBox.setEnabled(False)
-        self.nplcSpinBox.setEnabled(False)
+    def restoreDefaults(self) -> None:
+        self.filterEnableCheckBox.setChecked(False)
+        self.filterCountSpinBox.setValue(0)
+        self.filterModeComboBox.setCurrentIndex(0)
+        self.nplcSpinBox.setValue(1.0)
+        self.routeTerminalsComboBox.setCurrentIndex(0)
 
-    def unlock(self) -> None:
-        self.filterEnableCheckBox.setEnabled(True)
-        self.filterCountSpinBox.setEnabled(True)
-        self.filterModeComboBox.setEnabled(True)
-        self.nplcSpinBox.setEnabled(True)
+    def setLocked(self, state: bool) -> None:
+        self.filterEnableCheckBox.setEnabled(not state)
+        self.filterCountSpinBox.setEnabled(not state)
+        self.filterModeComboBox.setEnabled(not state)
+        self.nplcSpinBox.setEnabled(not state)
+        self.routeTerminalsComboBox.setEnabled(not state)
 
-    def config(self) -> Dict[str, Any]:
-        params: Dict[str, Any] = {}
+    def config(self) -> ConfigType:
+        params: ConfigType = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
@@ -317,7 +329,7 @@ class K2470Panel(InstrumentPanel):
         params["route.terminals"] = self.routeTerminalsComboBox.currentData()
         return params
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
+    def setConfig(self, config: ConfigType) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
@@ -404,27 +416,27 @@ class K2657APanel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-    def lock(self) -> None:
-        self.filterEnableCheckBox.setEnabled(False)
-        self.filterCountSpinBox.setEnabled(False)
-        self.filterModeComboBox.setEnabled(False)
-        self.nplcSpinBox.setEnabled(False)
+    def restoreDefaults(self) -> None:
+        self.filterEnableCheckBox.setChecked(False)
+        self.filterCountSpinBox.setValue(0)
+        self.filterModeComboBox.setCurrentIndex(0)
+        self.nplcSpinBox.setValue(1.0)
 
-    def unlock(self) -> None:
-        self.filterEnableCheckBox.setEnabled(True)
-        self.filterCountSpinBox.setEnabled(True)
-        self.filterModeComboBox.setEnabled(True)
-        self.nplcSpinBox.setEnabled(True)
+    def setLocked(self, state: bool) -> None:
+        self.filterEnableCheckBox.setEnabled(not state)
+        self.filterCountSpinBox.setEnabled(not state)
+        self.filterModeComboBox.setEnabled(not state)
+        self.nplcSpinBox.setEnabled(not state)
 
-    def config(self) -> Dict[str, Any]:
-        params: Dict[str, Any] = {}
+    def config(self) -> ConfigType:
+        params: ConfigType = {}
         params["filter.enable"] = self.filterEnableCheckBox.isChecked()
         params["filter.count"] = self.filterCountSpinBox.value()
         params["filter.mode"] = self.filterModeComboBox.currentData()
         params["nplc"] = self.nplcSpinBox.value()
         return params
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
+    def setConfig(self, config: ConfigType) -> None:
         filter_enable = config.get("filter.enable")
         if filter_enable is not None:
             self.filterEnableCheckBox.setChecked(filter_enable)
@@ -466,8 +478,193 @@ class A4284APanel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("A4284A", parent)
 
+        # Aperture
+
+        self.apertureGroupBox = QtWidgets.QGroupBox()
+        self.apertureGroupBox.setTitle("Aperture")
+
+        self.integrationTimeLabel = QtWidgets.QLabel("Integration Time")
+
+        self.integrationTimeComboBox = QtWidgets.QComboBox()
+        self.integrationTimeComboBox.addItem("Short", "SHOR")
+        self.integrationTimeComboBox.addItem("Medium", "MED")
+        self.integrationTimeComboBox.addItem("Long", "LONG")
+        self.integrationTimeComboBox.setCurrentIndex(1)
+
+        self.averagingRateLabel = QtWidgets.QLabel("Averaging Rate")
+
+        self.averagingRateSpinBox = QtWidgets.QSpinBox()
+        self.averagingRateSpinBox.setRange(1, 128)
+        self.averagingRateSpinBox.setValue(1)
+
+        apertureLayout = QtWidgets.QVBoxLayout(self.apertureGroupBox)
+        apertureLayout.addWidget(self.integrationTimeLabel)
+        apertureLayout.addWidget(self.integrationTimeComboBox)
+        apertureLayout.addWidget(self.averagingRateLabel)
+        apertureLayout.addWidget(self.averagingRateSpinBox)
+        apertureLayout.addStretch()
+
+        # Correction
+
+        self.correctionGroupBox = QtWidgets.QGroupBox()
+        self.correctionGroupBox.setTitle("Correction")
+
+        self.lengthLabel = QtWidgets.QLabel("Cable Length")
+
+        self.lengthComboBox = QtWidgets.QComboBox()
+        self.lengthComboBox.addItem("0 m", 0)
+        self.lengthComboBox.addItem("1 m", 1)
+        self.lengthComboBox.addItem("2 m", 2)
+
+        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN")
+
+        correctionLayout = QtWidgets.QVBoxLayout(self.correctionGroupBox)
+        correctionLayout.addWidget(self.lengthLabel)
+        correctionLayout.addWidget(self.lengthComboBox)
+        correctionLayout.addWidget(self.openEnabledCheckBox)
+        correctionLayout.addStretch()
+
+        # Layout
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.apertureGroupBox)
+        layout.addWidget(self.correctionGroupBox)
+        layout.addStretch()
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+    def restoreDefaults(self) -> None:
+        self.integrationTimeComboBox.setCurrentIndex(1)
+        self.averagingRateSpinBox.setValue(1)
+        self.lengthComboBox.setCurrentIndex(0)
+        self.openEnabledCheckBox.setChecked(False)
+
+    def setLocked(self, state: bool) -> None:
+        self.integrationTimeComboBox.setEnabled(not state)
+        self.averagingRateSpinBox.setEnabled(not state)
+        self.lengthComboBox.setEnabled(not state)
+        self.openEnabledCheckBox.setEnabled(not state)
+
+    def config(self) -> ConfigType:
+        config: ConfigType = {}
+        config["aperture.integration_time"] = self.integrationTimeComboBox.currentData()
+        config["aperture.averaging_rate"] = self.averagingRateSpinBox.value()
+        config["correction.length"] = self.lengthComboBox.currentData()
+        config["correction.open.enabled"] = self.openEnabledCheckBox.isChecked()
+        return config
+
+    def setConfig(self, config: ConfigType) -> None:
+        integration_time = config.get("aperture.integration_time")
+        if integration_time is not None:
+            index = self.integrationTimeComboBox.findData(integration_time)
+            self.integrationTimeComboBox.setCurrentIndex(index)
+        averaging_rate = config.get("aperture.averaging_rate")
+        if averaging_rate is not None:
+            self.averagingRateSpinBox.setValue(averaging_rate)
+        correction_length = config.get("correction.length")
+        if correction_length is not None:
+            index = self.lengthComboBox.findData(correction_length)
+            self.lengthComboBox.setCurrentIndex(index)
+        correction_open_enabled = config.get("correction.open.enabled")
+        if correction_open_enabled is not None:
+            self.openEnabledCheckBox.setChecked(correction_open_enabled)
+
 
 class E4980APanel(InstrumentPanel):
 
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("E4980A", parent)
+
+        # Aperture
+
+        self.apertureGroupBox = QtWidgets.QGroupBox()
+        self.apertureGroupBox.setTitle("Aperture")
+
+        self.integrationTimeLabel = QtWidgets.QLabel("Integration Time")
+
+        self.integrationTimeComboBox = QtWidgets.QComboBox()
+        self.integrationTimeComboBox.addItem("Short", "SHOR")
+        self.integrationTimeComboBox.addItem("Medium", "MED")
+        self.integrationTimeComboBox.addItem("Long", "LONG")
+        self.integrationTimeComboBox.setCurrentIndex(1)
+
+        self.averagingRateLabel = QtWidgets.QLabel("Averaging Rate")
+
+        self.averagingRateSpinBox = QtWidgets.QSpinBox()
+        self.averagingRateSpinBox.setRange(1, 128)
+        self.averagingRateSpinBox.setValue(1)
+
+        apertureLayout = QtWidgets.QVBoxLayout(self.apertureGroupBox)
+        apertureLayout.addWidget(self.integrationTimeLabel)
+        apertureLayout.addWidget(self.integrationTimeComboBox)
+        apertureLayout.addWidget(self.averagingRateLabel)
+        apertureLayout.addWidget(self.averagingRateSpinBox)
+        apertureLayout.addStretch()
+
+        # Correction
+
+        self.correctionGroupBox = QtWidgets.QGroupBox()
+        self.correctionGroupBox.setTitle("Correction")
+
+        self.lengthLabel = QtWidgets.QLabel("Cable Length")
+
+        self.lengthComboBox = QtWidgets.QComboBox()
+        self.lengthComboBox.addItem("0 m", 0)
+        self.lengthComboBox.addItem("1 m", 1)
+        self.lengthComboBox.addItem("2 m", 2)
+        self.lengthComboBox.addItem("4 m", 4)
+
+        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN")
+
+        correctionLayout = QtWidgets.QVBoxLayout(self.correctionGroupBox)
+        correctionLayout.addWidget(self.lengthLabel)
+        correctionLayout.addWidget(self.lengthComboBox)
+        correctionLayout.addWidget(self.openEnabledCheckBox)
+        correctionLayout.addStretch()
+
+        # Layout
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.apertureGroupBox)
+        layout.addWidget(self.correctionGroupBox)
+        layout.addStretch()
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+    def restoreDefaults(self) -> None:
+        self.integrationTimeComboBox.setCurrentIndex(1)
+        self.averagingRateSpinBox.setValue(1)
+        self.lengthComboBox.setCurrentIndex(0)
+        self.openEnabledCheckBox.setChecked(False)
+
+    def setLocked(self, state: bool) -> None:
+        self.integrationTimeComboBox.setEnabled(not state)
+        self.averagingRateSpinBox.setEnabled(not state)
+        self.lengthComboBox.setEnabled(not state)
+        self.openEnabledCheckBox.setEnabled(not state)
+
+    def config(self) -> ConfigType:
+        config: ConfigType = {}
+        config["aperture.integration_time"] = self.integrationTimeComboBox.currentData()
+        config["aperture.averaging_rate"] = self.averagingRateSpinBox.value()
+        config["correction.length"] = self.lengthComboBox.currentData()
+        config["correction.open.enabled"] = self.openEnabledCheckBox.isChecked()
+        return config
+
+    def setConfig(self, config: ConfigType) -> None:
+        integration_time = config.get("aperture.integration_time")
+        if integration_time is not None:
+            index = self.integrationTimeComboBox.findData(integration_time)
+            self.integrationTimeComboBox.setCurrentIndex(index)
+        averaging_rate = config.get("aperture.averaging_rate")
+        if averaging_rate is not None:
+            self.averagingRateSpinBox.setValue(averaging_rate)
+        correction_length = config.get("correction.length")
+        if correction_length is not None:
+            index = self.lengthComboBox.findData(correction_length)
+            self.lengthComboBox.setCurrentIndex(index)
+        correction_open_enabled = config.get("correction.open.enabled")
+        if correction_open_enabled is not None:
+            self.openEnabledCheckBox.setChecked(correction_open_enabled)

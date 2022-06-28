@@ -1,10 +1,10 @@
-SPECS = [
+DEFAULTS = [
     {
         "id": "iv",
         "type": "iv",
         "title": "IV",
         "instruments": ["SMU", "ELM"],
-        "default_instruments": ["SMU", "ELM"],
+        "default_instruments": ["SMU"],
         "default_begin_voltage": 0.0,
         "default_end_voltage": -300.0,
         "default_step_voltage": 5.0,
