@@ -25,8 +25,8 @@ from .ui.panels import K6517BPanel
 
 # LCR meters
 from .ui.panels import K595Panel
-# from .ui.panels import E4285Panel
 from .ui.panels import E4980APanel
+from .ui.panels import A4284APanel
 
 # DMM
 from .ui.panels import K2700Panel
@@ -177,9 +177,8 @@ class Controller(PluginRegistryMixin, AbstractController):
         # LCR meter
         role = self.view.addRole("LCR")
         role.addInstrument(K595Panel())
-        # TODO
-        # role.addInstrument(E4285Panel())
         role.addInstrument(E4980APanel())
+        role.addInstrument(A4284APanel())
 
         # Temperatur
         role = self.view.addRole("DMM")

@@ -11,8 +11,8 @@ __all__ = [
     'K2700Panel',
     'K6514Panel',
     'K6517BPanel',
-    'E4285Panel',
-    'E4980APanel'
+    'E4980APanel',
+    'A4284APanel',
 ]
 
 
@@ -461,10 +461,10 @@ class K6517BPanel(InstrumentPanel):
         super().__init__("K6517B", parent)
 
 
-class E4285Panel(InstrumentPanel):
+class A4284APanel(InstrumentPanel):
 
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
-        super().__init__("E4285", parent)
+        super().__init__("A4284A", parent)
 
 
 class E4980APanel(InstrumentPanel):

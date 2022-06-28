@@ -18,9 +18,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
-
+def configure_logger(debug=False):
     logger = logging.getLogger()
     formatter = logging.Formatter(
         "%(asctime)s::%(name)s::%(levelname)s::%(message)s",
@@ -29,7 +27,13 @@ def main():
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
+
+
+def main():
+    args = parse_args()
+
+    configure_logger(args.debug)
 
     app = Application()
 

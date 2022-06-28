@@ -2,8 +2,7 @@ import logging
 import sys
 import os
 
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from . import __version__
 from .controller import Controller
@@ -13,7 +12,7 @@ from .tcpserver import TCPServerPlugin
 logger = logging.getLogger(__name__)
 
 PACKAGE_PATH = os.path.realpath(os.path.dirname(__file__))
-ASSETS_PATH = os.path.join(PACKAGE_ROOT, "assets")
+ASSETS_PATH = os.path.join(PACKAGE_PATH, "assets")
 
 
 class Application(QtWidgets.QApplication):
