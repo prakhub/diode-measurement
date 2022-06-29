@@ -102,7 +102,7 @@ class E4980A(LCRMeter):
         self.resource.write("*CLS")
         self.resource.write("*OPC")
         # Initiate measurement
-        self._write(":INIT")
+        self.resource.write(":INIT:IMM")
         threshold = time.time() + timeout
         interval = min(timeout, interval)
         while time.time() < threshold:
