@@ -3,16 +3,16 @@ from typing import Any, Dict
 from PyQt5 import QtWidgets
 
 __all__ = [
-    'K237Panel',
-    'K595Panel',
-    'K2410Panel',
-    'K2470Panel',
-    'K2657APanel',
-    'K2700Panel',
-    'K6514Panel',
-    'K6517BPanel',
-    'E4980APanel',
-    'A4284APanel',
+    "K237Panel",
+    "K595Panel",
+    "K2410Panel",
+    "K2470Panel",
+    "K2657APanel",
+    "K2700Panel",
+    "K6514Panel",
+    "K6517BPanel",
+    "E4980APanel",
+    "A4284APanel",
 ]
 
 ConfigType = Dict[str, Any]
@@ -478,6 +478,37 @@ class A4284APanel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("A4284A", parent)
 
+        # AC amplitude
+
+        self.amplitudeGroupBox = QtWidgets.QGroupBox()
+        self.amplitudeGroupBox.setTitle("AC Amplitude")
+
+        self.amplitudeVoltageTimeLabel = QtWidgets.QLabel("Voltage")
+
+        self.amplitudeVoltageSpinBox = QtWidgets.QDoubleSpinBox()
+        self.amplitudeVoltageSpinBox.setSuffix(" mV")
+        self.amplitudeVoltageSpinBox.setDecimals(0)
+        self.amplitudeVoltageSpinBox.setRange(5, 20e3)
+        self.amplitudeVoltageSpinBox.setValue(1e3)
+
+        self.amplitudeFrequencyTimeLabel = QtWidgets.QLabel("Frequency")
+
+        self.amplitudeFrequencySpinBox = QtWidgets.QDoubleSpinBox()
+        self.amplitudeFrequencySpinBox.setSuffix(" kHz")
+        self.amplitudeFrequencySpinBox.setDecimals(3)
+        self.amplitudeFrequencySpinBox.setRange(0.020, 2e6)
+        self.amplitudeFrequencySpinBox.setValue(1.)
+
+        self.amplitudeAlcCheckBox = QtWidgets.QCheckBox("Auto Level Control (ALC)")
+
+        amplitudeLayout = QtWidgets.QVBoxLayout(self.amplitudeGroupBox)
+        amplitudeLayout.addWidget(self.amplitudeVoltageTimeLabel)
+        amplitudeLayout.addWidget(self.amplitudeVoltageSpinBox)
+        amplitudeLayout.addWidget(self.amplitudeFrequencyTimeLabel)
+        amplitudeLayout.addWidget(self.amplitudeFrequencySpinBox)
+        amplitudeLayout.addWidget(self.amplitudeAlcCheckBox)
+        amplitudeLayout.addStretch()
+
         # Aperture
 
         self.apertureGroupBox = QtWidgets.QGroupBox()
@@ -516,45 +547,75 @@ class A4284APanel(InstrumentPanel):
         self.lengthComboBox.addItem("1 m", 1)
         self.lengthComboBox.addItem("2 m", 2)
 
-        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN")
+        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN correction")
+        self.openEnabledCheckBox.setStatusTip("Enable OPEN correction")
+
+        self.shortEnabledCheckBox = QtWidgets.QCheckBox("Enable SHORT correction")
+        self.shortEnabledCheckBox.setStatusTip("Enable SHORT correction")
 
         correctionLayout = QtWidgets.QVBoxLayout(self.correctionGroupBox)
         correctionLayout.addWidget(self.lengthLabel)
         correctionLayout.addWidget(self.lengthComboBox)
         correctionLayout.addWidget(self.openEnabledCheckBox)
+        correctionLayout.addWidget(self.shortEnabledCheckBox)
         correctionLayout.addStretch()
 
         # Layout
 
+        rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.apertureGroupBox)
+        rightLayout.addWidget(self.correctionGroupBox)
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.apertureGroupBox)
-        layout.addWidget(self.correctionGroupBox)
+        layout.addWidget(self.amplitudeGroupBox)
+        layout.addLayout(rightLayout)
         layout.addStretch()
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
     def restoreDefaults(self) -> None:
+        self.amplitudeVoltageSpinBox.setValue(1e3)  # mV
+        self.amplitudeFrequencySpinBox.setValue(1)  # kHz
+        self.amplitudeAlcCheckBox.setChecked(False)
         self.integrationTimeComboBox.setCurrentIndex(1)
         self.averagingRateSpinBox.setValue(1)
         self.lengthComboBox.setCurrentIndex(0)
         self.openEnabledCheckBox.setChecked(False)
+        self.shortEnabledCheckBox.setChecked(False)
 
     def setLocked(self, state: bool) -> None:
+        self.amplitudeVoltageSpinBox.setEnabled(not state)
+        self.amplitudeFrequencySpinBox.setEnabled(not state)
+        self.amplitudeAlcCheckBox.setEnabled(not state)
         self.integrationTimeComboBox.setEnabled(not state)
         self.averagingRateSpinBox.setEnabled(not state)
         self.lengthComboBox.setEnabled(not state)
         self.openEnabledCheckBox.setEnabled(not state)
+        self.shortEnabledCheckBox.setEnabled(not state)
 
     def config(self) -> ConfigType:
         config: ConfigType = {}
+        config["voltage"] = self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
+        config["frequency"] = self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+        config["amplitude.alc"] = self.amplitudeAlcCheckBox.isChecked()
         config["aperture.integration_time"] = self.integrationTimeComboBox.currentData()
         config["aperture.averaging_rate"] = self.averagingRateSpinBox.value()
         config["correction.length"] = self.lengthComboBox.currentData()
         config["correction.open.enabled"] = self.openEnabledCheckBox.isChecked()
+        config["correction.short.enabled"] = self.shortEnabledCheckBox.isChecked()
         return config
 
     def setConfig(self, config: ConfigType) -> None:
+        voltage = config.get("voltage")
+        if voltage is not None:
+            self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+        frequency = config.get("frequency")
+        if frequency is not None:
+            self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+        amplitude_alc = config.get("amplitude.alc")
+        if amplitude_alc is not None:
+            self.amplitudeAlcCheckBox.setChecked(amplitude_alc)
         integration_time = config.get("aperture.integration_time")
         if integration_time is not None:
             index = self.integrationTimeComboBox.findData(integration_time)
@@ -569,12 +630,46 @@ class A4284APanel(InstrumentPanel):
         correction_open_enabled = config.get("correction.open.enabled")
         if correction_open_enabled is not None:
             self.openEnabledCheckBox.setChecked(correction_open_enabled)
+        correction_short_enabled = config.get("correction.short.enabled")
+        if correction_short_enabled is not None:
+            self.shortEnabledCheckBox.setChecked(correction_short_enabled)
 
 
 class E4980APanel(InstrumentPanel):
 
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("E4980A", parent)
+
+        # AC amplitude
+
+        self.amplitudeGroupBox = QtWidgets.QGroupBox()
+        self.amplitudeGroupBox.setTitle("AC Amplitude")
+
+        self.amplitudeVoltageTimeLabel = QtWidgets.QLabel("Voltage")
+
+        self.amplitudeVoltageSpinBox = QtWidgets.QDoubleSpinBox()
+        self.amplitudeVoltageSpinBox.setSuffix(" mV")
+        self.amplitudeVoltageSpinBox.setDecimals(0)
+        self.amplitudeVoltageSpinBox.setRange(0, 20e3)
+        self.amplitudeVoltageSpinBox.setValue(1e3)
+
+        self.amplitudeFrequencyTimeLabel = QtWidgets.QLabel("Frequency")
+
+        self.amplitudeFrequencySpinBox = QtWidgets.QDoubleSpinBox()
+        self.amplitudeFrequencySpinBox.setSuffix(" kHz")
+        self.amplitudeFrequencySpinBox.setDecimals(3)
+        self.amplitudeFrequencySpinBox.setRange(0.020, 2e6)
+        self.amplitudeFrequencySpinBox.setValue(1.)
+
+        self.amplitudeAlcCheckBox = QtWidgets.QCheckBox("Auto Level Control (ALC)")
+
+        amplitudeLayout = QtWidgets.QVBoxLayout(self.amplitudeGroupBox)
+        amplitudeLayout.addWidget(self.amplitudeVoltageTimeLabel)
+        amplitudeLayout.addWidget(self.amplitudeVoltageSpinBox)
+        amplitudeLayout.addWidget(self.amplitudeFrequencyTimeLabel)
+        amplitudeLayout.addWidget(self.amplitudeFrequencySpinBox)
+        amplitudeLayout.addWidget(self.amplitudeAlcCheckBox)
+        amplitudeLayout.addStretch()
 
         # Aperture
 
@@ -600,7 +695,6 @@ class E4980APanel(InstrumentPanel):
         apertureLayout.addWidget(self.integrationTimeComboBox)
         apertureLayout.addWidget(self.averagingRateLabel)
         apertureLayout.addWidget(self.averagingRateSpinBox)
-        apertureLayout.addStretch()
 
         # Correction
 
@@ -615,45 +709,75 @@ class E4980APanel(InstrumentPanel):
         self.lengthComboBox.addItem("2 m", 2)
         self.lengthComboBox.addItem("4 m", 4)
 
-        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN")
+        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN correction")
+        self.openEnabledCheckBox.setStatusTip("Enable OPEN correction")
+
+        self.shortEnabledCheckBox = QtWidgets.QCheckBox("Enable SHORT correction")
+        self.shortEnabledCheckBox.setStatusTip("Enable SHORT correction")
 
         correctionLayout = QtWidgets.QVBoxLayout(self.correctionGroupBox)
         correctionLayout.addWidget(self.lengthLabel)
         correctionLayout.addWidget(self.lengthComboBox)
         correctionLayout.addWidget(self.openEnabledCheckBox)
+        correctionLayout.addWidget(self.shortEnabledCheckBox)
         correctionLayout.addStretch()
 
         # Layout
 
+        rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.apertureGroupBox)
+        rightLayout.addWidget(self.correctionGroupBox)
+
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.apertureGroupBox)
-        layout.addWidget(self.correctionGroupBox)
+        layout.addWidget(self.amplitudeGroupBox)
+        layout.addLayout(rightLayout)
         layout.addStretch()
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
     def restoreDefaults(self) -> None:
+        self.amplitudeVoltageSpinBox.setValue(1e3)  # mV
+        self.amplitudeFrequencySpinBox.setValue(1)  # kHz
+        self.amplitudeAlcCheckBox.setChecked(False)
         self.integrationTimeComboBox.setCurrentIndex(1)
         self.averagingRateSpinBox.setValue(1)
         self.lengthComboBox.setCurrentIndex(0)
         self.openEnabledCheckBox.setChecked(False)
+        self.shortEnabledCheckBox.setChecked(False)
 
     def setLocked(self, state: bool) -> None:
+        self.amplitudeVoltageSpinBox.setEnabled(not state)
+        self.amplitudeFrequencySpinBox.setEnabled(not state)
+        self.amplitudeAlcCheckBox.setEnabled(not state)
         self.integrationTimeComboBox.setEnabled(not state)
         self.averagingRateSpinBox.setEnabled(not state)
         self.lengthComboBox.setEnabled(not state)
         self.openEnabledCheckBox.setEnabled(not state)
+        self.shortEnabledCheckBox.setEnabled(not state)
 
     def config(self) -> ConfigType:
         config: ConfigType = {}
+        config["voltage"] = self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
+        config["frequency"] = self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+        config["amplitude.alc"] = self.amplitudeAlcCheckBox.isChecked()
         config["aperture.integration_time"] = self.integrationTimeComboBox.currentData()
         config["aperture.averaging_rate"] = self.averagingRateSpinBox.value()
         config["correction.length"] = self.lengthComboBox.currentData()
         config["correction.open.enabled"] = self.openEnabledCheckBox.isChecked()
+        config["correction.short.enabled"] = self.shortEnabledCheckBox.isChecked()
         return config
 
     def setConfig(self, config: ConfigType) -> None:
+        voltage = config.get("voltage")
+        if voltage is not None:
+            self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+        frequency = config.get("frequency")
+        if frequency is not None:
+            self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+        amplitude_alc = config.get("amplitude.alc")
+        if amplitude_alc is not None:
+            self.amplitudeAlcCheckBox.setChecked(amplitude_alc)
         integration_time = config.get("aperture.integration_time")
         if integration_time is not None:
             index = self.integrationTimeComboBox.findData(integration_time)
@@ -668,3 +792,6 @@ class E4980APanel(InstrumentPanel):
         correction_open_enabled = config.get("correction.open.enabled")
         if correction_open_enabled is not None:
             self.openEnabledCheckBox.setChecked(correction_open_enabled)
+        correction_short_enabled = config.get("correction.short.enabled")
+        if correction_short_enabled is not None:
+            self.shortEnabledCheckBox.setChecked(correction_short_enabled)

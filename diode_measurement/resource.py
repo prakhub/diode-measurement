@@ -2,6 +2,8 @@ import logging
 
 import pyvisa
 
+__all__ = ["ResourceError", "Resource"]
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,9 +18,9 @@ class Resource:
         self.resource_name = resource_name
         self.visa_library = visa_library
         self.options = {
-            'read_termination': '\r\n',
-            'write_termination': '\r\n',
-            'timeout': 8000
+            "read_termination": "\r\n",
+            "write_termination": "\r\n",
+            "timeout": 8000
         }
         self.options.update(options)
         self._resource = None

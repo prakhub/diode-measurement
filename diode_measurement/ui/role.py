@@ -5,7 +5,7 @@ from typing import Any, Dict
 from .panels import InstrumentPanel
 from .widgets import ResourceWidget
 
-__all__ = ['RoleWidget']
+__all__ = ["RoleWidget"]
 
 
 class RoleWidget(QtWidgets.QWidget):

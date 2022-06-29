@@ -12,19 +12,19 @@ from .k6517b import K6517B
 from .e4980a import E4980A
 from .a4284a import A4284A
 
-__all__ = ['driver_factory']
+__all__ = ["driver_factory"]
 
 DRIVERS: Dict[str, type] = {
-    'K237': K237,
-    'K595': K595,
-    'K2410': K2410,
-    'K2470': K2470,
-    'K2657A': K2657A,
-    'K2700': K2700,
-    'K6514': K6514,
-    'K6517B': K6517B,
-    'E4980A': E4980A,
-    'A4284A': A4284A,
+    "K237": K237,
+    "K595": K595,
+    "K2410": K2410,
+    "K2470": K2470,
+    "K2657A": K2657A,
+    "K2700": K2700,
+    "K6514": K6514,
+    "K6517B": K6517B,
+    "E4980A": E4980A,
+    "A4284A": A4284A,
 }
 
 

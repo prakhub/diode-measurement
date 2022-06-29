@@ -2,7 +2,7 @@
 
 import datetime
 
-__all__ = ['Estimate']
+__all__ = ["Estimate"]
 
 
 class Estimate:

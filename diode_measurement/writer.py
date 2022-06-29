@@ -3,18 +3,20 @@ import math
 
 from typing import Any, Optional
 
+__all__ = ["Writer"]
 
-def safe_format(value: Any, format_spec: str = '') -> str:
+
+def safe_format(value: Any, format_spec: str = None) -> str:
     """Safe format any value, return `NAN` if format fails."""
     try:
-        return format(value, format_spec)
+        return format(value, format_spec or "")
     except Exception:
         return format(math.nan)
 
 
 class Writer:
 
-    delimiter = '\t'
+    delimiter = "\t"
 
     def __init__(self, fp) -> None:
         self._fp = fp
@@ -38,18 +40,18 @@ class Writer:
 
     def write_meta(self, data: dict) -> None:
         self._current_table = None
-        self.write_tag("sample", data.get('sample'))
-        self.write_tag("measurement_type", data.get('measurement_type'))
-        self.write_tag("voltage_begin[V]", safe_format(data.get('voltage_begin'), '+.3E'))
-        self.write_tag("voltage_end[V]", safe_format(data.get('voltage_end'), '+.3E'))
-        self.write_tag("voltage_step[V]", safe_format(data.get('voltage_step'), '+.3E'))
-        self.write_tag("waiting_time[s]", safe_format(data.get('waiting_time'), '+.3E'))
-        self.write_tag("current_compliance[A]", safe_format(data.get('current_compliance'), '+.3E'))
+        self.write_tag("sample", data.get("sample"))
+        self.write_tag("measurement_type", data.get("measurement_type"))
+        self.write_tag("voltage_begin[V]", safe_format(data.get("voltage_begin"), "+.3E"))
+        self.write_tag("voltage_end[V]", safe_format(data.get("voltage_end"), "+.3E"))
+        self.write_tag("voltage_step[V]", safe_format(data.get("voltage_step"), "+.3E"))
+        self.write_tag("waiting_time[s]", safe_format(data.get("waiting_time"), "+.3E"))
+        self.write_tag("current_compliance[A]", safe_format(data.get("current_compliance"), "+.3E"))
         self.flush()
 
     def write_iv_row(self, data: dict) -> None:
-        if self._current_table != 'iv':
-            self._current_table = 'iv'
+        if self._current_table != "iv":
+            self._current_table = "iv"
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
@@ -58,17 +60,17 @@ class Writer:
                 "temperature[degC]"
             ])
         self.write_table_row([
-            safe_format(data.get('timestamp'), '.6f'),
-            safe_format(data.get('voltage'), '+.3E'),
-            safe_format(data.get('i_smu'), '+.3E'),
-            safe_format(data.get('i_elm'), '+.3E'),
-            safe_format(data.get('t_dmm'), '+.3E')
+            safe_format(data.get("timestamp"), ".6f"),
+            safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("i_elm"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E")
         ])
         self.flush()
 
     def write_it_row(self, data: dict) -> None:
-        if self._current_table != 'it':
-            self._current_table = 'it'
+        if self._current_table != "it":
+            self._current_table = "it"
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
@@ -77,17 +79,17 @@ class Writer:
                 "temperature[degC]"
             ])
         self.write_table_row([
-            safe_format(data.get('timestamp'), '.6f'),
-            safe_format(data.get('voltage'), '+.3E'),
-            safe_format(data.get('i_smu'), '+.3E'),
-            safe_format(data.get('i_elm'), '+.3E'),
-            safe_format(data.get('t_dmm'), '+.3E')
+            safe_format(data.get("timestamp"), ".6f"),
+            safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("i_elm"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E")
         ])
         self.flush()
 
     def write_cv_row(self, data: dict) -> None:
-        if self._current_table != 'cv':
-            self._current_table = 'cv'
+        if self._current_table != "cv":
+            self._current_table = "cv"
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
@@ -97,11 +99,11 @@ class Writer:
                 "temperature[degC]"
             ])
         self.write_table_row([
-            safe_format(data.get('timestamp'), '.6f'),
-            safe_format(data.get('voltage'), '+.3E'),
-            safe_format(data.get('i_smu'), '+.3E'),
-            safe_format(data.get('c_lcr'), '+.3E'),
-            safe_format(data.get('c2_lcr'), '+.3E'),
-            safe_format(data.get('t_dmm'), '+.3E')
+            safe_format(data.get("timestamp"), ".6f"),
+            safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("c_lcr"), "+.3E"),
+            safe_format(data.get("c2_lcr"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E")
         ])
         self.flush()

@@ -10,7 +10,7 @@ from ..estimate import Estimate
 
 from . import RangeMeasurement
 
-__all__ = ['IVMeasurement']
+__all__ = ["IVMeasurement"]
 
 logger = logging.getLogger(__name__)
 
@@ -25,29 +25,29 @@ class IVMeasurement(RangeMeasurement):
         self.itReadingHandlers: List[Callable] = []
 
     def acquireReadingData(self, voltage=None):
-        smu = self.contexts.get('smu')
-        elm = self.contexts.get('elm')
-        dmm = self.contexts.get('dmm')
+        smu = self.contexts.get("smu")
+        elm = self.contexts.get("elm")
+        dmm = self.contexts.get("dmm")
         if voltage is None:
             voltage = self.get_source_voltage()
         if smu:
             i_smu = smu.read_current()
         else:
-            i_smu = float('NaN')
+            i_smu = float("NaN")
         if elm:
             i_elm = elm.read_current()
         else:
-            i_elm = float('NaN')
+            i_elm = float("NaN")
         if dmm:
             t_dmm = dmm.read_temperature()
         else:
-            t_dmm = float('NaN')
+            t_dmm = float("NaN")
         return {
-            'timestamp': time.time(),
-            'voltage': voltage,
-            'i_smu': i_smu,
-            'i_elm': i_elm,
-            't_dmm': t_dmm
+            "timestamp": time.time(),
+            "voltage": voltage,
+            "i_smu": i_smu,
+            "i_elm": i_elm,
+            "t_dmm": t_dmm
         }
 
     def acquireReading(self):
@@ -56,9 +56,9 @@ class IVMeasurement(RangeMeasurement):
         with self.ivReadingLock:
             self.ivReadingQueue.append(reading)
         self.update.emit({
-            'smu_current': reading.get('i_smu'),
-            'elm_current': reading.get('i_elm'),
-            'dmm_temperature': reading.get('t_dmm')
+            "smu_current": reading.get("i_smu"),
+            "elm_current": reading.get("i_elm"),
+            "dmm_temperature": reading.get("t_dmm")
         })
         for handler in self.ivReadingHandlers:
             handler(reading)
@@ -98,9 +98,9 @@ class IVMeasurement(RangeMeasurement):
                 voltage = self.get_source_voltage()
 
                 self.update.emit({
-                    'smu_current': reading.get('i_smu'),
-                    'elm_current': reading.get('i_elm'),
-                    'dmm_temperature': reading.get('t_dmm')
+                    "smu_current": reading.get("i_smu"),
+                    "elm_current": reading.get("i_elm"),
+                    "dmm_temperature": reading.get("t_dmm")
                 })
 
                 t = time.time()

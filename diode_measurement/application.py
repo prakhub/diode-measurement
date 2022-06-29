@@ -9,6 +9,8 @@ from .controller import Controller
 from .ui.mainwindow import MainWindow
 from .tcpserver import TCPServerPlugin
 
+__all__ = ["Application"]
+
 logger = logging.getLogger(__name__)
 
 PACKAGE_PATH = os.path.realpath(os.path.dirname(__file__))

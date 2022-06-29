@@ -12,7 +12,7 @@ from ..driver import driver_factory
 from ..functions import LinearRange
 from ..estimate import Estimate
 
-__all__ = ['Measurement', 'RangeMeasurement']
+__all__ = ["Measurement", "RangeMeasurement"]
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +43,13 @@ class Measurement(QtCore.QObject):
         role = self.state.get(name, {})
         if not role.get("enabled"):
             return None
-        model = role.get('model')
-        resource_name = role.get('resource_name')
+        model = role.get("model")
+        resource_name = role.get("resource_name")
         if not resource_name.strip():
             raise ValueError(f"Empty resource name not allowed for {name.upper()} ({model}).")
-        visa_library = role.get('visa_library')
-        termination = role.get('termination')
-        timeout = role.get('timeout') * 1000  # in millisecs
+        visa_library = role.get("visa_library")
+        termination = role.get("termination")
+        timeout = role.get("timeout") * 1000  # in millisecs
         cls = driver_factory(model)
         if not cls:
             logger.warning("No such driver: %s", model)
@@ -69,11 +69,11 @@ class Measurement(QtCore.QObject):
             raise RuntimeError(f"Instrument Error: {code}: {message}")
 
     def update_rpc_state(self, state) -> None:
-        self.update.emit({'rpc_state': state})
+        self.update.emit({"rpc_state": state})
 
     @property
     def stop_requested(self) -> bool:
-        return self.state.get('stop_requested') is True
+        return self.state.get("stop_requested") is True
 
     def initialize(self):
         pass
@@ -87,7 +87,7 @@ class Measurement(QtCore.QObject):
     def run(self):
         try:
             logger.debug("run measurement...")
-            self.update_rpc_state('configure')
+            self.update_rpc_state("configure")
             self.started.emit()
             logger.debug("handle started callbacks...")
             for handler in self.startedHandlers:
@@ -114,7 +114,7 @@ class Measurement(QtCore.QObject):
                     self.failed.emit(exc)
                 finally:
                     logger.debug("finalize...")
-                    self.update_rpc_state('stopping')
+                    self.update_rpc_state("stopping")
                     self.finalize()
                     logger.debug("finalize... done.")
         except Exception as exc:
@@ -127,7 +127,7 @@ class Measurement(QtCore.QObject):
             logger.debug("handle finished callbacks... done.")
             self.contexts.clear()
             self.finished.emit()
-            self.update_rpc_state('idle')
+            self.update_rpc_state("idle")
             logger.debug("run measurement... done.")
 
 
@@ -138,7 +138,7 @@ class RangeMeasurement(Measurement):
 
     @property
     def is_continuous(self) -> bool:
-        return self.state.get('continuous') is True
+        return self.state.get("continuous") is True
 
     def get_source_output_state(self):
         return self.source_instrument.get_output_enabled()
@@ -146,8 +146,8 @@ class RangeMeasurement(Measurement):
     def set_source_output_state(self, state):
         logger.info("Source output state: %s", state)
         self.source_instrument.set_output_enabled(state)
-        self.update.emit({'source_output_state': state})
-        self.state['source_output_state'] = state
+        self.update.emit({"source_output_state": state})
+        self.state["source_output_state"] = state
 
     def get_source_voltage(self):
         return self.source_instrument.get_voltage_level()
@@ -155,8 +155,8 @@ class RangeMeasurement(Measurement):
     def set_source_voltage(self, voltage):
         logger.info("Source voltage level: %gV", voltage)
         self.source_instrument.set_voltage_level(voltage)
-        self.update.emit({'source_voltage': voltage})
-        self.state['source_voltage'] = voltage
+        self.update.emit({"source_voltage": voltage})
+        self.state["source_voltage"] = voltage
 
     def set_source_voltage_range(self, voltage):
         logger.info("Source voltage range: %gV", voltage)
@@ -166,13 +166,13 @@ class RangeMeasurement(Measurement):
         """Raise exception if current compliance tripped and continue in
         compliance option is not active.
         """
-        if not self.state.get('continue_in_compliance', False):
+        if not self.state.get("continue_in_compliance", False):
             if self.source_instrument.compliance_tripped():
                 raise RuntimeError("Source compliance tripped!")
 
     def update_current_compliance(self):
         """Update current compliance if value changed."""
-        current_compliance = self.state.get('current_compliance', 0.0)
+        current_compliance = self.state.get("current_compliance", 0.0)
         if self.current_compliance != current_compliance:
             self.current_compliance = current_compliance
             self.set_source_compliance(self.current_compliance)
@@ -183,12 +183,12 @@ class RangeMeasurement(Measurement):
         self.source_instrument.set_current_compliance_level(compiance)
 
     def apply_waiting_time(self):
-        waiting_time = self.state.get('waiting_time', 1.0)
+        waiting_time = self.state.get("waiting_time", 1.0)
         logger.info("Waiting for %.2f sec", waiting_time)
         time.sleep(waiting_time)
 
     def apply_waiting_time_continuous(self, estimate):
-        waiting_time = self.state.get('waiting_time_continuous', 1.0)
+        waiting_time = self.state.get("waiting_time_continuous", 1.0)
         logger.info("Waiting for %.2f sec", waiting_time)
         interval = 1.0
         if waiting_time < interval:
@@ -200,7 +200,7 @@ class RangeMeasurement(Measurement):
                 if self.stop_requested:
                     self.update_message("Stopping...")
                     break
-                if self.state.get('change_voltage_continuous'):
+                if self.state.get("change_voltage_continuous"):
                     break
                 remaining = round(threshold - now)
                 self.update_estimate_message_continuous(f"Next reading in {remaining:d} sec...", estimate)
@@ -208,13 +208,13 @@ class RangeMeasurement(Measurement):
                 now = time.time()
 
     def apply_change_voltage(self):
-        params = self.state.get('change_voltage_continuous')
+        params = self.state.get("change_voltage_continuous")
         if params is not None:
-            del self.state['change_voltage_continuous']
-            self.update_rpc_state('ramping')
+            del self.state["change_voltage_continuous"]
+            self.update_rpc_state("ramping")
             self.rampToContinuous(params.get("end_voltage"), params.get("step_voltage"), params.get("waiting_time"))
             if not self.stop_requested:  # hack
-                self.update_rpc_state('continuous')
+                self.update_rpc_state("continuous")
         self.itChangeVoltageReady.emit()
 
     def update_message(self, message: str) -> None:
@@ -227,15 +227,15 @@ class RangeMeasurement(Measurement):
 
     def update_estimate_message(self, message: str, estimate: Estimate) -> None:
         """Emit update message event for ramp iterations."""
-        elapsed_time = format(estimate.elapsed).split('.')[0]
-        remaining_time = format(estimate.remaining).split('.')[0]
-        average_time = format(estimate.average.total_seconds(), '.2f')
+        elapsed_time = format(estimate.elapsed).split(".")[0]
+        remaining_time = format(estimate.remaining).split(".")[0]
+        average_time = format(estimate.average.total_seconds(), ".2f")
         self.update_message(f"{message} | Elapsed {elapsed_time} | Remaining {remaining_time} | Average {average_time} s")
 
     def update_estimate_message_continuous(self, message: str, estimate: Estimate) -> None:
         """Emit update message event for continuous iterations."""
-        elapsed_time = format(estimate.elapsed).split('.')[0]
-        average_time = format(estimate.average.total_seconds(), '.3f')
+        elapsed_time = format(estimate.elapsed).split(".")[0]
+        average_time = format(estimate.average.total_seconds(), ".3f")
         self.update_message(f"{message} | Elapsed {elapsed_time} | Average {average_time} s")
 
     def update_estimate_progress(self, estimate: Estimate) -> None:
@@ -243,7 +243,7 @@ class RangeMeasurement(Measurement):
         self.update_progress(0, estimate.count, estimate.passed)
 
     def initialize(self):
-        source = self.state.get('source')
+        source = self.state.get("source")
         if source in self.contexts:
             self.source_instrument = self.contexts.get(source)
         else:
@@ -267,7 +267,7 @@ class RangeMeasurement(Measurement):
             self.set_source_voltage(0.0)
 
         # Reset (optional)
-        if self.state.get('reset'):
+        if self.state.get("reset"):
             for key, context in self.contexts.items():
                 logger.info("Reset %s...", key.upper())
                 context.reset()
@@ -284,11 +284,11 @@ class RangeMeasurement(Measurement):
             logger.info("Configure %s...", key.upper())
             options = self.state.get(key)
             context.configure(**options)
-            logger.info("Configure %s... done.", key.upper())
             self.checkErrorState(context)
+            logger.info("Configure %s... done.", key.upper())
 
         # Compliance
-        self.current_compliance = self.state.get('current_compliance', 0.0)
+        self.current_compliance = self.state.get("current_compliance", 0.0)
         self.set_source_compliance(self.current_compliance)
         self.checkErrorState(self.source_instrument)
 
@@ -304,15 +304,15 @@ class RangeMeasurement(Measurement):
 
     def measure(self):
         ramp = LinearRange(
-            self.state.get('voltage_begin'),
-            self.state.get('voltage_end'),
-            self.state.get('voltage_step')
+            self.state.get("voltage_begin"),
+            self.state.get("voltage_end"),
+            self.state.get("voltage_step")
         )
 
         self.update_message(f"Ramp to {ramp.end} V")
         estimate = Estimate(len(ramp))
 
-        self.update_rpc_state('ramping')
+        self.update_rpc_state("ramping")
 
         for step, voltage in enumerate(ramp):
             self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
@@ -331,7 +331,7 @@ class RangeMeasurement(Measurement):
 
             estimate.advance()
 
-        self.update_rpc_state('measure')
+        self.update_rpc_state("measure")
 
         self.update_message("")
 
@@ -341,7 +341,7 @@ class RangeMeasurement(Measurement):
 
         if self.is_continuous:
             self.update_message("Continuous measurement...")
-            self.update_rpc_state('continuous')
+            self.update_rpc_state("continuous")
             self.acquireContinuousReading()
 
     def finalize(self):
@@ -350,7 +350,7 @@ class RangeMeasurement(Measurement):
 
             # HACK: wait until capacitors discared before output disable
             def read_source_voltage():
-                if hasattr(self.source_instrument, 'read_voltage'):
+                if hasattr(self.source_instrument, "read_voltage"):
                     return self.source_instrument.read_voltage()
                 logger.warning("Source instrument does not provide voltage readings.")
                 return 0.
@@ -377,11 +377,11 @@ class RangeMeasurement(Measurement):
 
         finally:
             self.update.emit({
-                'source_voltage': None,
-                'smu_current': None,
-                'elm_current': None,
-                'lcr_capacity': None,
-                'dmm_temperature': None
+                "source_voltage": None,
+                "smu_current": None,
+                "elm_current": None,
+                "lcr_capacity": None,
+                "dmm_temperature": None
             })
 
     def acquireReading(self):
@@ -392,12 +392,12 @@ class RangeMeasurement(Measurement):
 
     def rampBegin(self):
         # Set voltage range to end voltage
-        voltage_end = self.state.get('voltage_end')
+        voltage_end = self.state.get("voltage_end")
         self.set_source_voltage_range(voltage_end)
 
-        voltage_begin = self.state.get('voltage_begin', 0.0)
+        voltage_begin = self.state.get("voltage_begin", 0.0)
         ramp = LinearRange(
-            self.state.get('source_voltage', 0.0),
+            self.state.get("source_voltage", 0.0),
             voltage_begin,
             5.0
         )
@@ -414,12 +414,12 @@ class RangeMeasurement(Measurement):
             estimate.advance()
 
     def rampZero(self):
-        source_voltage = self.state.get('source_voltage', 0.0)
+        source_voltage = self.state.get("source_voltage", 0.0)
         self.update.emit({
-            'smu_current': None,
-            'elm_current': None,
-            'lcr_capacity': None,
-            'dmm_temperature': None
+            "smu_current": None,
+            "elm_current": None,
+            "lcr_capacity": None,
+            "dmm_temperature": None
         })
         ramp = LinearRange(source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
@@ -432,7 +432,7 @@ class RangeMeasurement(Measurement):
             estimate.advance()
 
     def rampToContinuous(self, end_voltage, step_voltage, waiting_time):
-        source_voltage = self.state.get('source_voltage', 0.0)
+        source_voltage = self.state.get("source_voltage", 0.0)
 
         ramp = LinearRange(source_voltage, end_voltage, step_voltage)
         estimate = Estimate(len(ramp))
@@ -463,8 +463,8 @@ class RangeMeasurement(Measurement):
                 handler(reading)
 
             self.update.emit({
-                'smu_current': reading.get('i_smu'),
-                'elm_current': reading.get('i_elm')
+                "smu_current": reading.get("i_smu"),
+                "elm_current": reading.get("i_elm")
             })
 
             self.check_current_compliance()

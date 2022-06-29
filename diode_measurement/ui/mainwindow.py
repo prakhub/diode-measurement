@@ -19,6 +19,8 @@ from .logwindow import LogWindow
 from ..utils import format_metric
 from ..utils import format_switch
 
+__all__ = ["MainWindow"]
+
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -64,7 +66,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.contentsAction = QtWidgets.QAction("&Contents")
         self.contentsAction.setStatusTip("Open the user manual")
-        self.contentsAction.setShortcut(QtGui.QKeySequence('F1'))
+        self.contentsAction.setShortcut(QtGui.QKeySequence("F1"))
         self.contentsAction.triggered.connect(self.showContents)
 
         self.aboutQtAction = QtWidgets.QAction("About &Qt")

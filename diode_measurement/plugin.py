@@ -2,7 +2,7 @@ from typing import List
 
 from PyQt5 import QtCore
 
-__all__ = ['Plugin', 'PluginRegistryMixin']
+__all__ = ["Plugin", "PluginRegistryMixin"]
 
 
 class Plugin(QtCore.QObject):
