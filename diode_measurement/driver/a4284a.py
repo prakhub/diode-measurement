@@ -33,6 +33,7 @@ class A4284A(LCRMeter):
 
     def configure(self, **options) -> None:
         self._write(":INIT:CONT OFF")
+        self._write(":TRIG:SOUR BUS")
 
         function_type = options.get("function.type", "CPRP")
         self._write(f":FUNC:IMP:TYPE {function_type}")
@@ -66,7 +67,6 @@ class A4284A(LCRMeter):
         amplitude_alc = options.get("amplitude.alc", False)
         self._write(f":AMPL:ALC {frequency:E}")
 
-
     def get_output_enabled(self) -> bool:
         return self._query(":BIAS:STAT?") == "1"
 
@@ -96,19 +96,18 @@ class A4284A(LCRMeter):
         return self._fetch()
 
     def _fetch(self, timeout=10.0, interval=0.250) -> float:
-        # Select sense function
         # Request operation complete
         self.resource.write("*CLS")
         self.resource.write("*OPC")
         # Initiate measurement
-        self.resource.write(":INIT:IMM")
+        self.resource.write(":TRIG:IMM")
         threshold = time.time() + timeout
         interval = min(timeout, interval)
         while time.time() < threshold:
             # Read event status
-            if int(self._query("*ESR?")) & 0x1:
+            if int(self.resource.query("*ESR?")) & 0x1:
                 try:
-                    result = self._query(":FETCH?")
+                    result = self.resource.query(":FETCH?")
                     return float(result.split(",")[0])
                 except Exception as exc:
                     raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
