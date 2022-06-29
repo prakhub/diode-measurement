@@ -96,7 +96,7 @@ class E4980A(LCRMeter):
     def read_capacity(self) -> float:
         return self._fetch()
 
-    def _fetch(self, timeout=10.0, interval=0.250):
+    def _fetch(self, timeout=10.0, interval=0.250) -> float:
         # Select sense function
         # Request operation complete
         self.resource.write("*CLS")
@@ -112,6 +112,6 @@ class E4980A(LCRMeter):
                     result = self._query(":FETCH?")
                     return float(result.split(",")[0])
                 except Exception as exc:
-                    raise RuntimeError(f"Failed to fetch ELM reading: {exc}") from exc
+                    raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
             time.sleep(interval)
         raise RuntimeError(f"LCR reading timeout, exceeded {timeout:G} s")
