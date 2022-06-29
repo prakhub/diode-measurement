@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional options for LCR meters (#39).
 
 ### Fixed
-- Bug in 4284A function type configuration.
+- Bug in 4284A trigger configuration.
+- Bug in E4980A trigger configuration.
 
 ## [0.10.0] - 2022-06-28
 
