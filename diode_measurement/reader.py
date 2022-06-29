@@ -6,7 +6,7 @@ from .utils import ureg
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Reader']
+__all__ = ["Reader"]
 
 
 class Reader:
@@ -28,7 +28,7 @@ class Reader:
         for row in reader:
             if not row:
                 break
-            m = re.match(r'(\w+)(?:\[(\w+)\])?\:\s*(.*)\s*', row[0])
+            m = re.match(r"(\w+)(?:\[(\w+)\])?\:\s*(.*)\s*", row[0])
             if not m:
                 raise RuntimeError(f"Invalid meta entry: {row[0]}")
             key = m.group(1)
@@ -42,9 +42,9 @@ class Reader:
         return meta
 
     def read_data(self):
-        reader = csv.reader(self.block(), delimiter='\t')
+        reader = csv.reader(self.block(), delimiter="\t")
         for row in reader:
-            header = [key.split('[')[0] for key in row]
+            header = [key.split("[")[0] for key in row]
             break
         data = []
         for row in reader:

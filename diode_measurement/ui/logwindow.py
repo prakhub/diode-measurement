@@ -8,7 +8,7 @@ from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 
-__all__ = ['LogWindow', 'LogWidget']
+__all__ = ["LogWindow", "LogWidget"]
 
 
 class LogHandler(logging.Handler):
@@ -93,15 +93,15 @@ class LogWidget(QtWidgets.QTextEdit):
     def formatRecord(cls, record: logging.LogRecord) -> str:
         """Format colored log record."""
         if record.levelno >= logging.ERROR:
-            color = 'red'
+            color = "red"
         elif record.levelno >= logging.WARNING:
-            color = 'orange'
+            color = "orange"
         elif record.levelno >= logging.INFO:
-            color = 'inherit'
+            color = "inherit"
         elif record.levelno >= logging.DEBUG:
-            color = 'darkgrey'
+            color = "darkgrey"
         else:
-            color = 'inherit'
+            color = "inherit"
         style = f"white-space:pre;color:{color};margin:0"
         timestamp = cls.formatTime(record.created)
         message = "{}\t{}\t{}".format(timestamp, record.levelname, record.getMessage())

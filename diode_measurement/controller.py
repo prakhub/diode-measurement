@@ -49,6 +49,8 @@ from .utils import format_metric
 
 from .settings import DEFAULTS
 
+__all__ = ["Controller"]
+
 logger = logging.getLogger(__name__)
 
 MEASUREMENTS = {
@@ -114,7 +116,7 @@ class MeasurementRunner:
                         os.makedirs(path)
 
                 measurement.startedHandlers.append(lambda: createOutputDir())
-                fp = stack.enter_context(open(filename, 'w', newline=''))
+                fp = stack.enter_context(open(filename, "w", newline=""))
                 writer = Writer(fp)
                 # TODO
                 # Note: using signals executes slots in main thread, should be worker thread
@@ -255,14 +257,14 @@ class Controller(PluginRegistryMixin, AbstractController):
         """Return application state snapshot."""
         with self.cache:
             snapshot = {}
-            snapshot['state'] = self.cache.get('rpc_state', 'idle')
-            snapshot['measurement_type'] = self.cache.get('measurement_type')
-            snapshot['sample'] = self.cache.get('sample')
-            snapshot['source_voltage'] = self.cache.get('source_voltage')
-            snapshot['smu_current'] = self.cache.get('smu_current')
-            snapshot['elm_current'] = self.cache.get('elm_current')
-            snapshot['lcr_capacity'] = self.cache.get('lcr_capacity')
-            snapshot['temperature'] = self.cache.get('dmm_temperature')
+            snapshot["state"] = self.cache.get("rpc_state", "idle")
+            snapshot["measurement_type"] = self.cache.get("measurement_type")
+            snapshot["sample"] = self.cache.get("sample")
+            snapshot["source_voltage"] = self.cache.get("source_voltage")
+            snapshot["smu_current"] = self.cache.get("smu_current")
+            snapshot["elm_current"] = self.cache.get("elm_current")
+            snapshot["lcr_capacity"] = self.cache.get("lcr_capacity")
+            snapshot["temperature"] = self.cache.get("dmm_temperature")
             return snapshot
 
     def prepareState(self):
@@ -309,7 +311,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         state.get("dmm").update({"enabled": self.view.generalWidget.isDMMEnabled()})
 
         for key, value in state.items():
-            logger.info('> %s: %s', key, value)
+            logger.info("> %s: %s", key, value)
 
         return state
 
@@ -490,7 +492,7 @@ class Controller(PluginRegistryMixin, AbstractController):
             self.view.clear()
             try:
                 # Open in binary mode!
-                with open(filename, 'rb') as fp:
+                with open(filename, "rb") as fp:
                     reader = Reader(fp)
                     meta = reader.read_meta()
                     data = reader.read_data()
@@ -560,29 +562,29 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def onUpdate(self, data):
         cache = {}
-        if 'rpc_state' in data:
-            cache.update({'rpc_state': data.get('rpc_state')})
-        if 'source_voltage' in data:
-            self.view.updateSourceVoltage(data.get('source_voltage'))
-            cache.update({'source_voltage': data.get('source_voltage')})
-        if 'smu_current' in data:
-            self.view.updateSMUCurrent(data.get('smu_current'))
-            cache.update({'smu_current': data.get('smu_current')})
-        if 'elm_current' in data:
-            self.view.updateELMCurrent(data.get('elm_current'))
-            cache.update({'elm_current': data.get('elm_current')})
-        if 'lcr_capacity' in data:
-            self.view.updateLCRCapacity(data.get('lcr_capacity'))
-            cache.update({'lcr_capacity': data.get('lcr_capacity')})
-        if 'dmm_temperature' in data:
-            self.view.updateDMMTemperature(data.get('dmm_temperature'))
-            cache.update({'dmm_temperature': data.get('dmm_temperature')})
-        if 'source_output_state' in data:
-            self.view.updateSourceOutputState(data.get('source_output_state'))
-        if 'message' in data:
-            self.view.setMessage(data.get('message', ''))
-        if 'progress' in data:
-            self.view.setProgress(*data.get('progress', (0, 0, 0)))
+        if "rpc_state" in data:
+            cache.update({"rpc_state": data.get("rpc_state")})
+        if "source_voltage" in data:
+            self.view.updateSourceVoltage(data.get("source_voltage"))
+            cache.update({"source_voltage": data.get("source_voltage")})
+        if "smu_current" in data:
+            self.view.updateSMUCurrent(data.get("smu_current"))
+            cache.update({"smu_current": data.get("smu_current")})
+        if "elm_current" in data:
+            self.view.updateELMCurrent(data.get("elm_current"))
+            cache.update({"elm_current": data.get("elm_current")})
+        if "lcr_capacity" in data:
+            self.view.updateLCRCapacity(data.get("lcr_capacity"))
+            cache.update({"lcr_capacity": data.get("lcr_capacity")})
+        if "dmm_temperature" in data:
+            self.view.updateDMMTemperature(data.get("dmm_temperature"))
+            cache.update({"dmm_temperature": data.get("dmm_temperature")})
+        if "source_output_state" in data:
+            self.view.updateSourceOutputState(data.get("source_output_state"))
+        if "message" in data:
+            self.view.setMessage(data.get("message", ""))
+        if "progress" in data:
+            self.view.setProgress(*data.get("progress", (0, 0, 0)))
         with self.cache:
             self.cache.update(cache)
 
@@ -677,7 +679,7 @@ class Controller(PluginRegistryMixin, AbstractController):
             self.view.generalWidget.outputLineEdit.setText(os.path.expanduser("~"))
 
     def onCurrentComplianceChanged(self, value):
-        logger.info("updated current_compliance: %s", format_metric(value, 'A'))
+        logger.info("updated current_compliance: %s", format_metric(value, "A"))
         self.state.update({"current_compliance": value})
 
     def onContinueInComplianceChanged(self, checked):
@@ -685,7 +687,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.state.update({"continue_in_compliance": checked})
 
     def onWaitingTimeContinuousChanged(self, value):
-        logger.info("updated waiting_time_continuous: %s", format_metric(value, 's'))
+        logger.info("updated waiting_time_continuous: %s", format_metric(value, "s"))
         self.state.update({"waiting_time_continuous": value})
 
     def updateContinuousOption(self):
@@ -700,8 +702,8 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def createFilename(self):
         path = self.view.generalWidget.outputDir()
-        sample = self.state.get('sample')
-        timestamp = datetime.fromtimestamp(self.state.get('timestamp', 0)).strftime("%Y-%m-%dT%H-%M-%S")
+        sample = self.state.get("sample")
+        timestamp = datetime.fromtimestamp(self.state.get("timestamp", 0)).strftime("%Y-%m-%dT%H-%M-%S")
         filename = safe_filename(f"{sample}-{timestamp}.txt")
         return os.path.join(path, filename)
 
@@ -740,22 +742,22 @@ class Controller(PluginRegistryMixin, AbstractController):
             logger.debug("handle RPC params...")
             with self.rpc_params:
                 rpc_params = self.rpc_params
-                if 'reset' in rpc_params:
-                    self.view.setReset(rpc_params.get('reset'))
-                if 'continuous' in rpc_params:
-                    self.view.setContinuous(rpc_params.get('continuous'))
-                if 'end_voltage' in rpc_params:
-                    self.view.generalWidget.setEndVoltage(rpc_params.get('end_voltage'))
-                if 'begin_voltage' in rpc_params:
-                    self.view.generalWidget.setBeginVoltage(rpc_params.get('begin_voltage'))
-                if 'step_voltage' in rpc_params:
-                    self.view.generalWidget.setStepVoltage(rpc_params.get('step_voltage'))
-                if 'waiting_time' in rpc_params:
-                    self.view.generalWidget.setWaitingTime(rpc_params.get('waiting_time'))
-                if 'compliance' in rpc_params:
-                    self.view.generalWidget.setCurrentCompliance(rpc_params.get('compliance'))
-                if 'waiting_time_continuous' in rpc_params:
-                    self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get('waiting_time_continuous'))
+                if "reset" in rpc_params:
+                    self.view.setReset(rpc_params.get("reset"))
+                if "continuous" in rpc_params:
+                    self.view.setContinuous(rpc_params.get("continuous"))
+                if "end_voltage" in rpc_params:
+                    self.view.generalWidget.setEndVoltage(rpc_params.get("end_voltage"))
+                if "begin_voltage" in rpc_params:
+                    self.view.generalWidget.setBeginVoltage(rpc_params.get("begin_voltage"))
+                if "step_voltage" in rpc_params:
+                    self.view.generalWidget.setStepVoltage(rpc_params.get("step_voltage"))
+                if "waiting_time" in rpc_params:
+                    self.view.generalWidget.setWaitingTime(rpc_params.get("waiting_time"))
+                if "compliance" in rpc_params:
+                    self.view.generalWidget.setCurrentCompliance(rpc_params.get("compliance"))
+                if "waiting_time_continuous" in rpc_params:
+                    self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get("waiting_time_continuous"))
                 self.rpc_params.clear()
             logger.debug("handle RPC params... done.")
 
@@ -768,12 +770,12 @@ class Controller(PluginRegistryMixin, AbstractController):
 
             # Update state
             self.state.update(state)
-            self.state.update({'stop_requested': False})
+            self.state.update({"stop_requested": False})
 
             with self.cache:
                 self.cache.update({
-                    'measurement_type': state.get('measurement_type'),
-                    'sample': state.get('sample')
+                    "measurement_type": state.get("measurement_type"),
+                    "sample": state.get("sample")
                 })
 
             # Filename
@@ -833,13 +835,13 @@ class IVPlotsController(AbstractController):
             self.view.ivPlotWidget.fit()
 
     def onIVReading(self, reading: dict, fit: bool = True) -> None:
-        voltage: float = reading.get('voltage', math.nan)
-        i_smu: float = reading.get('i_smu', math.nan)
-        i_elm: float = reading.get('i_elm', math.nan)
+        voltage: float = reading.get("voltage", math.nan)
+        i_smu: float = reading.get("i_smu", math.nan)
+        i_elm: float = reading.get("i_elm", math.nan)
         if math.isfinite(voltage) and math.isfinite(i_smu):
-            self.view.ivPlotWidget.append('smu', voltage, i_smu)
+            self.view.ivPlotWidget.append("smu", voltage, i_smu)
         if math.isfinite(voltage) and math.isfinite(i_elm):
-            self.view.ivPlotWidget.append('elm', voltage, i_elm)
+            self.view.ivPlotWidget.append("elm", voltage, i_elm)
         if fit:
             self.view.ivPlotWidget.fit()
 
@@ -849,9 +851,9 @@ class IVPlotsController(AbstractController):
         widget = self.view.ivPlotWidget
         widget.clear()
         for reading in readings:
-            voltage: float = reading.get('voltage', math.nan)
-            i_smu: float = reading.get('i_smu', math.nan)
-            i_elm: float = reading.get('i_elm', math.nan)
+            voltage: float = reading.get("voltage", math.nan)
+            i_smu: float = reading.get("i_smu", math.nan)
+            i_elm: float = reading.get("i_elm", math.nan)
             if math.isfinite(voltage) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(voltage, i_smu))
                 widget.iLimits.append(i_smu)
@@ -860,8 +862,8 @@ class IVPlotsController(AbstractController):
                 elmPoints.append(QtCore.QPointF(voltage, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.vLimits.append(voltage)
-        widget.series.get('smu').replace(smuPoints)
-        widget.series.get('elm').replace(elmPoints)
+        widget.series.get("smu").replace(smuPoints)
+        widget.series.get("elm").replace(elmPoints)
         widget.fit()
 
     def onFlushItReadings(self) -> None:
@@ -874,13 +876,13 @@ class IVPlotsController(AbstractController):
             self.view.itPlotWidget.fit()
 
     def onItReading(self, reading: dict, fit: bool = True) -> None:
-        timestamp: float = reading.get('timestamp', math.nan)
-        i_smu: float = reading.get('i_smu', math.nan)
-        i_elm: float = reading.get('i_elm', math.nan)
+        timestamp: float = reading.get("timestamp", math.nan)
+        i_smu: float = reading.get("i_smu", math.nan)
+        i_elm: float = reading.get("i_elm", math.nan)
         if math.isfinite(timestamp) and math.isfinite(i_smu):
-            self.view.itPlotWidget.append('smu', timestamp, i_smu)
+            self.view.itPlotWidget.append("smu", timestamp, i_smu)
         if math.isfinite(timestamp) and math.isfinite(i_elm):
-            self.view.itPlotWidget.append('elm', timestamp, i_elm)
+            self.view.itPlotWidget.append("elm", timestamp, i_elm)
         if fit:
             self.view.itPlotWidget.fit()
 
@@ -890,9 +892,9 @@ class IVPlotsController(AbstractController):
         widget = self.view.itPlotWidget
         widget.clear()
         for reading in readings:
-            timestamp: float = reading.get('timestamp', math.nan)
-            i_smu: float = reading.get('i_smu', math.nan)
-            i_elm: float = reading.get('i_elm', math.nan)
+            timestamp: float = reading.get("timestamp", math.nan)
+            i_smu: float = reading.get("i_smu", math.nan)
+            i_elm: float = reading.get("i_elm", math.nan)
             if math.isfinite(timestamp) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(timestamp * 1e3, i_smu))
                 widget.iLimits.append(i_smu)
@@ -901,8 +903,8 @@ class IVPlotsController(AbstractController):
                 elmPoints.append(QtCore.QPointF(timestamp * 1e3, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.tLimits.append(timestamp)
-        widget.series.get('smu').replace(smuPoints)
-        widget.series.get('elm').replace(elmPoints)
+        widget.series.get("smu").replace(smuPoints)
+        widget.series.get("elm").replace(elmPoints)
         widget.fit()
 
 
@@ -930,13 +932,13 @@ class CVPlotsController(AbstractController):
             self.view.cvPlotWidget.fit()
 
     def onCVReading(self, reading: dict, fit: bool = True) -> None:
-        voltage: float = reading.get('voltage', math.nan)
-        c_lcr: float = reading.get('c_lcr', math.nan)
-        c2_lcr: float = reading.get('c2_lcr', math.nan)
+        voltage: float = reading.get("voltage", math.nan)
+        c_lcr: float = reading.get("c_lcr", math.nan)
+        c2_lcr: float = reading.get("c2_lcr", math.nan)
         if math.isfinite(voltage) and math.isfinite(c_lcr):
-            self.view.cvPlotWidget.append('lcr', voltage, c_lcr)
+            self.view.cvPlotWidget.append("lcr", voltage, c_lcr)
         if math.isfinite(voltage) and math.isfinite(c2_lcr):
-            self.view.cv2PlotWidget.append('lcr', voltage, c2_lcr)
+            self.view.cv2PlotWidget.append("lcr", voltage, c2_lcr)
         if fit:
             self.view.itPlotWidget.fit()
 
@@ -945,13 +947,13 @@ class CVPlotsController(AbstractController):
         widget = self.view.cvPlotWidget
         widget.clear()
         for reading in readings:
-            voltage: float = reading.get('voltage', math.nan)
-            c_lcr: float = reading.get('c_lcr', math.nan)
+            voltage: float = reading.get("voltage", math.nan)
+            c_lcr: float = reading.get("c_lcr", math.nan)
             if math.isfinite(voltage) and math.isfinite(c_lcr):
                 lcrPoints.append(QtCore.QPointF(voltage, c_lcr))
                 widget.cLimits.append(c_lcr)
                 widget.vLimits.append(voltage)
-        widget.series.get('lcr').replace(lcrPoints)
+        widget.series.get("lcr").replace(lcrPoints)
         widget.fit()
 
     def onLoadCV2Readings(self, readings: List[dict]) -> None:
@@ -959,13 +961,13 @@ class CVPlotsController(AbstractController):
         widget = self.view.cv2PlotWidget
         widget.clear()
         for reading in readings:
-            voltage: float = reading.get('voltage', math.nan)
-            c2_lcr: float = reading.get('c2_lcr', math.nan)
+            voltage: float = reading.get("voltage", math.nan)
+            c2_lcr: float = reading.get("c2_lcr", math.nan)
             if math.isfinite(voltage) and math.isfinite(c2_lcr):
                 lcr2Points.append(QtCore.QPointF(voltage, c2_lcr))
                 widget.cLimits.append(c2_lcr)
                 widget.vLimits.append(voltage)
-        widget.series.get('lcr').replace(lcr2Points)
+        widget.series.get("lcr").replace(lcr2Points)
         widget.fit()
 
 
@@ -978,8 +980,8 @@ class ChangeVoltageController(AbstractController):
         self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)
 
     def sourceVoltage(self):
-        if self.state.get('source_voltage') is not None:
-            return self.state.get('source_voltage')
+        if self.state.get("source_voltage") is not None:
+            return self.state.get("source_voltage")
         return self.view.generalWidget.endVoltage()
 
     def onPrepareChangeVoltage(self) -> None:
@@ -999,9 +1001,9 @@ class ChangeVoltageController(AbstractController):
         if self.view.isChangeVoltageEnabled():
             logger.info(
                 "updated change_voltage_continuous: end_voltage=%s, step_voltage=%s, waiting_time=%s",
-                format_metric(endVoltage, 'V'),
-                format_metric(stepVoltage, 'V'),
-                format_metric(waitingTime, 's')
+                format_metric(endVoltage, "V"),
+                format_metric(stepVoltage, "V"),
+                format_metric(waitingTime, "s")
             )
             self.state.update({"change_voltage_continuous": {
                 "end_voltage": endVoltage,

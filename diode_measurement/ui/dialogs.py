@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets
 
-__all__ = ['ChangeVoltageDialog']
+__all__ = ["ChangeVoltageDialog"]
 
 
 class ChangeVoltageDialog(QtWidgets.QDialog):

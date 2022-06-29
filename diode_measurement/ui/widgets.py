@@ -3,11 +3,11 @@ import traceback
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 
-__all__ = ['showException', 'ResourceWidget']
+__all__ = ["showException", "ResourceWidget"]
 
 
 def showException(exc, parent=None):
-    details = ''.join(traceback.format_tb(exc.__traceback__))
+    details = "".join(traceback.format_tb(exc.__traceback__))
     dialog = QtWidgets.QMessageBox(parent)
     dialog.setWindowTitle("Exception occured")
     dialog.setIcon(dialog.Critical)
@@ -55,9 +55,9 @@ class ResourceWidget(QtWidgets.QGroupBox):
         self.terminationComboBox = QtWidgets.QComboBox()
         self.terminationComboBox.setToolTip("Read and write termination characters.")
         self.terminationComboBox.setStatusTip("Read and write termination characters.")
-        self.terminationComboBox.addItem("CR+LF", '\r\n')
-        self.terminationComboBox.addItem("CR", '\r')
-        self.terminationComboBox.addItem("LF", '\n')
+        self.terminationComboBox.addItem("CR+LF", "\r\n")
+        self.terminationComboBox.addItem("CR", "\r")
+        self.terminationComboBox.addItem("LF", "\n")
         self.terminationComboBox.currentIndexChanged.connect(
             lambda index: self.terminationChanged.emit(self.terminationComboBox.itemData(index))
         )

@@ -17,7 +17,7 @@ from PyQt5 import QtWidgets
 
 from .plugin import Plugin
 
-__all__ = ['TCPServerPlugin']
+__all__ = ["TCPServerPlugin"]
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +39,10 @@ class RPCHandler:
     def __init__(self, controller) -> None:
         self.controller = controller
         self.dispatcher = jsonrpc.Dispatcher()
-        self.dispatcher['start'] = self.on_start
-        self.dispatcher['stop'] = self.on_stop
-        self.dispatcher['change_voltage'] = self.on_change_voltage
-        self.dispatcher['state'] = self.on_state
+        self.dispatcher["start"] = self.on_start
+        self.dispatcher["stop"] = self.on_stop
+        self.dispatcher["change_voltage"] = self.on_change_voltage
+        self.dispatcher["state"] = self.on_state
         self.manager = jsonrpc.JSONRPCResponseManager()
 
     def handle(self, request) -> Dict[str, Any]:
@@ -56,21 +56,21 @@ class RPCHandler:
         with self.controller.rpc_params:
             rpc_params: Dict[str, Union[None, int, float, str]] = {}
             if reset is not None:
-                rpc_params['reset'] = reset
+                rpc_params["reset"] = reset
             if continuous is not None:
-                rpc_params['continuous'] = continuous
+                rpc_params["continuous"] = continuous
             if begin_voltage is not None:
-                rpc_params['begin_voltage'] = begin_voltage
+                rpc_params["begin_voltage"] = begin_voltage
             if end_voltage is not None:
-                rpc_params['end_voltage'] = end_voltage
+                rpc_params["end_voltage"] = end_voltage
             if step_voltage is not None:
-                rpc_params['step_voltage'] = step_voltage
+                rpc_params["step_voltage"] = step_voltage
             if waiting_time is not None:
-                rpc_params['waiting_time'] = waiting_time
+                rpc_params["waiting_time"] = waiting_time
             if compliance is not None:
-                rpc_params['compliance'] = compliance
+                rpc_params["compliance"] = compliance
             if waiting_time_continuous is not None:
-                rpc_params['waiting_time_continuous'] = waiting_time_continuous
+                rpc_params["waiting_time_continuous"] = waiting_time_continuous
             self.controller.rpc_params.update(rpc_params)
             self.controller.started.emit()
 
@@ -90,12 +90,12 @@ class TCPHandler(socketserver.BaseRequestHandler):
     buffer_size: int = 1024
 
     def handle(self) -> None:
-        self.data = self.request.recv(self.buffer_size).strip().decode('utf-8')
+        self.data = self.request.recv(self.buffer_size).strip().decode("utf-8")
         logger.info("%s wrote: %s", self.client_address[0], self.data)
         self.server.messageReady.emit(format(self.data))
         response = self.server.rpcHandler.handle(self.data)
         if response:
-            data = response.json.encode('utf-8')
+            data = response.json.encode("utf-8")
             logger.info("%s returned: %s", self.client_address[0], response.json)
             self.server.messageReady.emit(format(response.json))
             self.request.sendall(data)

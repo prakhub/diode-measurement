@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets
 
 from ..utils import ureg
 
-__all__ = ['GeneralWidget']
+__all__ = ["GeneralWidget"]
 
 
 class GeneralWidget(QtWidgets.QWidget):

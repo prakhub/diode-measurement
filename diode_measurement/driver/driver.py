@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Driver']
+__all__ = ["Driver"]
 
 
 def handle_exception(method):

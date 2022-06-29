@@ -3,7 +3,7 @@ import logging
 
 from .driver import SourceMeter, handle_exception
 
-__all__ = ['K237']
+__all__ = ["K237"]
 
 ERROR_MESSAGES = {
     0: "Trigger Overrun",
@@ -42,7 +42,7 @@ class K237(SourceMeter):
     WRITE_DELAY = 0.250
 
     def identity(self) -> str:
-        return self._query('U0X')
+        return self._query("U0X")
 
     def reset(self) -> None:
         self.resource.clear()
@@ -51,50 +51,50 @@ class K237(SourceMeter):
         self.resource.clear()
 
     def error_state(self) -> tuple:
-        result = self._query('U1X').strip()[3:]
+        result = self._query("U1X").strip()[3:]
         for index, value in enumerate(result):
-            if value == '1':
+            if value == "1":
                 return index, ERROR_MESSAGES.get(index, "Unknown Error")
         return 0, "No Error"
 
     def configure(self, **options) -> None:
-        self._write('F0,0X')
-        self._write('B0,0,0X')
-        filter_mode = options.get('filter.mode', 0)
-        self._write(f'P{filter_mode:d}X')
+        self._write("F0,0X")
+        self._write("B0,0,0X")
+        filter_mode = options.get("filter.mode", 0)
+        self._write(f"P{filter_mode:d}X")
 
     def get_output_enabled(self) -> bool:
-        return self._query('U3X')[18:20] == 'N1'
+        return self._query("U3X")[18:20] == "N1"
 
     def set_output_enabled(self, enabled: bool) -> None:
-        value = {False: 'N0X', True: 'N1X'}[enabled]
+        value = {False: "N0X", True: "N1X"}[enabled]
         self._write(value)
 
     def get_voltage_level(self) -> float:
-        self._write('G1,2,0X')
-        return float(self._query('X'))
+        self._write("G1,2,0X")
+        return float(self._query("X"))
 
     def set_voltage_level(self, level: float) -> None:
-        self._write(f'B{level:.3E},,X')
+        self._write(f"B{level:.3E},,X")
 
     def set_voltage_range(self, level: float) -> None:
         range = self._voltage_range(level)
-        self._write(f'B,{range:d},X')
+        self._write(f"B,{range:d},X")
 
     def set_current_compliance_level(self, level: float) -> None:
-        self._write(f'L{level:.3E},0X')
+        self._write(f"L{level:.3E},0X")
 
     def compliance_tripped(self) -> bool:
-        self._write('G1,0,0X')
-        return self._query('X')[0:2] == 'OS'
+        self._write("G1,0,0X")
+        return self._query("X")[0:2] == "OS"
 
     def read_current(self) -> float:
-        self._write('G4,2,0X')
-        return float(self._query('X'))
+        self._write("G4,2,0X")
+        return float(self._query("X"))
 
     @handle_exception
     def _write(self, message):
-        if not hasattr(self, '_write_timestamp'):
+        if not hasattr(self, "_write_timestamp"):
             self._write_timestamp = 0
         offset = self._write_timestamp + abs(type(self).WRITE_DELAY)
         interval = 0.025

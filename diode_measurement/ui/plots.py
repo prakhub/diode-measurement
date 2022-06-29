@@ -29,7 +29,7 @@ class DynamicValueAxis(QtChart.QValueAxis):
 
     def __init__(self, axis: QtChart.QValueAxis, unit: str) -> None:
         super().__init__(axis)
-        self.setProperty('axis', axis)
+        self.setProperty("axis", axis)
         self.setUnit(unit)
         self.setLocked(False)
         self.setRange(axis.min(), axis.max())
@@ -37,25 +37,25 @@ class DynamicValueAxis(QtChart.QValueAxis):
         axis.hide()
 
     def axis(self) -> QtChart.QValueAxis:
-        return self.property('axis')
+        return self.property("axis")
 
     def unit(self) -> str:
-        return self.property('unit')
+        return self.property("unit")
 
     def setUnit(self, unit: str) -> None:
-        self.setProperty('unit', unit)
+        self.setProperty("unit", unit)
 
     def setLocked(self, state: bool) -> None:
-        self.setProperty('locked', state)
+        self.setProperty("locked", state)
 
     def setRange(self, minimum: float, maximum: float) -> None:
-        if not self.property('locked'):
+        if not self.property("locked"):
             # Get best matching scale/prefix
             base = max(abs(minimum), abs(maximum))
             scale, prefix, _ = auto_scale(base)
             # Update labels prefix
             unit = self.unit()
-            self.setLabelFormat(f'%G {prefix}{unit}')
+            self.setLabelFormat(f"%G {prefix}{unit}")
             # Scale limits
             minimum *= 1 / scale
             maximum *= 1 / scale
@@ -206,7 +206,7 @@ class IVPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
-        self.iDynamicAxis = DynamicValueAxis(self.iAxis, 'A')
+        self.iDynamicAxis = DynamicValueAxis(self.iAxis, "A")
         self.iDynamicAxis.setTitleText("Current")
         self.iDynamicAxis.setTickCount(9)
         self.chart().addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
@@ -223,8 +223,8 @@ class IVPlotWidget(PlotWidget):
         self.iLimits = LimitsAggregator(self)
         self.vLimits = LimitsAggregator(self)
 
-        self.series['smu'] = self.smuSeries
-        self.series['elm'] = self.elmSeries
+        self.series["smu"] = self.smuSeries
+        self.series["elm"] = self.elmSeries
 
     def fitVAxis(self) -> None:
         self.vAxis.setReverse(self.isReverse())
@@ -296,7 +296,7 @@ class ItPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
-        self.iDynamicAxis = DynamicValueAxis(self.iAxis, 'A')
+        self.iDynamicAxis = DynamicValueAxis(self.iAxis, "A")
         self.iDynamicAxis.setTitleText("Current")
         self.iDynamicAxis.setTickCount(9)
         self.chart().addAxis(self.iDynamicAxis, QtCore.Qt.AlignLeft)
@@ -312,8 +312,8 @@ class ItPlotWidget(PlotWidget):
         self.iLimits = LimitsAggregator(self)
         self.tLimits = LimitsAggregator(self)
 
-        self.series['smu'] = self.smuSeries
-        self.series['elm'] = self.elmSeries
+        self.series["smu"] = self.smuSeries
+        self.series["elm"] = self.elmSeries
 
     def fitTAxis(self) -> None:
         if self.tLimits.isValid():
@@ -379,7 +379,7 @@ class CVPlotWidget(PlotWidget):
         self.chart().addAxis(self.cAxis, QtCore.Qt.AlignLeft)
         self.lcrSeries.attachAxis(self.cAxis)
 
-        self.cDynamicAxis = DynamicValueAxis(self.cAxis, 'F')
+        self.cDynamicAxis = DynamicValueAxis(self.cAxis, "F")
         self.cDynamicAxis.setTitleText("Capacitance")
         self.cDynamicAxis.setTickCount(9)
         self.chart().addAxis(self.cDynamicAxis, QtCore.Qt.AlignLeft)
@@ -396,7 +396,7 @@ class CVPlotWidget(PlotWidget):
         self.cLimits = LimitsAggregator(self)
         self.vLimits = LimitsAggregator(self)
 
-        self.series['lcr'] = self.lcrSeries
+        self.series["lcr"] = self.lcrSeries
 
     def fit(self) -> None:
         if self.chart().isZoomed():
@@ -457,7 +457,7 @@ class CV2PlotWidget(PlotWidget):
         self.cLimits = LimitsAggregator(self)
         self.vLimits = LimitsAggregator(self)
 
-        self.series['lcr'] = self.lcrSeries
+        self.series["lcr"] = self.lcrSeries
 
     def fit(self) -> None:
         if self.chart().isZoomed():
