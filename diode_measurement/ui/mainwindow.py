@@ -209,6 +209,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loggingDockWidget.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
         self.loggingDockWidget.setWidget(self.loggingWidget)
         self.loggingDockWidget.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.loggingDockWidget.hide()
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.loggingDockWidget)
         self.viewMenu.addAction(self.loggingDockWidget.toggleViewAction())
 
