@@ -276,6 +276,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         state["continuous"] = self.view.isContinuous()
         state["reset"] = self.view.isReset()
+        state["auto_reconnect"] = self.view.isAutoReconnect()
         state["voltage_begin"] = self.view.generalWidget.beginVoltage()
         state["voltage_end"] = self.view.generalWidget.endVoltage()
         state["voltage_step"] = self.view.generalWidget.stepVoltage()
@@ -335,6 +336,9 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         reset = settings.value("reset", False, bool)
         self.view.setReset(reset)
+
+        autoReconnect = settings.value("autoReconnect", False, bool)
+        self.view.setAutoReconnect(autoReconnect)
 
         settings.beginGroup("generalTab")
 
@@ -414,6 +418,9 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         reset = self.view.isReset()
         settings.setValue("reset", reset)
+
+        autoReconnect = self.view.isAutoReconnect()
+        settings.setValue("autoReconnect", autoReconnect)
 
         settings.beginGroup("generalTab")
 
@@ -746,6 +753,8 @@ class Controller(PluginRegistryMixin, AbstractController):
                     self.view.setReset(rpc_params.get("reset"))
                 if "continuous" in rpc_params:
                     self.view.setContinuous(rpc_params.get("continuous"))
+                if "auto_reconnect" in rpc_params:
+                    self.view.setAutoReconnect(rpc_params.get("auto_reconnect"))
                 if "end_voltage" in rpc_params:
                     self.view.generalWidget.setEndVoltage(rpc_params.get("end_voltage"))
                 if "begin_voltage" in rpc_params:

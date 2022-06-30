@@ -49,9 +49,10 @@ class RPCHandler:
         return self.manager.handle(request, self.dispatcher)
 
     def on_start(self, reset: bool = None, continuous: bool = None,
-                 measurement_type: str = None, begin_voltage: float = None,
-                 end_voltage: float = None, step_voltage: float = None,
-                 waiting_time: float = None, compliance: float = None,
+                 auto_reconnect: bool = None, measurement_type: str = None,
+                 begin_voltage: float = None, end_voltage: float = None,
+                 step_voltage: float = None, waiting_time: float = None,
+                 compliance: float = None,
                  waiting_time_continuous: float = None) -> None:
         with self.controller.rpc_params:
             rpc_params: Dict[str, Union[None, int, float, str]] = {}
@@ -59,6 +60,8 @@ class RPCHandler:
                 rpc_params["reset"] = reset
             if continuous is not None:
                 rpc_params["continuous"] = continuous
+            if auto_reconnect is not None:
+                rpc_params["auto_reconnect"] = auto_reconnect
             if begin_voltage is not None:
                 rpc_params["begin_voltage"] = begin_voltage
             if end_voltage is not None:

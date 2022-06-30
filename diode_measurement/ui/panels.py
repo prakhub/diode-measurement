@@ -11,8 +11,8 @@ __all__ = [
     "K2700Panel",
     "K6514Panel",
     "K6517BPanel",
-    "E4980APanel",
     "A4284APanel",
+    "E4980APanel",
 ]
 
 ConfigType = Dict[str, Any]
@@ -489,7 +489,6 @@ class A4284APanel(InstrumentPanel):
         self.amplitudeVoltageSpinBox.setSuffix(" mV")
         self.amplitudeVoltageSpinBox.setDecimals(0)
         self.amplitudeVoltageSpinBox.setRange(5, 20e3)
-        self.amplitudeVoltageSpinBox.setValue(1e3)
 
         self.amplitudeFrequencyTimeLabel = QtWidgets.QLabel("Frequency")
 
@@ -497,7 +496,6 @@ class A4284APanel(InstrumentPanel):
         self.amplitudeFrequencySpinBox.setSuffix(" kHz")
         self.amplitudeFrequencySpinBox.setDecimals(3)
         self.amplitudeFrequencySpinBox.setRange(0.020, 2e6)
-        self.amplitudeFrequencySpinBox.setValue(1.)
 
         self.amplitudeAlcCheckBox = QtWidgets.QCheckBox("Auto Level Control (ALC)")
 
@@ -520,13 +518,11 @@ class A4284APanel(InstrumentPanel):
         self.integrationTimeComboBox.addItem("Short", "SHOR")
         self.integrationTimeComboBox.addItem("Medium", "MED")
         self.integrationTimeComboBox.addItem("Long", "LONG")
-        self.integrationTimeComboBox.setCurrentIndex(1)
 
         self.averagingRateLabel = QtWidgets.QLabel("Averaging Rate")
 
         self.averagingRateSpinBox = QtWidgets.QSpinBox()
         self.averagingRateSpinBox.setRange(1, 128)
-        self.averagingRateSpinBox.setValue(1)
 
         apertureLayout = QtWidgets.QVBoxLayout(self.apertureGroupBox)
         apertureLayout.addWidget(self.integrationTimeLabel)
@@ -574,9 +570,23 @@ class A4284APanel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
+        self.restoreDefaults()
+
+    def amplitudeVoltage(self) -> float:
+        return self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
+
+    def setAmplitudeVoltage(self, voltage: float) -> None:
+        self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+
+    def amplitudeFrequency(self) -> float:
+        return self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+
+    def setAmplitudeFrequency(self, frequency: float) -> None:
+        self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+
     def restoreDefaults(self) -> None:
-        self.amplitudeVoltageSpinBox.setValue(1e3)  # mV
-        self.amplitudeFrequencySpinBox.setValue(1)  # kHz
+        self.setAmplitudeVoltage(1e0)
+        self.setAmplitudeFrequency(1e3)
         self.amplitudeAlcCheckBox.setChecked(False)
         self.integrationTimeComboBox.setCurrentIndex(1)
         self.averagingRateSpinBox.setValue(1)
@@ -596,8 +606,8 @@ class A4284APanel(InstrumentPanel):
 
     def config(self) -> ConfigType:
         config: ConfigType = {}
-        config["voltage"] = self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
-        config["frequency"] = self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+        config["voltage"] = self.amplitudeVoltage()
+        config["frequency"] = self.amplitudeFrequency()
         config["amplitude.alc"] = self.amplitudeAlcCheckBox.isChecked()
         config["aperture.integration_time"] = self.integrationTimeComboBox.currentData()
         config["aperture.averaging_rate"] = self.averagingRateSpinBox.value()
@@ -609,10 +619,10 @@ class A4284APanel(InstrumentPanel):
     def setConfig(self, config: ConfigType) -> None:
         voltage = config.get("voltage")
         if voltage is not None:
-            self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+            self.setAmplitudeVoltage(voltage)
         frequency = config.get("frequency")
         if frequency is not None:
-            self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+            self.setAmplitudeFrequency(frequency)
         amplitude_alc = config.get("amplitude.alc")
         if amplitude_alc is not None:
             self.amplitudeAlcCheckBox.setChecked(amplitude_alc)
@@ -651,7 +661,6 @@ class E4980APanel(InstrumentPanel):
         self.amplitudeVoltageSpinBox.setSuffix(" mV")
         self.amplitudeVoltageSpinBox.setDecimals(0)
         self.amplitudeVoltageSpinBox.setRange(0, 20e3)
-        self.amplitudeVoltageSpinBox.setValue(1e3)
 
         self.amplitudeFrequencyTimeLabel = QtWidgets.QLabel("Frequency")
 
@@ -659,7 +668,6 @@ class E4980APanel(InstrumentPanel):
         self.amplitudeFrequencySpinBox.setSuffix(" kHz")
         self.amplitudeFrequencySpinBox.setDecimals(3)
         self.amplitudeFrequencySpinBox.setRange(0.020, 2e6)
-        self.amplitudeFrequencySpinBox.setValue(1.)
 
         self.amplitudeAlcCheckBox = QtWidgets.QCheckBox("Auto Level Control (ALC)")
 
@@ -682,13 +690,11 @@ class E4980APanel(InstrumentPanel):
         self.integrationTimeComboBox.addItem("Short", "SHOR")
         self.integrationTimeComboBox.addItem("Medium", "MED")
         self.integrationTimeComboBox.addItem("Long", "LONG")
-        self.integrationTimeComboBox.setCurrentIndex(1)
 
         self.averagingRateLabel = QtWidgets.QLabel("Averaging Rate")
 
         self.averagingRateSpinBox = QtWidgets.QSpinBox()
         self.averagingRateSpinBox.setRange(1, 128)
-        self.averagingRateSpinBox.setValue(1)
 
         apertureLayout = QtWidgets.QVBoxLayout(self.apertureGroupBox)
         apertureLayout.addWidget(self.integrationTimeLabel)
@@ -736,9 +742,23 @@ class E4980APanel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
+        self.restoreDefaults()
+
+    def amplitudeVoltage(self) -> float:
+        return self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
+
+    def setAmplitudeVoltage(self, voltage: float) -> None:
+        self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+
+    def amplitudeFrequency(self) -> float:
+        return self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+
+    def setAmplitudeFrequency(self, frequency: float) -> None:
+        self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+
     def restoreDefaults(self) -> None:
-        self.amplitudeVoltageSpinBox.setValue(1e3)  # mV
-        self.amplitudeFrequencySpinBox.setValue(1)  # kHz
+        self.setAmplitudeVoltage(1e0)
+        self.setAmplitudeFrequency(1e3)
         self.amplitudeAlcCheckBox.setChecked(False)
         self.integrationTimeComboBox.setCurrentIndex(1)
         self.averagingRateSpinBox.setValue(1)
@@ -758,8 +778,8 @@ class E4980APanel(InstrumentPanel):
 
     def config(self) -> ConfigType:
         config: ConfigType = {}
-        config["voltage"] = self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
-        config["frequency"] = self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+        config["voltage"] = self.amplitudeVoltage()
+        config["frequency"] = self.amplitudeFrequency()
         config["amplitude.alc"] = self.amplitudeAlcCheckBox.isChecked()
         config["aperture.integration_time"] = self.integrationTimeComboBox.currentData()
         config["aperture.averaging_rate"] = self.averagingRateSpinBox.value()
@@ -771,10 +791,10 @@ class E4980APanel(InstrumentPanel):
     def setConfig(self, config: ConfigType) -> None:
         voltage = config.get("voltage")
         if voltage is not None:
-            self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+            self.setAmplitudeVoltage(voltage)
         frequency = config.get("frequency")
         if frequency is not None:
-            self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+            self.setAmplitudeFrequency(frequency)
         amplitude_alc = config.get("amplitude.alc")
         if amplitude_alc is not None:
             self.amplitudeAlcCheckBox.setChecked(amplitude_alc)

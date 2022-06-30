@@ -45,11 +45,12 @@ VSVersionInfo(
 )
 """
 
-with open("_app.py", "wt") as fp:
+# Create entry point
+with open("entry_point.py", "wt") as fp:
     fp.write("from diode_measurement.__main__ import main; main()")
 
 # Create windows version info
-with open("_version.txt", "wt") as fp:
+with open("version_info.txt", "wt") as fp:
     fp.write(version_info.format(
         name=name,
         organization=organization,
@@ -58,7 +59,7 @@ with open("_version.txt", "wt") as fp:
     ))
 
 a = Analysis(
-    ["_app.py"],
+    ["entry_point.py"],
     pathex=[os.getcwd()],
     binaries=[],
     datas=[
@@ -94,7 +95,7 @@ exe = EXE(
     a.datas,
     [],
     name=filename,
-    version="_version.txt",
+    version="version_info.txt",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

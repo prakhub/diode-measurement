@@ -173,24 +173,31 @@ class GeneralWidget(QtWidgets.QWidget):
         layout.setStretch(1, 1)
         layout.setStretch(2, 1)
 
-    def setLocked(self, state: bool) -> None:
-        self.measurementComboBox.setEnabled(not state)
-        self.instrumentWidget.setEnabled(not state)
-        self.outputGroupBox.setEnabled(not state)
-        self.beginVoltageSpinBox.setEnabled(not state)
-        self.endVoltageSpinBox.setEnabled(not state)
-        self.stepVoltageSpinBox.setEnabled(not state)
-        self.waitingTimeSpinBox.setEnabled(not state)
-        self.changeVoltageButton.setEnabled(not state)
-        self.currentComplianceSpinBox.setEnabled(not state)
-        self.continueInComplianceCheckBox.setEnabled(not state)
-        self.waitingTimeContinuousSpinBox.setEnabled(not state)
+    def setIdleState(self) -> None:
+        self.measurementComboBox.setEnabled(True)
+        self.instrumentWidget.setEnabled(True)
+        self.outputGroupBox.setEnabled(True)
+        self.beginVoltageSpinBox.setEnabled(True)
+        self.endVoltageSpinBox.setEnabled(True)
+        self.stepVoltageSpinBox.setEnabled(True)
+        self.waitingTimeSpinBox.setEnabled(True)
+        self.changeVoltageButton.setEnabled(False)
+        self.currentComplianceSpinBox.setEnabled(True)
+        self.continueInComplianceCheckBox.setEnabled(True)
+
+    def setRunningState(self) -> None:
+        self.measurementComboBox.setEnabled(False)
+        self.instrumentWidget.setEnabled(False)
+        self.outputGroupBox.setEnabled(False)
+        self.beginVoltageSpinBox.setEnabled(False)
+        self.endVoltageSpinBox.setEnabled(False)
+        self.stepVoltageSpinBox.setEnabled(False)
+        self.waitingTimeSpinBox.setEnabled(False)
 
     def setStoppingState(self):
         self.changeVoltageButton.setEnabled(False)
         self.currentComplianceSpinBox.setEnabled(False)
         self.continueInComplianceCheckBox.setEnabled(False)
-        self.waitingTimeContinuousSpinBox.setEnabled(False)
 
     def addMeasurement(self, spec):
         self.measurementComboBox.addItem(spec.get("title"), spec)

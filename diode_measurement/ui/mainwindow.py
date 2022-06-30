@@ -61,7 +61,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.changeVoltageAction = QtWidgets.QAction("&Change Voltage...")
         self.changeVoltageAction.setStatusTip("Change voltage in continuous measurement")
-        self.changeVoltageAction.setEnabled(False)
         self.changeVoltageAction.triggered.connect(self.prepareChangeVoltage.emit)
 
         self.contentsAction = QtWidgets.QAction("&Contents")
@@ -139,6 +138,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resetCheckBox = QtWidgets.QCheckBox("&Reset Instruments")
         self.resetCheckBox.setToolTip("Reset instruments on start")
         self.resetCheckBox.setStatusTip("Reset instruments on start")
+
+        self.autoReconnectCheckBox = QtWidgets.QCheckBox("&Auto Reconnect")
+        self.autoReconnectCheckBox.setToolTip("Auto reconnect and retry on connection erros")
+        self.autoReconnectCheckBox.setStatusTip("Auto reconnect and retry on connection erros")
 
         self.generalWidget = GeneralWidget()
         self.generalWidget.changeVoltageButton.clicked.connect(self.changeVoltageAction.trigger)
@@ -230,6 +233,7 @@ class MainWindow(QtWidgets.QMainWindow):
         controlLayout.addWidget(self.stopButton)
         controlLayout.addWidget(self.continuousCheckBox)
         controlLayout.addWidget(self.resetCheckBox)
+        controlLayout.addWidget(self.autoReconnectCheckBox)
         controlLayout.addStretch()
 
         smuGroupBox = QtWidgets.QHBoxLayout(self.smuGroupBox)
@@ -363,7 +367,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopButton.setChecked(False)
         self.continuousCheckBox.setEnabled(True)
         self.resetCheckBox.setEnabled(True)
-        self.generalWidget.setLocked(False)
+        self.autoReconnectCheckBox.setEnabled(True)
+        self.generalWidget.setIdleState()
+        self.setChangeVoltageEnabled(False)
         for role in self.roles():
             role.setLocked(False)
         self.setProperty("locked", False)
@@ -380,7 +386,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopButton.setChecked(False)
         self.continuousCheckBox.setEnabled(False)
         self.resetCheckBox.setEnabled(False)
-        self.generalWidget.setLocked(True)
+        self.autoReconnectCheckBox.setEnabled(False)
+        self.generalWidget.setRunningState()
         for role in self.roles():
             role.setLocked(True)
 
@@ -388,6 +395,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopAction.setEnabled(False)
         self.stopButton.setEnabled(False)
         self.generalWidget.setStoppingState()
+        self.setChangeVoltageEnabled(False)
 
     def setMessage(self, message: str) -> None:
         self.messageLabel.show()
@@ -434,6 +442,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setReset(self, enabled: bool) -> None:
         return self.resetCheckBox.setChecked(enabled)
+
+    def isAutoReconnect(self) -> bool:
+        return self.autoReconnectCheckBox.isChecked()
+
+    def setAutoReconnect(self, enabled: bool) -> None:
+        return self.autoReconnectCheckBox.setChecked(enabled)
 
     def setSourceEnabled(self, source: str, enabled: bool) -> None:
         for widget in self.roles():
