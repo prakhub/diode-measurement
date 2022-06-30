@@ -2,8 +2,11 @@ include README.md
 include LICENSE
 include changelog
 include requirements.txt
+include tox.ini
 
 include pyinstaller.spec
 include diode_measurement/assets/icons/*.svg
 include diode_measurement/assets/icons/*.ico
+include docs/images/*.png
+
 recursive-include tests *.py
