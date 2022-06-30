@@ -14,7 +14,7 @@ from .plots import CV2PlotWidget
 
 from .general import GeneralWidget
 from .role import RoleWidget
-from .logwindow import LogWindow
+from .logwindow import LogWidget
 
 from ..utils import format_metric
 from ..utils import format_switch
@@ -34,7 +34,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._createMenus()
         self._createWidgets()
         self._createLayout()
-        self._createDialogs()
 
     def _createActions(self) -> None:
         self.importAction = QtWidgets.QAction("&Import File...")
@@ -44,10 +43,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.quitAction.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
         self.quitAction.setStatusTip("Quit the application")
         self.quitAction.triggered.connect(self.close)
-
-        self.logWindowAction = QtWidgets.QAction("Logging...")
-        self.logWindowAction.setStatusTip("Show log window")
-        self.logWindowAction.triggered.connect(self.showLogWindow)
 
         self.startAction = QtWidgets.QAction("&Start")
         self.startAction.setStatusTip("Start a new measurement")
@@ -61,7 +56,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.changeVoltageAction = QtWidgets.QAction("&Change Voltage...")
         self.changeVoltageAction.setStatusTip("Change voltage in continuous measurement")
-        self.changeVoltageAction.setEnabled(False)
         self.changeVoltageAction.triggered.connect(self.prepareChangeVoltage.emit)
 
         self.contentsAction = QtWidgets.QAction("&Contents")
@@ -84,7 +78,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fileMenu.addAction(self.quitAction)
 
         self.viewMenu = self.menuBar().addMenu("&View")
-        self.viewMenu.addAction(self.logWindowAction)
 
         self.measureMenu = self.menuBar().addMenu("&Measure")
         self.measureMenu.addAction(self.startAction)
@@ -109,15 +102,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cv2PlotWidget = CV2PlotWidget()
 
         self.ivWidget = QtWidgets.QWidget()
-        # self.ivWidget.setContentsMargins(0, 0, 0, 0)
 
         self.cvWidget = QtWidgets.QWidget()
-        # self.cvWidget.setContentsMargins(0, 0, 0, 0)
 
         self.dataStackedWidget = QtWidgets.QStackedWidget()
         self.dataStackedWidget.addWidget(self.ivWidget)
         self.dataStackedWidget.addWidget(self.cvWidget)
-        # self.dataStackedWidget.setContentsMargins(0, 0, 0, 0)
+        self.dataStackedWidget.setMinimumHeight(240)
 
         self.startButton = QtWidgets.QPushButton("&Start")
         self.startButton.setToolTip("Start a new measurement")
@@ -139,6 +130,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resetCheckBox = QtWidgets.QCheckBox("&Reset Instruments")
         self.resetCheckBox.setToolTip("Reset instruments on start")
         self.resetCheckBox.setStatusTip("Reset instruments on start")
+
+        self.autoReconnectCheckBox = QtWidgets.QCheckBox("&Auto Reconnect")
+        self.autoReconnectCheckBox.setToolTip("Auto reconnect and retry on connection erros")
+        self.autoReconnectCheckBox.setStatusTip("Auto reconnect and retry on connection erros")
 
         self.generalWidget = GeneralWidget()
         self.generalWidget.changeVoltageButton.clicked.connect(self.changeVoltageAction.trigger)
@@ -203,6 +198,22 @@ class MainWindow(QtWidgets.QMainWindow):
         centralWidget = QtWidgets.QWidget()
         self.setCentralWidget(centralWidget)
 
+        # Dock widgets
+
+        self.loggingWidget = LogWidget(self)
+        self.loggingWidget.addLogger(logging.getLogger())
+        self.loggingWidget.setLevel(logging.DEBUG)
+
+        self.loggingDockWidget = QtWidgets.QDockWidget("Logging")
+        self.loggingDockWidget.setObjectName("loggingDockWidget")
+        self.loggingDockWidget.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.loggingDockWidget.setWidget(self.loggingWidget)
+        self.loggingDockWidget.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.loggingDockWidget)
+        self.viewMenu.addAction(self.loggingDockWidget.toggleViewAction())
+
+        # Status bar
+
         self.messageLabel = QtWidgets.QLabel()
         self.statusBar().addPermanentWidget(self.messageLabel)
 
@@ -230,6 +241,7 @@ class MainWindow(QtWidgets.QMainWindow):
         controlLayout.addWidget(self.stopButton)
         controlLayout.addWidget(self.continuousCheckBox)
         controlLayout.addWidget(self.resetCheckBox)
+        controlLayout.addWidget(self.autoReconnectCheckBox)
         controlLayout.addStretch()
 
         smuGroupBox = QtWidgets.QHBoxLayout(self.smuGroupBox)
@@ -310,13 +322,6 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.dataStackedWidget)
         layout.addLayout(bottomLayout)
 
-    def _createDialogs(self) -> None:
-        self.logWindow = LogWindow()
-        self.logWindow.addLogger(logging.getLogger())
-        self.logWindow.setLevel(logging.DEBUG)
-        self.logWindow.resize(640, 420)
-        self.logWindow.hide()
-
     def addRole(self, name: str) -> RoleWidget:
         if name in self.roleWidgets:
             raise KeyError(f"No suc role: {name}")
@@ -363,7 +368,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopButton.setChecked(False)
         self.continuousCheckBox.setEnabled(True)
         self.resetCheckBox.setEnabled(True)
-        self.generalWidget.setLocked(False)
+        self.autoReconnectCheckBox.setEnabled(True)
+        self.generalWidget.setIdleState()
+        self.setChangeVoltageEnabled(False)
         for role in self.roles():
             role.setLocked(False)
         self.setProperty("locked", False)
@@ -380,7 +387,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopButton.setChecked(False)
         self.continuousCheckBox.setEnabled(False)
         self.resetCheckBox.setEnabled(False)
-        self.generalWidget.setLocked(True)
+        self.autoReconnectCheckBox.setEnabled(False)
+        self.generalWidget.setRunningState()
         for role in self.roles():
             role.setLocked(True)
 
@@ -388,6 +396,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stopAction.setEnabled(False)
         self.stopButton.setEnabled(False)
         self.generalWidget.setStoppingState()
+        self.setChangeVoltageEnabled(False)
 
     def setMessage(self, message: str) -> None:
         self.messageLabel.show()
@@ -435,6 +444,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def setReset(self, enabled: bool) -> None:
         return self.resetCheckBox.setChecked(enabled)
 
+    def isAutoReconnect(self) -> bool:
+        return self.autoReconnectCheckBox.isChecked()
+
+    def setAutoReconnect(self, enabled: bool) -> None:
+        return self.autoReconnectCheckBox.setChecked(enabled)
+
     def setSourceEnabled(self, source: str, enabled: bool) -> None:
         for widget in self.roles():
             if widget.name() == source:
@@ -468,10 +483,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def updateDMMTemperature(self, temperature: float) -> None:
         self.dmmTemperatureLineEdit.setText(format_metric(temperature, "°C"))
 
-    def showLogWindow(self) -> None:
-        self.logWindow.show()
-        self.logWindow.raise_()
-
     def showContents(self) -> None:
         webbrowser.open(self.property("contentsUrl"))
 
@@ -491,5 +502,4 @@ class MainWindow(QtWidgets.QMainWindow):
             self.showActiveInfo()
             event.ignore()
         else:
-            self.logWindow.close()
             event.accept()

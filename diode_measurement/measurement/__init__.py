@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, List
 
 from PyQt5 import QtCore
 
-from ..resource import Resource
+from ..resource import Resource, AutoReconnectResource
 from ..driver import driver_factory
 
 from ..functions import LinearRange
@@ -54,7 +54,10 @@ class Measurement(QtCore.QObject):
         if not cls:
             logger.warning("No such driver: %s", model)
             return None
-        resource = Resource(
+        # If auto reconnect use experimental class AutoReconnectResource
+        auto_reconnect = self.state.get("auto_reconnect", False)
+        resource_cls = AutoReconnectResource if auto_reconnect else Resource
+        resource = resource_cls(
             resource_name=resource_name,
             visa_library=visa_library,
             read_termination=termination,

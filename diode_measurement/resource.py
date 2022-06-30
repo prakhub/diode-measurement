@@ -1,15 +1,16 @@
 import logging
+import time
 
 import pyvisa
 
-__all__ = ["ResourceError", "Resource"]
+__all__ = ["ResourceError", "Resource", "AutoReconnectResource"]
 
 logger = logging.getLogger(__name__)
 
 
 class ResourceError(Exception):
 
-    pass
+    ...
 
 
 class Resource:
@@ -35,14 +36,20 @@ class Resource:
 
     def __exit__(self, *exc):
         try:
-            self._resource.close()
+            if self._resource is not None:
+                self._resource.close()
+        except pyvisa.Error as exc:
+            raise ResourceError(f"{self.resource_name}: {exc}") from exc
         finally:
             self._resource = None
+            return False
 
     def query(self, message):
         try:
-            self.write(message)
-            return self.read()
+            logger.debug("resource.write: `%s`", message)
+            result = self._resource.query(message)
+            logger.debug("resource.read: `%s`", result)
+            return result
         except pyvisa.Error as exc:
             raise ResourceError(f"{self.resource_name}: {exc}") from exc
 
@@ -62,4 +69,43 @@ class Resource:
             raise ResourceError(f"{self.resource_name}: {exc}") from exc
 
     def clear(self):
-        self._resource.clear()
+        try:
+            self._resource.clear()
+        except pyvisa.Error as exc:
+            raise ResourceError(f"{self.resource_name}: {exc}") from exc
+
+
+class AutoReconnectResource(Resource):
+
+    retry_attempts = 3
+    retry_delay = 1.0
+
+    def _reconnect_retry(self, target, *args):
+        for attempt in range(self.retry_attempts + 1):
+            try:
+                if attempt:
+                    logger.info("auto reconnect to resource (%d/%d): %s", attempt, self.retry_attempts, repr(self.resource_name))
+                    try:
+                        self.__exit__()
+                    except:
+                        ...
+                    time.sleep(self.retry_delay)
+                    self.__enter__()
+                return target(*args)
+            except (pyvisa.Error, ConnectionError, ResourceError) as exc:
+                if attempt < self.retry_attempts:
+                    logger.exception(exc)
+                else:
+                    raise
+
+    def query(self, message):
+        return self._reconnect_retry(super().query, message)
+
+    def write(self, message):
+        return self._reconnect_retry(super().write, message)
+
+    def read(self):
+        return self._reconnect_retry(super().read)
+
+    def clear(self, message):
+        return self._reconnect_retry(super().clear, message)

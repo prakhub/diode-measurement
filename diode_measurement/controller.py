@@ -276,6 +276,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         state["continuous"] = self.view.isContinuous()
         state["reset"] = self.view.isReset()
+        state["auto_reconnect"] = self.view.isAutoReconnect()
         state["voltage_begin"] = self.view.generalWidget.beginVoltage()
         state["voltage_end"] = self.view.generalWidget.endVoltage()
         state["voltage_step"] = self.view.generalWidget.stepVoltage()
@@ -324,17 +325,23 @@ class Controller(PluginRegistryMixin, AbstractController):
     def loadSettings(self):
         settings = QtCore.QSettings()
 
-        size = settings.value("mainwindow.size", QtCore.QSize(800, 600), QtCore.QSize)
-        self.view.resize(size)
+        geometry = settings.value("mainwindow/geometry", QtCore.QByteArray(), QtCore.QByteArray)
+        if geometry.isEmpty():
+            self.view.resize(800, 600)
+        else:
+            self.view.restoreGeometry(geometry)
 
-        size = settings.value("logwindow.size", QtCore.QSize(640, 480), QtCore.QSize)
-        self.view.logWindow.resize(size)
+        state = settings.value("mainwindow/state", QtCore.QByteArray(), QtCore.QByteArray)
+        self.view.restoreState(state)
 
         continuous = settings.value("continuous", False, bool)
         self.view.setContinuous(continuous)
 
         reset = settings.value("reset", False, bool)
         self.view.setReset(reset)
+
+        autoReconnect = settings.value("autoReconnect", False, bool)
+        self.view.setAutoReconnect(autoReconnect)
 
         settings.beginGroup("generalTab")
 
@@ -403,17 +410,17 @@ class Controller(PluginRegistryMixin, AbstractController):
     def storeSettings(self):
         settings = QtCore.QSettings()
 
-        size = self.view.size()
-        settings.setValue("mainwindow.size", size)
-
-        size = self.view.logWindow.size()
-        settings.setValue("logwindow.size", size)
+        settings.setValue("mainwindow/geometry", self.view.saveGeometry())
+        settings.setValue("mainwindow/state", self.view.saveState())
 
         continuous = self.view.isContinuous()
         settings.setValue("continuous", continuous)
 
         reset = self.view.isReset()
         settings.setValue("reset", reset)
+
+        autoReconnect = self.view.isAutoReconnect()
+        settings.setValue("autoReconnect", autoReconnect)
 
         settings.beginGroup("generalTab")
 
@@ -746,6 +753,8 @@ class Controller(PluginRegistryMixin, AbstractController):
                     self.view.setReset(rpc_params.get("reset"))
                 if "continuous" in rpc_params:
                     self.view.setContinuous(rpc_params.get("continuous"))
+                if "auto_reconnect" in rpc_params:
+                    self.view.setAutoReconnect(rpc_params.get("auto_reconnect"))
                 if "end_voltage" in rpc_params:
                     self.view.generalWidget.setEndVoltage(rpc_params.get("end_voltage"))
                 if "begin_voltage" in rpc_params:
