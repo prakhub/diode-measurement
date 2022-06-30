@@ -325,11 +325,14 @@ class Controller(PluginRegistryMixin, AbstractController):
     def loadSettings(self):
         settings = QtCore.QSettings()
 
-        size = settings.value("mainwindow.size", QtCore.QSize(800, 600), QtCore.QSize)
-        self.view.resize(size)
+        geometry = settings.value("mainwindow/geometry", QtCore.QByteArray(), QtCore.QByteArray)
+        if geometry.isEmpty():
+            self.view.resize(800, 600)
+        else:
+            self.view.restoreGeometry(geometry)
 
-        size = settings.value("logwindow.size", QtCore.QSize(640, 480), QtCore.QSize)
-        self.view.logWindow.resize(size)
+        state = settings.value("mainwindow/state", QtCore.QByteArray(), QtCore.QByteArray)
+        self.view.restoreState(state)
 
         continuous = settings.value("continuous", False, bool)
         self.view.setContinuous(continuous)
@@ -407,11 +410,8 @@ class Controller(PluginRegistryMixin, AbstractController):
     def storeSettings(self):
         settings = QtCore.QSettings()
 
-        size = self.view.size()
-        settings.setValue("mainwindow.size", size)
-
-        size = self.view.logWindow.size()
-        settings.setValue("logwindow.size", size)
+        settings.setValue("mainwindow/geometry", self.view.saveGeometry())
+        settings.setValue("mainwindow/state", self.view.saveState())
 
         continuous = self.view.isContinuous()
         settings.setValue("continuous", continuous)

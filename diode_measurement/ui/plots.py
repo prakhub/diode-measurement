@@ -31,7 +31,6 @@ class DynamicValueAxis(QtChart.QValueAxis):
         super().__init__(axis)
         self.setProperty("axis", axis)
         self.setUnit(unit)
-        self.setLocked(False)
         self.setRange(axis.min(), axis.max())
         axis.rangeChanged.connect(self.setRange)
         axis.hide()
@@ -45,22 +44,18 @@ class DynamicValueAxis(QtChart.QValueAxis):
     def setUnit(self, unit: str) -> None:
         self.setProperty("unit", unit)
 
-    def setLocked(self, state: bool) -> None:
-        self.setProperty("locked", state)
-
     def setRange(self, minimum: float, maximum: float) -> None:
-        if not self.property("locked"):
-            # Get best matching scale/prefix
-            base = max(abs(minimum), abs(maximum))
-            scale, prefix, _ = auto_scale(base)
-            # Update labels prefix
-            unit = self.unit()
-            self.setLabelFormat(f"%G {prefix}{unit}")
-            # Scale limits
-            minimum *= 1 / scale
-            maximum *= 1 / scale
-            # Update axis range
-            super().setRange(minimum, maximum)
+        # Get best matching scale/prefix
+        base = max(abs(minimum), abs(maximum))
+        scale, prefix, _ = auto_scale(base)
+        # Update labels prefix
+        unit = self.unit()
+        self.setLabelFormat(f"%G {prefix}{unit}")
+        # Scale limits
+        minimum *= 1 / scale
+        maximum *= 1 / scale
+        # Update axis range
+        super().setRange(minimum, maximum)
 
 
 class LimitsAggregator(QtCore.QObject):
@@ -244,10 +239,8 @@ class IVPlotWidget(PlotWidget):
             minimum = 0
             maximum = 200e-9
         # HACK limit axis range to 1 pF minimum
-        minimum, maximum = limitRange(minimum, maximum, 1e-12)
-        self.iDynamicAxis.setLocked(True)
+        minimum, maximum = limitRange(minimum, maximum, 2e-12)
         self.iAxis.setRange(minimum, maximum)
-        self.iDynamicAxis.setLocked(False)
         self.iAxis.applyNiceNumbers()
 
     def fit(self) -> None:
@@ -336,10 +329,8 @@ class ItPlotWidget(PlotWidget):
             minimum = 0
             maximum = 200e-9
         # HACK limit axis range to 1 pF minimum
-        minimum, maximum = limitRange(minimum, maximum, 1e-12)
-        self.iDynamicAxis.setLocked(True)
+        minimum, maximum = limitRange(minimum, maximum, 2e-12)
         self.iAxis.setRange(minimum, maximum)
-        self.iDynamicAxis.setLocked(False)
         self.iAxis.applyNiceNumbers()
 
     def fit(self) -> None:
@@ -406,11 +397,9 @@ class CVPlotWidget(PlotWidget):
         self.vAxis.setReverse(minimum > maximum)
         minimum, maximum = sorted((minimum, maximum))
         self.vAxis.setRange(minimum, maximum)
-        self.cDynamicAxis.setLocked(True)
         # HACK limit axis range to 1 pF minimum
-        minimum, maximum = limitRange(self.cLimits.minimum(), self.cLimits.maximum(), 1e-12)
+        minimum, maximum = limitRange(self.cLimits.minimum(), self.cLimits.maximum(), 2e-12)
         self.cAxis.setRange(minimum, maximum)
-        self.cDynamicAxis.setLocked(False)
         self.cAxis.applyNiceNumbers()
 
     def clear(self) -> None:

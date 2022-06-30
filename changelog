@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Auto reconnect and retry for resource connections (see #41).
 
+### Changed
+- Logging is now a dock widget at the bottom.
+
 ### Fixed
 - Enable change voltage button only while in continuous mode.
 
