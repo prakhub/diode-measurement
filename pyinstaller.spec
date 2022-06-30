@@ -1,62 +1,34 @@
 import os
+from pyinstaller_versionfile import create_versionfile
+
 import diode_measurement
 
 version = diode_measurement.__version__
-name = "diode-measurement"
-filename = f"{name}-{version}.exe"
-organization = "HEPHY"
-license = "GPLv3"
+filename = f"diode-measurement-{version}.exe"
 console = True
 block_cipher = None
 
 package_root = os.path.join(os.path.dirname(diode_measurement.__file__))
 package_icon = os.path.join(package_root, "assets", "icons", "diode-measurement.ico")
 
-# Windows version info template
-version_info = """
-VSVersionInfo(
-    ffi=FixedFileInfo(
-        filevers=({version[0]}, {version[1]}, {version[2]}, 0),
-        prodvers=({version[0]}, {version[1]}, {version[2]}, 0),
-        mask=0x3f,
-        flags=0x0,
-        OS=0x4,
-        fileType=0x1,
-        subtype=0x0,
-        date=(0, 0)
-    ),
-    kids=[
-        StringFileInfo(
-            [
-            StringTable(
-                u'000004b0',
-                [StringStruct(u'CompanyName', u'{organization}'),
-                StringStruct(u'FileDescription', u'{name}'),
-                StringStruct(u'FileVersion', u'{version[0]}.{version[1]}.{version[2]}.0'),
-                StringStruct(u'InternalName', u'{name}'),
-                StringStruct(u'LegalCopyright', u'{license}'),
-                StringStruct(u'OriginalFilename', u'{name}.exe'),
-                StringStruct(u'ProductName', u'{name}'),
-                StringStruct(u'ProductVersion', u'{version[0]}.{version[1]}.{version[2]}.0'),
-                ])
-            ]),
-        VarFileInfo([VarStruct(u'Translation', [0, 1200])])
-    ]
-)
-"""
-
 # Create entry point
-with open("entry_point.py", "wt") as fp:
-    fp.write("from diode_measurement.__main__ import main; main()")
+def create_entrypoint(output_file):
+  with open(output_file, "wt") as fp:
+      fp.write("from diode_measurement.__main__ import main; main()")
+
+create_entrypoint(output_file="entry_point.py")
 
 # Create windows version info
-with open("version_info.txt", "wt") as fp:
-    fp.write(version_info.format(
-        name=name,
-        organization=organization,
-        version=version.split("."),
-        license=license
-    ))
+create_versionfile(
+    output_file="version_info.txt",
+    version=f"{version}.0",
+    company_name="HEPHY",
+    file_description="IV/CV measurements for silicon sensors",
+    internal_name="Diode Measurement",
+    legal_copyright="Copyright 2021-2022 HEPHY. All rights reserved.",
+    original_filename=filename,
+    product_name="Diode Measurement"
+)
 
 a = Analysis(
     ["entry_point.py"],
