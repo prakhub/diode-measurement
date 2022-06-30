@@ -84,6 +84,7 @@ class LogWidget(QtWidgets.QTextEdit):
             scrollbar.setValue(position)
 
     def ensureRecentRecordsVisible(self) -> None:
+        scrollbar = self.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
     @classmethod
