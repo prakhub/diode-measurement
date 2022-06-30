@@ -392,6 +392,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generalWidget.setRunningState()
         for role in self.roles():
             role.setLocked(True)
+        self.loggingWidget.ensureRecentRecordsVisible()
 
     def setStoppingState(self) -> None:
         self.stopAction.setEnabled(False)

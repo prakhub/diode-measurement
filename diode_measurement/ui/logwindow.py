@@ -83,6 +83,9 @@ class LogWidget(QtWidgets.QTextEdit):
         else:
             scrollbar.setValue(position)
 
+    def ensureRecentRecordsVisible(self) -> None:
+        scrollbar.setValue(scrollbar.maximum())
+
     @classmethod
     def formatTime(cls, seconds: float) -> str:
         """Format timestamp for log record."""

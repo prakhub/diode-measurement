@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Enable change voltage button only while in continuous mode.
+- Show most recent log entries on measurement start.
 
 ## [0.11.0] - 2022-06-29
 
