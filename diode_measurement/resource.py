@@ -107,5 +107,5 @@ class AutoReconnectResource(Resource):
     def read(self):
         return self._reconnect_retry(super().read)
 
-    def clear(self, message):
-        return self._reconnect_retry(super().clear, message)
+    def clear(self):
+        return self._reconnect_retry(super().clear)

@@ -4,21 +4,34 @@ IV/CV measurements for silicon sensors.
 
 ## Install
 
+Install using pip in a virtual environment.
+
+```bash
+pip install git+https://github.com/hephy-dd/diode-measurement.git@{version}
+```
+
 On Windows download a pre-built executable from the release section and run it.
 
-## Build
+## Build Executable
 
 Building a Windows executable using PyInstaller.
 
 ```bash
+# Create build environment
 python -m venv build_env
 . build_env/Scripts/activate
+
+# Install dependencies
 pip install -U pip
-pip install pyinstaller
-python setup.py install
-python setup.py test
-pyinstaller ./pyinstaller.spec
+pip install wheel pyusb pyserial gpib-ctypes
+pip install pyinstaller==4.10.* pyinstaller-versionfile==2.0.*
+pip install .
+
+# Build executable
+pyinstaller pyinstaller.spec
 ```
+
+An executable will be created in `dist/diode-measurement-{version}.exe`
 
 ## Supported Instruments
 
