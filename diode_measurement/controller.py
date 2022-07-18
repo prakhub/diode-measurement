@@ -165,6 +165,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
         self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
         self.failed.connect(self.handleException)
+        self.finished.connect(self.saveScreenshot)
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -277,6 +278,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         state["continuous"] = self.view.isContinuous()
         state["reset"] = self.view.isReset()
         state["auto_reconnect"] = self.view.isAutoReconnect()
+        state["save_screenshot"] = self.view.generalWidget.isSaveScreenshot()
         state["voltage_begin"] = self.view.generalWidget.beginVoltage()
         state["voltage_end"] = self.view.generalWidget.endVoltage()
         state["voltage_step"] = self.view.generalWidget.stepVoltage()
@@ -369,6 +371,9 @@ class Controller(PluginRegistryMixin, AbstractController):
         path = settings.value("outputDir", os.path.expanduser("~"))
         self.view.generalWidget.setOutputDir(path)
 
+        saveScreenshot = settings.value("saveScreenshot", False, bool)
+        self.view.generalWidget.setSaveScreenshot(saveScreenshot)
+
         voltage = settings.value("beginVoltage", 1, float)
         self.view.generalWidget.setBeginVoltage(voltage)
 
@@ -447,6 +452,9 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         path = self.view.generalWidget.outputDir()
         settings.setValue("outputDir", path)
+
+        saveScreenshot = self.view.generalWidget.isSaveScreenshot()
+        settings.setValue("saveScreenshot", saveScreenshot)
 
         voltage = self.view.generalWidget.beginVoltage()
         settings.setValue("beginVoltage", voltage)
@@ -535,6 +543,16 @@ class Controller(PluginRegistryMixin, AbstractController):
                     self.cvPlotsController.onLoadCV2Readings(data)
             finally:
                 self.view.setEnabled(True)
+
+    @handle_exception
+    def saveScreenshot(self) -> None:
+        """Save screenshot of active IV/CV plots."""
+        if self.state.get("save_screenshot"):
+            basename = os.path.splitext(self.state.get("filename"))[0]
+            filename = f"{basename}.png"
+            pixmap = self.view.dataStackedWidget.grab()
+            pixmap.save(filename, "PNG")
+            logger.info("Saved screenshot to %s", filename)
 
     # State slots
 

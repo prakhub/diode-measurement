@@ -452,13 +452,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def setAutoReconnect(self, enabled: bool) -> None:
         return self.autoReconnectCheckBox.setChecked(enabled)
 
-    def setSourceEnabled(self, source: str, enabled: bool) -> None:
-        for widget in self.roles():
-            if widget.name() == source:
-                index = self.controlTabWidget.indexOf(widget)
-                self.controlTabWidget.setTabEnabled(index, enabled)
-        self.generalWidget.setSourceEnabled(source, enabled)
-
     def updateSourceVoltage(self, voltage: float) -> None:
         self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
 
