@@ -62,14 +62,14 @@ class RoleWidget(QtWidgets.QWidget):
         # config["model"] = self.resourceWidget.model()
         # config["resource_name"] = self.resourceWidget.resourceName()
         widget = self.stackedWidget.currentWidget()
-        if isinstance(widget, RoleWidget):
+        if isinstance(widget, InstrumentPanel):
             config.update(widget.config())
         return config
 
     def setConfig(self, config: Dict[str, Any]) -> None:
         for index in range(self.stackedWidget.count()):
             widget = self.stackedWidget.widget(index)
-            if isinstance(widget, RoleWidget):
+            if isinstance(widget, InstrumentPanel):
                 if widget.model() == self.model():
                     widget.setConfig(config)
 
