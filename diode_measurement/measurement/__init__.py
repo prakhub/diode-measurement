@@ -28,18 +28,11 @@ class Measurement(QtCore.QObject):
         super().__init__()
         self.state: Dict[str, Any] = state
         self.contexts: Dict = {}
-        self._registered: Dict = {}
-        self._drivers: Dict = {}
+        self._instruments: Dict = {}
         self.startedHandlers: List[Callable] = []
         self.finishedHandlers: List[Callable] = []
 
-    def registerInstrument(self, name: str, cls, resource) -> None:
-        self._registered[name] = cls, resource
-
-    def registerDriver(self, name: str, cls) -> None:
-        self._drivers[name] = cls
-
-    def prepareDriver(self, name: str):
+    def registerInstrument(self, name: str):
         role = self.state.get(name, {})
         if not role.get("enabled"):
             return None
@@ -64,7 +57,7 @@ class Measurement(QtCore.QObject):
             write_termination=termination,
             timeout=timeout
         )
-        self.registerInstrument(name, cls, resource)
+        self._instruments[name] = cls, resource
 
     def checkErrorState(self, context):
         code, message = context.error_state()
@@ -99,7 +92,7 @@ class Measurement(QtCore.QObject):
             self.contexts.clear()
             with contextlib.ExitStack() as stack:
                 logger.debug("creating instrument contexts...")
-                for key, value in self._registered.items():
+                for key, value in self._instruments.items():
                     cls, resource = value
                     logger.debug("creating instrument context %s: %s...", key, cls.__name__)
                     context = cls(stack.enter_context(resource))

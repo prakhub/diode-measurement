@@ -73,7 +73,7 @@ class InstrumentPanel(QtWidgets.QWidget):
 
     def __init__(self, model: str, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
-        self._parameters = {}
+        self._parameters: Dict[str, Any] = {}
         self.setModel(model)
 
     def model(self) -> str:
@@ -101,9 +101,10 @@ class InstrumentPanel(QtWidgets.QWidget):
 
     def setConfig(self, config: ConfigType) -> None:
         for key, value in config.items():
-            if key not in self._parameters:
+            parameter = self._parameters.get(key)
+            if parameter is None:
                 raise KeyError(f"No such parameter: {repr(key)}")
-            self._parameters.get(key).setValue(value)
+            parameter.setValue(value)
 
 
 class K237Panel(InstrumentPanel):
