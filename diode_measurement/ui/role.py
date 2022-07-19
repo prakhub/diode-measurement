@@ -1,6 +1,6 @@
-from PyQt5 import QtWidgets
+from typing import Any, Dict, List, Optional
 
-from typing import Any, Dict
+from PyQt5 import QtWidgets
 
 from .panels import InstrumentPanel
 from .widgets import ResourceWidget
@@ -62,30 +62,44 @@ class RoleWidget(QtWidgets.QWidget):
         # config["model"] = self.resourceWidget.model()
         # config["resource_name"] = self.resourceWidget.resourceName()
         widget = self.stackedWidget.currentWidget()
-        if widget is not self.emptyWidget:
+        if isinstance(widget, RoleWidget):
             config.update(widget.config())
         return config
 
     def setConfig(self, config: Dict[str, Any]) -> None:
-        for index in range(1, self.stackedWidget.count()):
+        for index in range(self.stackedWidget.count()):
             widget = self.stackedWidget.widget(index)
-            if widget is not self.emptyWidget:
+            if isinstance(widget, RoleWidget):
                 if widget.model() == self.model():
                     widget.setConfig(config)
 
     def setLocked(self, state: bool) -> None:
         self.resourceWidget.setLocked(state)
-        for index in range(1, self.stackedWidget.count()):
-            self.stackedWidget.widget(index).setLocked(state)
+        for widget in self.instrumentPanels():
+            widget.setLocked(state)
 
-    def addInstrument(self, widget: InstrumentPanel) -> None:
+    def addInstrumentPanel(self, widget: InstrumentPanel) -> None:
         self.resourceWidget.addModel(widget.model())
         self.stackedWidget.addWidget(widget)
 
-    def modelChanged(self, model: str) -> None:
-        for index in range(1, self.stackedWidget.count()):
+    def instrumentPanels(self) -> List[InstrumentPanel]:
+        """Return list of registered instrument panels."""
+        widgets = []
+        for index in range(self.stackedWidget.count()):
             widget = self.stackedWidget.widget(index)
-            if widget.model() == model:
-                self.stackedWidget.setCurrentWidget(widget)
-                return
-        self.stackedWidget.setCurrentWidget(self.emptyWidget)
+            if isinstance(widget, InstrumentPanel):
+                widgets.append(widget)
+        return widgets
+
+    def findInstrumentPanel(self, model: str) -> Optional[InstrumentPanel]:
+        for widget in self.instrumentPanels():
+            if model == widget.model():
+                return widget
+        return None
+
+    def modelChanged(self, model: str) -> None:
+        widget = self.findInstrumentPanel(model)
+        if widget is None:
+            self.stackedWidget.setCurrentWidget(self.emptyWidget)
+        else:
+            self.stackedWidget.setCurrentWidget(widget)

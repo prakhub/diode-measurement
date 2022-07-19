@@ -2,11 +2,12 @@ import contextlib
 import logging
 import math
 import os
+import pathlib
 import threading
 import time
 
 from datetime import datetime
-from typing import Any, Dict, List, Iterator
+from typing import Any, Dict, List, Iterator, Optional
 
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
@@ -47,6 +48,7 @@ from .utils import get_resource
 from .utils import safe_filename
 from .utils import format_metric
 
+from .cache import Cache
 from .settings import DEFAULTS
 
 __all__ = ["Controller"]
@@ -67,34 +69,6 @@ def handle_exception(method):
             logger.exception(exc)
             self.handleException(exc)
     return handle_exception
-
-
-class Cache:
-    """Lockable value cache."""
-
-    def __init__(self) -> None:
-        self._lock: threading.RLock = threading.RLock()
-        self._items: Dict[str, Any] = {}
-
-    def __enter__(self) -> "Cache":
-        self._lock.acquire()
-        return self
-
-    def __exit__(self, *exc) -> bool:
-        self._lock.release()
-        return False
-
-    def __iter__(self) -> Iterator:
-        return iter(self._items)
-
-    def get(self, key: str, default=None):
-        return self._items.get(key, default)
-
-    def update(self, items: Dict[str, Any]) -> None:
-        self._items.update(items)
-
-    def clear(self) -> None:
-        self._items.clear()
 
 
 class MeasurementRunner:
@@ -151,7 +125,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         super().__init__(view, parent)
 
         self.abortRequested = threading.Event()
-        self.thread = None
+        self.measurementThread: Optional[threading.Thread] = None
         self.state: Dict[str, Any] = {}
         self.cache: Cache = Cache()
         self.rpc_params: Cache = Cache()
@@ -165,28 +139,29 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
         self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
         self.failed.connect(self.handleException)
+        self.finished.connect(self.saveScreenshot)
 
         # Source meter unit
         role = self.view.addRole("SMU")
-        role.addInstrument(K237Panel())
-        role.addInstrument(K2410Panel())
-        role.addInstrument(K2470Panel())
-        role.addInstrument(K2657APanel())
+        role.addInstrumentPanel(K237Panel())
+        role.addInstrumentPanel(K2410Panel())
+        role.addInstrumentPanel(K2470Panel())
+        role.addInstrumentPanel(K2657APanel())
 
         # Electrometer
         role = self.view.addRole("ELM")
-        role.addInstrument(K6514Panel())
-        role.addInstrument(K6517BPanel())
+        role.addInstrumentPanel(K6514Panel())
+        role.addInstrumentPanel(K6517BPanel())
 
         # LCR meter
         role = self.view.addRole("LCR")
-        role.addInstrument(K595Panel())
-        role.addInstrument(E4980APanel())
-        role.addInstrument(A4284APanel())
+        role.addInstrumentPanel(K595Panel())
+        role.addInstrumentPanel(E4980APanel())
+        role.addInstrumentPanel(A4284APanel())
 
         # Temperatur
         role = self.view.addRole("DMM")
-        role.addInstrument(K2700Panel())
+        role.addInstrumentPanel(K2700Panel())
 
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
@@ -277,6 +252,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         state["continuous"] = self.view.isContinuous()
         state["reset"] = self.view.isReset()
         state["auto_reconnect"] = self.view.isAutoReconnect()
+        state["save_screenshot"] = self.view.generalWidget.isSaveScreenshot()
         state["voltage_begin"] = self.view.generalWidget.beginVoltage()
         state["voltage_end"] = self.view.generalWidget.endVoltage()
         state["voltage_step"] = self.view.generalWidget.stepVoltage()
@@ -369,6 +345,9 @@ class Controller(PluginRegistryMixin, AbstractController):
         path = settings.value("outputDir", os.path.expanduser("~"))
         self.view.generalWidget.setOutputDir(path)
 
+        saveScreenshot = settings.value("saveScreenshot", False, bool)
+        self.view.generalWidget.setSaveScreenshot(saveScreenshot)
+
         voltage = settings.value("beginVoltage", 1, float)
         self.view.generalWidget.setBeginVoltage(voltage)
 
@@ -447,6 +426,9 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         path = self.view.generalWidget.outputDir()
         settings.setValue("outputDir", path)
+
+        saveScreenshot = self.view.generalWidget.isSaveScreenshot()
+        settings.setValue("saveScreenshot", saveScreenshot)
 
         voltage = self.view.generalWidget.beginVoltage()
         settings.setValue("beginVoltage", voltage)
@@ -535,6 +517,18 @@ class Controller(PluginRegistryMixin, AbstractController):
                     self.cvPlotsController.onLoadCV2Readings(data)
             finally:
                 self.view.setEnabled(True)
+
+    @handle_exception
+    def saveScreenshot(self) -> None:
+        """Save screenshot of active IV/CV plots."""
+        if self.state.get("save_screenshot"):
+            p = pathlib.Path(str(self.state.get("filename")))
+            # Only if output file was produced.
+            if p.exists():
+                filename = str(p.with_suffix(".png"))
+                pixmap = self.view.dataStackedWidget.grab()
+                pixmap.save(filename, "PNG")
+                logger.info("Saved screenshot to %s", filename)
 
     # State slots
 
@@ -738,7 +732,7 @@ class Controller(PluginRegistryMixin, AbstractController):
 
         # Prepare role drivers
         for role in self.view.roles():
-            measurement.prepareDriver(role.name().lower())
+            measurement.registerInstrument(role.name().lower())
 
         measurement.failed.connect(self.handleException)
 
@@ -796,8 +790,8 @@ class Controller(PluginRegistryMixin, AbstractController):
             measurement = self.createMeasurement()
 
             self.abortRequested = threading.Event()
-            self.thread = threading.Thread(target=self.runMeasurement, args=[measurement])
-            self.thread.start()
+            self.measurementThread = threading.Thread(target=self.runMeasurement, args=[measurement])
+            self.measurementThread.start()
 
         except Exception as exc:
             logger.exception(exc)

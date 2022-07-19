@@ -212,7 +212,7 @@ Example using [netcat](https://en.wikipedia.org/wiki/Netcat) to initiate a new
 measurement and applies a new end voltage.
 
 ```bash
-echo '{"jsonrpc": "2.0", "method": "start", "params": {"end_voltage": 100.0}}' | nc localhost 8080
+echo '{"jsonrpc": "2.0", "method": "start", "params": {"end_voltage": 100.0}}' | nc localhost 8000
 ```
 
 Example using Python to read application state from TCP server.

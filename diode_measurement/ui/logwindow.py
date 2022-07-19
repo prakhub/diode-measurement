@@ -1,24 +1,38 @@
 import html
 import logging
 import threading
+from typing import Callable, List
 
-from typing import Callable
-
-from PyQt5 import QtCore
-from PyQt5 import QtGui
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 __all__ = ["LogWindow", "LogWidget"]
 
 
-class LogHandler(logging.Handler):
+class Handler(logging.Handler):
 
     def __init__(self, callback: Callable) -> None:
         super().__init__()
-        self._callback = callback
+        self.callback = callback
 
-    def emit(self, record):
-        self._callback(record)
+    def emit(self, record: logging.LogRecord) -> None:
+        self.callback(record)
+
+
+class RecordsQueue:
+
+    def __init__(self) -> None:
+        self.lock = threading.RLock()
+        self.records: List[logging.LogRecord] = []
+
+    def append(self, record: logging.LogRecord) -> None:
+        with self.lock:
+            self.records.append(record)
+
+    def fetch(self) -> List[logging.LogRecord]:
+        with self.lock:
+            records = self.records[:]
+            self.records.clear()
+            return records
 
 
 class LogWidget(QtWidgets.QTextEdit):
@@ -26,21 +40,43 @@ class LogWidget(QtWidgets.QTextEdit):
     MaximumEntries: int = 1024 * 1024
     """Maximum number of visible log entries."""
 
-    message = QtCore.pyqtSignal(object)
+    received = QtCore.pyqtSignal(logging.LogRecord)
+    """Received is emitted when a new log record is appended by a logger."""
+
+    updateInterval = 200
+    """Update interval in milliseconds."""
 
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setReadOnly(True)
         self.document().setMaximumBlockCount(type(self).MaximumEntries)
         self.setFont(QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont))
-        self.handler = LogHandler(self.message.emit)
+        self.recordsQueue = RecordsQueue()
+        self.handler = Handler(self.received.emit)
         self.setLevel(logging.INFO)
-        self.message.connect(self.appendRecord)
-        self.recordCache = []
-        self.recordCacheLock = threading.RLock()
-        self.recordTimer = QtCore.QTimer()
-        self.recordTimer.timeout.connect(self.applyCachedRecords)
-        self.recordTimer.start(250)
+        self.received.connect(self.appendRecord)
+
+        self.updateTimer = QtCore.QTimer()
+        self.updateTimer.timeout.connect(self.applyRecords)
+        self.updateTimer.start(self.updateInterval)
+
+        self.recordFormats = {}
+
+        errorFormat = QtGui.QTextCharFormat()
+        errorFormat.setForeground(QtGui.QColor("red"))
+        self.recordFormats[logging.ERROR] = errorFormat
+
+        warningFormat = QtGui.QTextCharFormat()
+        warningFormat.setForeground(QtGui.QColor("orange"))
+        self.recordFormats[logging.WARNING] = warningFormat
+
+        infoFormat = QtGui.QTextCharFormat()
+        infoFormat.setForeground(QtGui.QColor())
+        self.recordFormats[logging.INFO] = infoFormat
+
+        debugFormat = QtGui.QTextCharFormat()
+        debugFormat.setForeground(QtGui.QColor("grey"))
+        self.recordFormats[logging.DEBUG] = debugFormat
 
     def setLevel(self, level: int) -> None:
         """Set log level of widget."""
@@ -55,33 +91,32 @@ class LogWidget(QtWidgets.QTextEdit):
         logger.removeHandler(self.handler)
 
     def appendRecord(self, record: logging.LogRecord) -> None:
-        """Append log record to log cache."""
-        with self.recordCacheLock:
-            self.recordCache.append(record)
+        """Append log record to queue."""
+        self.recordsQueue.append(record)
 
-    def applyCachedRecords(self) -> None:
-        """Append cached log records to log widget."""
-        records = []
-        with self.recordCacheLock:
-            records = self.recordCache[:]
-            self.recordCache.clear()
-        if not records:
-            return
-        # Get current scrollbar position
-        scrollbar = self.verticalScrollBar()
-        position = scrollbar.value()
-        # Lock to current position or to bottom
-        lock = False
-        if position + 1 >= scrollbar.maximum():
-            lock = True
-        # Append foramtted log messages
-        for record in records:
-            self.append(self.formatRecord(record))
-        # Scroll to bottom
-        if lock:
-            scrollbar.setValue(scrollbar.maximum())
-        else:
-            scrollbar.setValue(position)
+    def applyRecords(self) -> None:
+        """Append records from queue to log widget."""
+        records = self.recordsQueue.fetch()
+        if records:
+            # Get current scrollbar position
+            scrollbar = self.verticalScrollBar()
+            position = scrollbar.value()
+            # Lock to current position or to bottom
+            lock = False
+            if position + 1 >= scrollbar.maximum():
+                lock = True
+            # Append formatted log messages
+            for record in records:
+                for level, recordFormat in self.recordFormats.items():
+                    if record.levelno >= level:
+                        self.setCurrentCharFormat(recordFormat)
+                        break
+                self.append(self.formatRecord(record))
+            # Scroll to bottom
+            if lock:
+                scrollbar.setValue(scrollbar.maximum())
+            else:
+                scrollbar.setValue(position)
 
     def ensureRecentRecordsVisible(self) -> None:
         scrollbar = self.verticalScrollBar()
@@ -95,23 +130,9 @@ class LogWidget(QtWidgets.QTextEdit):
 
     @classmethod
     def formatRecord(cls, record: logging.LogRecord) -> str:
-        """Format colored log record."""
-        if record.levelno >= logging.ERROR:
-            color = "red"
-        elif record.levelno >= logging.WARNING:
-            color = "orange"
-        elif record.levelno >= logging.INFO:
-            color = "inherit"
-        elif record.levelno >= logging.DEBUG:
-            color = "darkgrey"
-        else:
-            color = "inherit"
-        style = f"white-space:pre;color:{color};margin:0"
+        """Format log record."""
         timestamp = cls.formatTime(record.created)
-        message = "{}\t{}\t{}".format(timestamp, record.levelname, record.getMessage())
-        # Escape to HTML
-        message = html.escape(message)
-        return f"<span style=\"{style}\">{message}</span>"
+        return "{}\t{}\t{}".format(timestamp, record.levelname, record.message)
 
 
 class LogWindow(QtWidgets.QWidget):
