@@ -27,8 +27,22 @@ class K6514(Electrometer):
     def configure(self, **options) -> None:
         # Select sense function
         self._write(":SENS:FUNC 'CURR'")
+
         # Select reading format
         self._write(":FORM:ELEM READ")
+
+        filter_mode = options.get("filter.mode", "MOV")
+        self._write(f":SENS:AVER:TCON {filter_mode}")
+
+        filter_count = options.get("filter.count", 1)
+        self._write(f":SENS:AVER:COUN {filter_count:d}")
+
+        filter_enable = options.get("filter.enable", False)
+        self._write(f":SENS:AVER:STAT {filter_enable:d}")
+
+        nplc = options.get("nplc", 5.0)
+        self._write(f":SENS:CURR:NPLC {nplc:E}")
+
         self._query("*OPC?")
 
     def get_output_enabled(self) -> bool:

@@ -83,10 +83,10 @@ class InstrumentPanel(QtWidgets.QWidget):
         self.setProperty("model", model)
 
     def restoreDefaults(self) -> None:
-        pass
+        ...
 
     def setLocked(self, state: bool) -> None:
-        pass
+        ...
 
     def bindParameter(self, key: str, parameter: Any) -> None:
         if key in self._parameters:
@@ -145,6 +145,8 @@ class K237Panel(InstrumentPanel):
 
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
 
+        self.restoreDefaults()
+
     def restoreDefaults(self) -> None:
         self.filterModeComboBox.setCurrentIndex(0)
 
@@ -202,7 +204,6 @@ class K2410Panel(InstrumentPanel):
         self.nplcSpinBox.setDecimals(2)
         self.nplcSpinBox.setSingleStep(0.1)
         self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
-        self.nplcSpinBox.setValue(1.0)
 
         integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
         integrationTimeLayout.addWidget(self.nplcLabel)
@@ -244,6 +245,8 @@ class K2410Panel(InstrumentPanel):
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
         self.bindParameter("route.terminals", WidgetParameter(self.routeTerminalsComboBox))
+
+        self.restoreDefaults()
 
     def restoreDefaults(self) -> None:
         self.filterEnableCheckBox.setChecked(False)
@@ -304,7 +307,6 @@ class K2470Panel(InstrumentPanel):
         self.nplcSpinBox.setDecimals(2)
         self.nplcSpinBox.setSingleStep(0.1)
         self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
-        self.nplcSpinBox.setValue(1.0)
 
         integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
         integrationTimeLayout.addWidget(self.nplcLabel)
@@ -344,6 +346,8 @@ class K2470Panel(InstrumentPanel):
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
         self.bindParameter("route.terminals", WidgetParameter(self.routeTerminalsComboBox))
+
+        self.restoreDefaults()
 
     def restoreDefaults(self) -> None:
         self.filterEnableCheckBox.setChecked(False)
@@ -403,7 +407,6 @@ class K2657APanel(InstrumentPanel):
         self.nplcSpinBox.setDecimals(3)
         self.nplcSpinBox.setSingleStep(0.1)
         self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
-        self.nplcSpinBox.setValue(1.0)
 
         integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
         integrationTimeLayout.addWidget(self.nplcLabel)
@@ -427,6 +430,8 @@ class K2657APanel(InstrumentPanel):
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
+
+        self.restoreDefaults()
 
     def restoreDefaults(self) -> None:
         self.filterEnableCheckBox.setChecked(False)
@@ -452,11 +457,173 @@ class K6514Panel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K6514", parent)
 
+        # Filter
+
+        self.filterGroupBox = QtWidgets.QGroupBox()
+        self.filterGroupBox.setTitle("Filter")
+        self.filterEnableCheckBox = QtWidgets.QCheckBox("Enabled")
+
+        self.filterCountLabel = QtWidgets.QLabel("Count")
+
+        self.filterCountSpinBox = QtWidgets.QSpinBox()
+        self.filterCountSpinBox.setSingleStep(1)
+        self.filterCountSpinBox.setRange(1, 100)
+
+        self.filterModeLabel = QtWidgets.QLabel("Mode")
+
+        self.filterModeComboBox = QtWidgets.QComboBox()
+        self.filterModeComboBox.addItem("Repeat", "REP")
+        self.filterModeComboBox.addItem("Moving", "MOV")
+
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterEnableCheckBox)
+        filterLayout.addWidget(self.filterCountLabel)
+        filterLayout.addWidget(self.filterCountSpinBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+        # filterLayout.addStretch()
+
+        # Integration Time
+
+        self.integrationTimeGroupBox = QtWidgets.QGroupBox()
+        self.integrationTimeGroupBox.setTitle("Integration Time")
+
+        self.nplcLabel = QtWidgets.QLabel("NPLC")
+
+        self.nplcSpinBox = QtWidgets.QDoubleSpinBox()
+        self.nplcSpinBox.setStatusTip("Number of Power Line Cycles (0.01 to 10)")
+        self.nplcSpinBox.setRange(0.01, 10.0)
+        self.nplcSpinBox.setDecimals(2)
+        self.nplcSpinBox.setSingleStep(0.1)
+        self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
+
+        integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
+        integrationTimeLayout.addWidget(self.nplcLabel)
+        integrationTimeLayout.addWidget(self.nplcSpinBox)
+        integrationTimeLayout.addStretch()
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.filterGroupBox)
+        leftLayout.addWidget(self.integrationTimeGroupBox)
+
+        rightLayout = QtWidgets.QVBoxLayout()
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(leftLayout)
+        layout.addLayout(rightLayout)
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+        # Parameters
+
+        self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
+        self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
+        self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
+        self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
+
+        self.restoreDefaults()
+
+    def restoreDefaults(self) -> None:
+        self.filterEnableCheckBox.setChecked(False)
+        self.filterCountSpinBox.setValue(0)
+        self.filterModeComboBox.setCurrentIndex(0)
+        self.nplcSpinBox.setValue(5.0)
+
+    def setLocked(self, state: bool) -> None:
+        self.filterEnableCheckBox.setEnabled(not state)
+        self.filterCountSpinBox.setEnabled(not state)
+        self.filterModeComboBox.setEnabled(not state)
+        self.nplcSpinBox.setEnabled(not state)
+
 
 class K6517BPanel(InstrumentPanel):
 
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K6517B", parent)
+
+        # Filter
+
+        self.filterGroupBox = QtWidgets.QGroupBox()
+        self.filterGroupBox.setTitle("Filter")
+        self.filterEnableCheckBox = QtWidgets.QCheckBox("Enabled")
+
+        self.filterCountLabel = QtWidgets.QLabel("Count")
+
+        self.filterCountSpinBox = QtWidgets.QSpinBox()
+        self.filterCountSpinBox.setSingleStep(1)
+        self.filterCountSpinBox.setRange(1, 100)
+
+        self.filterModeLabel = QtWidgets.QLabel("Mode")
+
+        self.filterModeComboBox = QtWidgets.QComboBox()
+        self.filterModeComboBox.addItem("Repeat", "REP")
+        self.filterModeComboBox.addItem("Moving", "MOV")
+
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterEnableCheckBox)
+        filterLayout.addWidget(self.filterCountLabel)
+        filterLayout.addWidget(self.filterCountSpinBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+        # filterLayout.addStretch()
+
+        # Integration Time
+
+        self.integrationTimeGroupBox = QtWidgets.QGroupBox()
+        self.integrationTimeGroupBox.setTitle("Integration Time")
+
+        self.nplcLabel = QtWidgets.QLabel("NPLC")
+
+        self.nplcSpinBox = QtWidgets.QDoubleSpinBox()
+        self.nplcSpinBox.setStatusTip("Number of Power Line Cycles (0.01 to 10)")
+        self.nplcSpinBox.setRange(0.01, 10.0)
+        self.nplcSpinBox.setDecimals(2)
+        self.nplcSpinBox.setSingleStep(0.1)
+        self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
+
+        integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
+        integrationTimeLayout.addWidget(self.nplcLabel)
+        integrationTimeLayout.addWidget(self.nplcSpinBox)
+        integrationTimeLayout.addStretch()
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.filterGroupBox)
+        leftLayout.addWidget(self.integrationTimeGroupBox)
+
+        rightLayout = QtWidgets.QVBoxLayout()
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(leftLayout)
+        layout.addLayout(rightLayout)
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+        # Parameters
+
+        self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
+        self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
+        self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
+        self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
+
+        self.restoreDefaults()
+
+    def restoreDefaults(self) -> None:
+        self.filterEnableCheckBox.setChecked(False)
+        self.filterCountSpinBox.setValue(0)
+        self.filterModeComboBox.setCurrentIndex(0)
+        self.nplcSpinBox.setValue(1.0)
+
+    def setLocked(self, state: bool) -> None:
+        self.filterEnableCheckBox.setEnabled(not state)
+        self.filterCountSpinBox.setEnabled(not state)
+        self.filterModeComboBox.setEnabled(not state)
+        self.nplcSpinBox.setEnabled(not state)
 
 
 class A4284APanel(InstrumentPanel):
