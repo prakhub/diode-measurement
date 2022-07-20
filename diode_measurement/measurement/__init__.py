@@ -291,6 +291,11 @@ class RangeMeasurement(Measurement):
         # Enable output
         self.set_source_output_state(True)
 
+        elm = self.contexts.get("elm")
+        if elm is not None:
+            elm.set_zero_check_enabled(False)
+            logger.info("ELM zero check: off")
+
         self.rampBegin()
 
         # Wait after output enable/ramp
@@ -342,6 +347,11 @@ class RangeMeasurement(Measurement):
 
     def finalize(self):
         try:
+            elm = self.contexts.get("elm")
+            if elm is not None:
+                elm.set_zero_check_enabled(True)
+                logger.info("ELM zero check: on")
+
             self.rampZero()
 
             # HACK: wait until capacitors discared before output disable

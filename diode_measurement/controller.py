@@ -83,13 +83,11 @@ class MeasurementRunner:
             if filename:
                 logger.info("preparing output file: %s", filename)
 
-                def createOutputDir():
-                    path = os.path.dirname(filename)
-                    if not os.path.exists(path):
-                        logger.debug("create output dir: %s", path)
-                        os.makedirs(path)
+                path = os.path.dirname(filename)
+                if not os.path.exists(path):
+                    logger.debug("create output dir: %s", path)
+                    os.makedirs(path)
 
-                measurement.startedHandlers.append(lambda: createOutputDir())
                 fp = stack.enter_context(open(filename, "w", newline=""))
                 writer = Writer(fp)
                 # TODO
