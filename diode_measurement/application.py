@@ -9,6 +9,7 @@ from .controller import Controller
 from .ui.mainwindow import MainWindow
 from .plugins import PluginRegistry
 from .plugins.tcpserver import TCPServerPlugin
+from .plugins.screenshot import ScreenshotPlugin
 
 __all__ = ["Application"]
 
@@ -44,6 +45,7 @@ class Application(QtWidgets.QApplication):
 
         plugins = PluginRegistry(controller)
         plugins.install(TCPServerPlugin())
+        plugins.install(ScreenshotPlugin())
 
         self.aboutToQuit.connect(lambda: controller.storeSettings())
         window.show()
