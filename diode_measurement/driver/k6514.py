@@ -71,6 +71,10 @@ class K6514(Electrometer):
             time.sleep(interval)
         raise RuntimeError(f"Electrometer reading timeout, exceeded {timeout:G} s")
 
+    def set_zero_check_enabled(self, enabled: bool) -> None:
+        self._write(f":SYST:ZCH {enabled:d}")
+        self._query("*OPC?")
+
     @handle_exception
     def _write(self, message):
         self.resource.write(message)

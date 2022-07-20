@@ -83,7 +83,9 @@ class SourceMeter(Driver):
 
 class Electrometer(SourceMeter):
 
-    pass
+    @abstractmethod
+    def set_zero_check_enabled(self, enabled: bool) -> None:
+        pass
 
 
 class LCRMeter(SourceMeter):
