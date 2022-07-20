@@ -1,4 +1,4 @@
-from diode_measurement.plugin import Plugin
+from diode_measurement.plugins import Plugin
 
 
 class TestPlugin:

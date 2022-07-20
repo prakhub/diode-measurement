@@ -39,8 +39,6 @@ from .measurement import Measurement
 from .measurement.iv import IVMeasurement
 from .measurement.cv import CVMeasurement
 
-from .plugin import PluginRegistryMixin
-
 from .reader import Reader
 from .writer import Writer
 
@@ -102,14 +100,7 @@ class MeasurementRunner:
             measurement.run()
 
 
-class AbstractController(QtCore.QObject):
-
-    def __init__(self, view, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
-
-
-class Controller(PluginRegistryMixin, AbstractController):
+class Controller(QtCore.QObject):
 
     started = QtCore.pyqtSignal()
     aborted = QtCore.pyqtSignal()
@@ -120,7 +111,8 @@ class Controller(PluginRegistryMixin, AbstractController):
     requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(view, parent)
+        super().__init__(parent)
+        self.view = view
 
         self.abortRequested = threading.Event()
         self.measurementThread: Optional[threading.Thread] = None
@@ -129,7 +121,7 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.rpc_params: Cache = Cache()
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
-        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021-2022 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
+        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>IV/CV measurements for silicon sensors.</p><p>Version {__version__}</p><p>Copyright &copy; 2021-2022 <a href=\"https://hephy.at\">HEPHY.at</a></p><p>This software is licensed under the GNU General Public License Version 3.</p>")
 
         # Controller
         self.ivPlotsController = IVPlotsController(self.view, self)
@@ -293,7 +285,6 @@ class Controller(PluginRegistryMixin, AbstractController):
     def shutdown(self):
         self.stateMachine.stop()
         self.abortRequested.set()
-        self.uninstallPlugins()
 
     @handle_exception
     def loadSettings(self):
@@ -807,10 +798,12 @@ class Controller(PluginRegistryMixin, AbstractController):
             self.finished.emit()
 
 
-class IVPlotsController(AbstractController):
+class IVPlotsController(QtCore.QObject):
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(view, parent)
+        super().__init__(parent)
+        self.view = view
+
         self.ivReadingQueue = []
         self.ivReadingLock = threading.RLock()
         self.itReadingQueue = []
@@ -909,10 +902,12 @@ class IVPlotsController(AbstractController):
         widget.fit()
 
 
-class CVPlotsController(AbstractController):
+class CVPlotsController(QtCore.QObject):
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(view, parent)
+        super().__init__(parent)
+        self.view = view
+
         self.cvReadingQueue = []
         self.cvReadingLock = threading.RLock()
 
@@ -972,10 +967,11 @@ class CVPlotsController(AbstractController):
         widget.fit()
 
 
-class ChangeVoltageController(AbstractController):
+class ChangeVoltageController(QtCore.QObject):
 
     def __init__(self, view, state, parent=None) -> None:
-        super().__init__(view, parent)
+        super().__init__(parent)
+        self.view = view
         self.state = state
         # Connect signals
         self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)

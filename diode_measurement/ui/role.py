@@ -14,11 +14,11 @@ class RoleWidget(QtWidgets.QWidget):
         super().__init__(parent)
         self.setName(name)
 
-        self.resourceWidget = ResourceWidget()
+        self.resourceWidget = ResourceWidget(self)
         self.resourceWidget.modelChanged.connect(self.modelChanged)
 
-        self.emptyWidget = QtWidgets.QWidget()
-        self.stackedWidget = QtWidgets.QStackedWidget()
+        self.emptyWidget = QtWidgets.QWidget(self)
+        self.stackedWidget = QtWidgets.QStackedWidget(self)
         self.stackedWidget.addWidget(self.emptyWidget)
 
         layout = QtWidgets.QHBoxLayout(self)

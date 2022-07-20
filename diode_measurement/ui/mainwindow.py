@@ -1,23 +1,14 @@
 import logging
 import webbrowser
-
 from typing import Dict, List, Optional
 
-from PyQt5 import QtCore
-from PyQt5 import QtGui
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
-from .plots import IVPlotWidget
-from .plots import ItPlotWidget
-from .plots import CVPlotWidget
-from .plots import CV2PlotWidget
-
+from ..utils import format_metric, format_switch
 from .general import GeneralWidget
-from .role import RoleWidget
 from .logwindow import LogWidget
-
-from ..utils import format_metric
-from ..utils import format_switch
+from .plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
+from .role import RoleWidget
 
 __all__ = ["MainWindow"]
 
@@ -211,7 +202,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loggingDockWidget.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
         self.loggingDockWidget.hide()
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.loggingDockWidget)
-        self.viewMenu.addAction(self.loggingDockWidget.toggleViewAction())
+
+        self.loggingAction = self.loggingDockWidget.toggleViewAction()
+        self.loggingAction.setStatusTip("Toggle logging dock window")
+        self.viewMenu.addAction(self.loggingAction)
 
         # Status bar
 

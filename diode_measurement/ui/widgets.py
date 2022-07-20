@@ -1,7 +1,6 @@
 import traceback
 
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 __all__ = ["showException", "ResourceWidget"]
 

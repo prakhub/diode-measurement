@@ -7,7 +7,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from . import __version__
 from .controller import Controller
 from .ui.mainwindow import MainWindow
-from .tcpserver import TCPServerPlugin
+from .plugins import PluginRegistry
+from .plugins.tcpserver import TCPServerPlugin
 
 __all__ = ["Application"]
 
@@ -39,8 +40,10 @@ class Application(QtWidgets.QApplication):
         logger.info("Diode Measurement, version %s", __version__)
 
         controller = Controller(window)
-        controller.installPlugin(TCPServerPlugin())
         controller.loadSettings()
+
+        plugins = PluginRegistry(controller)
+        plugins.install(TCPServerPlugin())
 
         self.aboutToQuit.connect(lambda: controller.storeSettings())
         window.show()
@@ -53,3 +56,4 @@ class Application(QtWidgets.QApplication):
         self.exec()
 
         controller.shutdown()
+        plugins.uninstall()

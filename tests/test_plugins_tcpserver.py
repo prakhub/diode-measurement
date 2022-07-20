@@ -1,4 +1,4 @@
-from diode_measurement import tcpserver
+from diode_measurement.plugins import tcpserver
 
 
 class TestTCPServerPlugin:
