@@ -1,28 +1,34 @@
-import unittest
-
 from diode_measurement.driver.k237 import K237
 
 from . import FakeResource
 
 
-class DriverK237Test(unittest.TestCase):
+class TestDriverK237:
 
     def test_driver_k237(self):
         res = FakeResource()
         d = K237(res)
 
-        res.buffer = ['K237A1 ']
-        self.assertEqual(d.identity(), 'K237A1')
-        self.assertEqual(res.buffer, ['U0X'])
+        res.buffer = ["K237A1\r"]
+        assert d.identity() == "K237A1"
+        assert res.buffer == ["U0X"]
 
         res.buffer = []
-        self.assertEqual(d.reset(), None)
-        self.assertEqual(res.buffer, [])
+        assert d.reset() is None
+        assert res.buffer == []
 
         res.buffer = []
-        self.assertEqual(d.clear(), None)
-        self.assertEqual(res.buffer, [])
+        assert d.clear() is None
+        assert res.buffer == []
 
-        res.buffer = ['23701000000000000000000000000']
-        self.assertEqual(d.error_state(), (1, 'IDDC'))
-        self.assertEqual(res.buffer, ['U1X'])
+        res.buffer = ["23700000000000000000000000000"]
+        assert d.error_state() == (0, "No Error")
+        assert res.buffer == ["U1X"]
+
+        res.buffer = ["23701000000000000000000000000"]
+        assert d.error_state() == (101, "IDDC")
+        assert res.buffer == ["U1X"]
+
+        res.buffer = ["23700000000001000000000000000"]
+        assert d.error_state() == (110, "In Standby")
+        assert res.buffer == ["U1X"]

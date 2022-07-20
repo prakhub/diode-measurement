@@ -1,16 +1,16 @@
-from diode_measurement.driver.k2400 import K2400
+from diode_measurement.driver.a4284a import A4284A
 
 from . import FakeResource
 
 
-class TestDriverK2400:
+class TestDriverA4284A:
 
-    def test_driver_k2400(self):
+    def test_driver_a4284a(self):
         res = FakeResource()
-        d = K2400(res)
+        d = A4284A(res)
 
-        res.buffer = ["Keithley Model 2400\r"]
-        assert d.identity() == "Keithley Model 2400"
+        res.buffer = ["Agilent Model A4284A\r"]
+        assert d.identity() == "Agilent Model A4284A"
         assert res.buffer == ["*IDN?"]
 
         res.buffer = ["1"]

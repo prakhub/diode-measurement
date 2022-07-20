@@ -54,7 +54,7 @@ class K237(SourceMeter):
         result = self._query("U1X").strip()[3:]
         for index, value in enumerate(result):
             if value == "1":
-                return index, ERROR_MESSAGES.get(index, "Unknown Error")
+                return index + 100, ERROR_MESSAGES.get(index, "Unknown Error")
         return 0, "No Error"
 
     def configure(self, **options) -> None:
