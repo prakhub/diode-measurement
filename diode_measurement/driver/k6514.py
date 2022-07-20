@@ -12,9 +12,11 @@ class K6514(Electrometer):
 
     def reset(self) -> None:
         self._write("*RST")
+        self._query("*OPC?")
 
     def clear(self) -> None:
         self._write("*CLS")
+        self._query("*OPC?")
 
     def error_state(self) -> tuple:
         code, message = self._query(":SYST:ERR?").split(",")
@@ -23,35 +25,37 @@ class K6514(Electrometer):
         return code, message
 
     def configure(self, **options) -> None:
-        pass
+        # Select sense function
+        self._write(":SENS:FUNC 'CURR'")
+        # Select reading format
+        self._write(":FORM:ELEM READ")
+        self._query("*OPC?")
 
     def get_output_enabled(self) -> bool:
         return False
 
     def set_output_enabled(self, enabled: bool) -> None:
-        pass
+        ...
 
     def get_voltage_level(self) -> float:
         return 0
 
     def set_voltage_level(self, level: float) -> None:
-        pass
+        ...
 
     def set_voltage_range(self, level: float) -> None:
-        pass
+        ...
 
     def set_current_compliance_level(self, level: float) -> None:
-        self._write(f":SENS:CURR:PROT:LEV {level:.3E}")
+        ...
 
     def compliance_tripped(self) -> bool:
-        return self._query(":SENS:CURR:PROT:TRIP?") == "1"
+        return False
 
     def read_current(self, timeout=10.0, interval=0.250):
-        # Select sense function
-        self._write(":FUNC CURR")
         # Request operation complete
-        self.resource.write("*CLS")
-        self.resource.write("*OPC")
+        self._write("*CLS")
+        self._write("*OPC")
         # Initiate measurement
         self._write(":INIT")
         threshold = time.time() + timeout
@@ -60,7 +64,7 @@ class K6514(Electrometer):
             # Read event status
             if int(self._query("*ESR?")) & 0x1:
                 try:
-                    result = self._query(":FETCH?")
+                    result = self._query(":FETC?")
                     return float(result.split(",")[0])
                 except Exception as exc:
                     raise RuntimeError(f"Failed to fetch ELM reading: {exc}") from exc
@@ -70,7 +74,6 @@ class K6514(Electrometer):
     @handle_exception
     def _write(self, message):
         self.resource.write(message)
-        self.resource.query("*OPC?")
 
     @handle_exception
     def _query(self, message):
