@@ -55,7 +55,7 @@ class E4980A(LCRMeter):
         self.set_amplitude_frequency(frequency)
 
         amplitude_alc = options.get("amplitude.alc", False)
-        self.set_amplitude_alc(frequency)
+        self.set_amplitude_alc(amplitude_alc)
 
     def get_output_enabled(self) -> bool:
         return self._query(":BIAS:STAT?") == "1"
