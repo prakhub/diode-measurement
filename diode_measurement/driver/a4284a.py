@@ -7,15 +7,6 @@ __all__ = ["A4284A"]
 
 class A4284A(LCRMeter):
 
-    @handle_exception
-    def _write(self, message):
-        self.resource.write(message)
-        self.resource.query("*OPC?")
-
-    @handle_exception
-    def _query(self, message):
-        return self.resource.query(message).strip()
-
     def identity(self) -> str:
         return self._query("*IDN?").strip()
 
@@ -31,41 +22,38 @@ class A4284A(LCRMeter):
         message = message.strip().strip('"')
         return code, message
 
-    def configure(self, **options) -> None:
+    def configure(self, options: dict) -> None:
         self._write(":INIT:CONT OFF")
         self._write(":TRIG:SOUR BUS")
 
         function_type = options.get("function.type", "CPRP")
-        self._write(f":FUNC:IMP:TYPE {function_type}")
+        self.set_function_impedance_type(function_type)
 
         # Apterture
         integration_time = options.get("aperture.integration_time", "MED")
-        assert integration_time in ["SHOR", "MED", "LONG"]
         averaging_rate = options.get("aperture.averaging_rate", 1)
-        assert 1 <= averaging_rate <= 128
-        self._write(f":APER {integration_time},{averaging_rate:d}")
+        self.set_aperture(integration_time, averaging_rate)
 
         # Correction cable length
         correction_length = options.get("correction.length", 0)
-        assert correction_length in [0, 1, 2]
-        self._write(f":CORR:LENG {correction_length:d}")
+        self.set_correction_length(correction_length)
 
         # Enable open correction
         correction_open_enabled = options.get("correction.open.enabled", False)
-        self._write(f":CORR:OPEN:STAT {correction_open_enabled:d}")
+        self.set_correction_open_state(correction_open_enabled)
 
         # Enable short correction
         correction_short_enabled = options.get("correction.short.enabled", False)
-        self._write(f":CORR:SHOR:STAT {correction_short_enabled:d}")
+        self.set_correction_short_state(correction_short_enabled)
 
         voltage = options.get("voltage", 1.0)
-        self._write(f":VOLT {voltage:E}")
+        self.set_amplitude_voltage(voltage)
 
         frequency = options.get("frequency", 1000.)
-        self._write(f":FREQ {frequency:E}")
+        self.set_amplitude_frequency(frequency)
 
         amplitude_alc = options.get("amplitude.alc", False)
-        self._write(f":AMPL:ALC {frequency:E}")
+        self.set_amplitude_alc(amplitude_alc)
 
     def get_output_enabled(self) -> bool:
         return self._query(":BIAS:STAT?") == "1"
@@ -113,3 +101,39 @@ class A4284A(LCRMeter):
                     raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
             time.sleep(interval)
         raise RuntimeError(f"LCR reading timeout, exceeded {timeout:G} s")
+
+    def set_function_impedance_type(self, impedance_type: str) -> None:
+        self._write(f":FUNC:IMP:TYPE {impedance_type}")
+
+    def set_aperture(self, integration_time: str, averaging_rate: int) -> None:
+        assert integration_time in ["SHOR", "MED", "LONG"]
+        assert 1 <= averaging_rate <= 128
+        self._write(f":APER {integration_time},{averaging_rate:d}")
+
+    def set_correction_length(self, correction_length: int) -> None:
+        assert correction_length in [0, 1, 2]
+        self._write(f":CORR:LENG {correction_length:d}")
+
+    def set_correction_open_state(self, state: bool) -> None:
+        self._write(f":CORR:OPEN:STAT {state:d}")
+
+    def set_correction_short_state(self, state: bool) -> None:
+        self._write(f":CORR:SHOR:STAT {state:d}")
+
+    def set_amplitude_voltage(self, voltage: float) -> None:
+        self._write(f":VOLT {voltage:E}")
+
+    def set_amplitude_frequency(self, frequency: float) -> None:
+        self._write(f":FREQ {frequency:E}")
+
+    def set_amplitude_alc(self, enabled: bool) -> None:
+        self._write(f":AMPL:ALC {enabled:d}")
+
+    @handle_exception
+    def _write(self, message):
+        self.resource.write(message)
+        self.resource.query("*OPC?")
+
+    @handle_exception
+    def _query(self, message):
+        return self.resource.query(message).strip()

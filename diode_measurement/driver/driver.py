@@ -1,4 +1,5 @@
 import logging
+import time
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ def handle_exception(method):
 
 class DriverError(Exception):
 
-    pass
+    ...
 
 
 class Driver(ABC):
@@ -27,76 +28,76 @@ class Driver(ABC):
 
     @abstractmethod
     def identity(self) -> str:
-        pass
+        ...
 
     @abstractmethod
     def reset(self) -> None:
-        pass
+        ...
 
     @abstractmethod
     def clear(self) -> None:
-        pass
+        ...
 
     @abstractmethod
     def error_state(self) -> tuple:
-        pass
+        ...
 
     @abstractmethod
-    def configure(self, **options) -> None:
-        pass
+    def configure(self, options: dict) -> None:
+        ...
 
 
 class SourceMeter(Driver):
 
     @abstractmethod
     def get_output_enabled(self) -> bool:
-        pass
+        ...
 
     @abstractmethod
     def set_output_enabled(self, enabled: bool) -> None:
-        pass
+        ...
 
     @abstractmethod
     def get_voltage_level(self) -> float:
-        pass
+        ...
 
     @abstractmethod
     def set_voltage_level(self, level: float) -> None:
-        pass
+        ...
 
     @abstractmethod
     def set_voltage_range(self, level: float) -> None:
-        pass
+        ...
 
     @abstractmethod
     def set_current_compliance_level(self, level: float) -> None:
-        pass
+        ...
 
     @abstractmethod
     def compliance_tripped(self) -> bool:
-        pass
+        ...
 
     @abstractmethod
     def read_current(self) -> float:
-        pass
+        ...
 
 
 class Electrometer(SourceMeter):
 
     @abstractmethod
     def set_zero_check_enabled(self, enabled: bool) -> None:
-        pass
+        ...
 
 
 class LCRMeter(SourceMeter):
 
     @abstractmethod
     def read_capacity(self) -> float:
-        pass
+        ...
 
 
 class DMM(Driver):
 
     @abstractmethod
     def read_temperature(self) -> float:
-        pass
+        ...

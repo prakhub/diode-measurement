@@ -20,8 +20,8 @@ class K2700(DMM):
         message = message.strip().strip('"')
         return code, message
 
-    def configure(self, **options) -> None:
-        pass
+    def configure(self, options: dict) -> None:
+        ...
 
     def read_temperature(self) -> float:
         self._write(":FORM:ELEM READ")  # select reading as return value

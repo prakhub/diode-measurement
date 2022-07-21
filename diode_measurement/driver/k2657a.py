@@ -20,23 +20,23 @@ class K2657A(SourceMeter):
         message = message.strip().strip('"')
         return code, message
 
-    def configure(self, **options) -> None:
-        beeper_enable = options.get("beeper.enable", "OFF")
-        self._write(f"beeper.enable = beeper.{beeper_enable}")
+    def configure(self, options: dict) -> None:
+        beeper_enable = options.get("beeper.enable", False)
+        self.set_beeper_enable(beeper_enable)
 
-        self._write("smua.source.func = smua.OUTPUT_DCVOLTS")
+        self.set_source_function("DCVOLTS")
 
         filter_mode = options.get("filter.mode", "REPEAT_AVG")
-        self._write(f"smua.measure.filter.type = smua.FILTER_{filter_mode}")
+        self.set_measure_filter_type(filter_mode)
 
         filter_count = options.get("filter.count", 1)
-        self._write(f"smua.measure.filter.count = {filter_count:d}")
+        self.set_measure_filter_count(filter_count)
 
         filter_enable = options.get("filter.enable", False)
-        self._write(f"smua.measure.filter.enable = {filter_enable:d}")
+        self.set_measure_filter_enable(filter_enable)
 
         nplc = options.get("nplc", 1.0)
-        self._write(f"smua.measure.nplc = {nplc:E}")
+        self.set_measure_nplc(nplc)
 
     def get_output_enabled(self) -> bool:
         return self._print("smua.source.output") == "1"
@@ -65,6 +65,25 @@ class K2657A(SourceMeter):
 
     def read_voltage(self) -> float:
         return float(self._print("smua.measure.v()"))
+
+    def set_beeper_enable(self, enabled: bool) -> None:
+        value = {True: "ON", False: "OFF"}[enabled]
+        self._write(f"beeper.enable = beeper.{value}")
+
+    def set_source_function(self, function: str) -> None:
+        self._write(f"smua.source.func = smua.OUTPUT_{function}")
+
+    def set_measure_filter_type(self, filter_type: str) -> None:
+        self._write(f"smua.measure.filter.type = smua.FILTER_{filter_type}")
+
+    def set_measure_filter_count(self, count: int) -> None:
+        self._write(f"smua.measure.filter.count = {count:d}")
+
+    def set_measure_filter_enable(self, enabled: bool) -> None:
+        self._write(f"smua.measure.filter.enable = {enabled:d}")
+
+    def set_measure_nplc(self, nplc: float) -> None:
+        self._write(f"smua.measure.nplc = {nplc:E}")
 
     @handle_exception
     def _write(self, message):

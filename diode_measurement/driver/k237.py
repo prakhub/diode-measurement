@@ -57,7 +57,7 @@ class K237(SourceMeter):
                 return index + 100, ERROR_MESSAGES.get(index, "Unknown Error")
         return 0, "No Error"
 
-    def configure(self, **options) -> None:
+    def configure(self, options: dict) -> None:
         self._write("F0,0X")
         self._write("B0,0,0X")
         filter_mode = options.get("filter.mode", 0)

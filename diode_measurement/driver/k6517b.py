@@ -1,4 +1,5 @@
 import time
+from typing import List
 
 from .driver import Electrometer, handle_exception
 
@@ -24,26 +25,27 @@ class K6517B(Electrometer):
         message = message.strip().strip('"')
         return code, message
 
-    def configure(self, **options) -> None:
-        # Select sense function
-        self._write(":SENS:FUNC 'CURR'")
+    def configure(self, options: dict) -> None:
+        self.set_format_elements(["READ"])
+        self.set_sense_function("CURR")
 
-        # Select reading format
-        self._write(":FORM:ELEM READ")
+        sense_range = options.get("sense.range", 21e-3)
+        self.set_sense_current_range(sense_range)
+
+        sense_auto_range = options.get("sense.auto_range", True)
+        self.set_sense_current_range_auto(sense_auto_range)
 
         filter_mode = options.get("filter.mode", "MOV")
-        self._write(f":SENS:CURR:AVER:TCON {filter_mode}")
+        self.set_sense_current_average_tcontrol(filter_mode)
 
         filter_count = options.get("filter.count", 1)
-        self._write(f":SENS:CURR:AVER:COUN {filter_count:d}")
+        self.set_sense_current_average_count(filter_count)
 
         filter_enable = options.get("filter.enable", False)
-        self._write(f":SENS:CURR:AVER:STAT {filter_enable:d}")
+        self.set_sense_current_average_state(filter_enable)
 
         nplc = options.get("nplc", 1.0)
-        self._write(f":SENS:CURR:NPLC {nplc:E}")
-
-        self._query("*OPC?")
+        self.set_sense_current_nplcycles(nplc)
 
     def get_output_enabled(self) -> bool:
         return False
@@ -84,6 +86,39 @@ class K6517B(Electrometer):
                     raise RuntimeError(f"Failed to fetch ELM reading: {exc}") from exc
             time.sleep(interval)
         raise RuntimeError(f"Electrometer reading timeout, exceeded {timeout:G} s")
+
+    def set_format_elements(self, elements: List[str]) -> None:
+        elements = ",".join(elements)
+        self._write(f":FORM:ELEM {elements}")
+        self._query("*OPC?")
+
+    def set_sense_function(self, function: str) -> None:
+        self._write(f":SENS:FUNC '{function}'")
+        self._query("*OPC?")
+
+    def set_sense_current_range(self, level: float) -> None:
+        self._write(f":SENS:CURR:RANG {level:E}")
+        self._query("*OPC?")
+
+    def set_sense_current_range_auto(self, enabled: bool) -> None:
+        self._write(f":SENS:CURR:RANG:AUTO {enabled:d}")
+        self._query("*OPC?")
+
+    def set_sense_current_average_tcontrol(self, tcontrol: str) -> None:
+        self._write(f":SENS:CURR:AVER:TCON {tcontrol}")
+        self._query("*OPC?")
+
+    def set_sense_current_average_count(self, count: int) -> None:
+        self._write(f":SENS:CURR:AVER:COUN {count:d}")
+        self._query("*OPC?")
+
+    def set_sense_current_average_state(self, state: bool) -> None:
+        self._write(f":SENS:CURR:AVER:STAT {state:d}")
+        self._query("*OPC?")
+
+    def set_sense_current_nplcycles(self, nplc: float) -> None:
+        self._write(f":SENS:CURR:NPLC {nplc:E}")
+        self._query("*OPC?")
 
     def set_zero_check_enabled(self, enabled: bool) -> None:
         self._write(f":SYST:ZCH {enabled:d}")

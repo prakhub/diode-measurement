@@ -457,10 +457,30 @@ class K6514Panel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K6514", parent)
 
+        # Range
+
+        self.rangeGroupBox = QtWidgets.QGroupBox()
+        self.rangeGroupBox.setTitle("Sense Range")
+
+        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+
+        self.senseRangeSpinBox = QtWidgets.QDoubleSpinBox()
+        self.senseRangeSpinBox.setSuffix(" uA")
+        self.senseRangeSpinBox.setDecimals(3)
+        self.senseRangeSpinBox.setSingleStep(1)
+        self.senseRangeSpinBox.setMinimum(ureg("2.1e-11 A").to("uA").m)
+        self.senseRangeSpinBox.setMaximum(ureg("2.1e-2 A").to("uA").m)
+
+        rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
+        rangeLayout.addWidget(self.autoRangeCheckBox)
+        rangeLayout.addWidget(self.senseRangeSpinBox)
+        rangeLayout.addStretch()
+
         # Filter
 
         self.filterGroupBox = QtWidgets.QGroupBox()
         self.filterGroupBox.setTitle("Filter")
+
         self.filterEnableCheckBox = QtWidgets.QCheckBox("Enabled")
 
         self.filterCountLabel = QtWidgets.QLabel("Count")
@@ -505,10 +525,11 @@ class K6514Panel(InstrumentPanel):
         # Layout
 
         leftLayout = QtWidgets.QVBoxLayout()
-        leftLayout.addWidget(self.filterGroupBox)
-        leftLayout.addWidget(self.integrationTimeGroupBox)
+        leftLayout.addWidget(self.rangeGroupBox)
 
         rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.filterGroupBox)
+        rightLayout.addWidget(self.integrationTimeGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -519,6 +540,8 @@ class K6514Panel(InstrumentPanel):
 
         # Parameters
 
+        self.bindParameter("sense.range", MethodParameter(self.senseRange, self.setSenseRange))
+        self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
@@ -526,13 +549,25 @@ class K6514Panel(InstrumentPanel):
 
         self.restoreDefaults()
 
+    def senseRange(self) -> float:
+        value = self.senseRangeSpinBox.value()
+        return (value * ureg("uA")).to("A").m
+
+    def setSenseRange(self, value: float) -> None:
+        value = (value * ureg("A")).to("uA").m
+        self.senseRangeSpinBox.setValue(value)
+
     def restoreDefaults(self) -> None:
+        self.autoRangeCheckBox.setChecked(True)
+        self.senseRangeSpinBox.setValue(ureg("2.1e-4 A").to("uA").m)
         self.filterEnableCheckBox.setChecked(False)
         self.filterCountSpinBox.setValue(0)
         self.filterModeComboBox.setCurrentIndex(0)
         self.nplcSpinBox.setValue(5.0)
 
     def setLocked(self, state: bool) -> None:
+        self.autoRangeCheckBox.setEnabled(not state)
+        self.senseRangeSpinBox.setEnabled(not state)
         self.filterEnableCheckBox.setEnabled(not state)
         self.filterCountSpinBox.setEnabled(not state)
         self.filterModeComboBox.setEnabled(not state)
@@ -544,6 +579,25 @@ class K6517BPanel(InstrumentPanel):
     def __init__(self, parent: QtWidgets.QWidget = None) -> None:
         super().__init__("K6517B", parent)
 
+        # Range
+
+        self.rangeGroupBox = QtWidgets.QGroupBox()
+        self.rangeGroupBox.setTitle("Sense Range")
+
+        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+
+        self.senseRangeSpinBox = QtWidgets.QDoubleSpinBox()
+        self.senseRangeSpinBox.setSuffix(" uA")
+        self.senseRangeSpinBox.setDecimals(3)
+        self.senseRangeSpinBox.setSingleStep(1)
+        self.senseRangeSpinBox.setMinimum(ureg("2.1e-11 A").to("uA").m)
+        self.senseRangeSpinBox.setMaximum(ureg("21e-3 A").to("uA").m)
+
+        rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
+        rangeLayout.addWidget(self.autoRangeCheckBox)
+        rangeLayout.addWidget(self.senseRangeSpinBox)
+        rangeLayout.addStretch()
+
         # Filter
 
         self.filterGroupBox = QtWidgets.QGroupBox()
@@ -592,10 +646,11 @@ class K6517BPanel(InstrumentPanel):
         # Layout
 
         leftLayout = QtWidgets.QVBoxLayout()
-        leftLayout.addWidget(self.filterGroupBox)
-        leftLayout.addWidget(self.integrationTimeGroupBox)
+        leftLayout.addWidget(self.rangeGroupBox)
 
         rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.filterGroupBox)
+        rightLayout.addWidget(self.integrationTimeGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -606,6 +661,8 @@ class K6517BPanel(InstrumentPanel):
 
         # Parameters
 
+        self.bindParameter("sense.range", MethodParameter(self.senseRange, self.setSenseRange))
+        self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
@@ -613,13 +670,25 @@ class K6517BPanel(InstrumentPanel):
 
         self.restoreDefaults()
 
+    def senseRange(self) -> float:
+        value = self.senseRangeSpinBox.value()
+        return (value * ureg("uA")).to("A").m
+
+    def setSenseRange(self, value: float) -> None:
+        value = (value * ureg("A")).to("uA").m
+        self.senseRangeSpinBox.setValue(value)
+
     def restoreDefaults(self) -> None:
+        self.autoRangeCheckBox.setChecked(True)
+        self.senseRangeSpinBox.setValue(ureg("2.1e-4 A").to("uA").m)
         self.filterEnableCheckBox.setChecked(False)
         self.filterCountSpinBox.setValue(0)
         self.filterModeComboBox.setCurrentIndex(0)
         self.nplcSpinBox.setValue(1.0)
 
     def setLocked(self, state: bool) -> None:
+        self.autoRangeCheckBox.setEnabled(not state)
+        self.senseRangeSpinBox.setEnabled(not state)
         self.filterEnableCheckBox.setEnabled(not state)
         self.filterCountSpinBox.setEnabled(not state)
         self.filterModeComboBox.setEnabled(not state)
