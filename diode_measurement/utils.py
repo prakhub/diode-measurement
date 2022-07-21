@@ -86,7 +86,7 @@ def format_switch(value: bool) -> str:
     >>> format_switch(False)
     'OFF'
     """
-    return {False: "OFF", True: "ON"}.get(value) or "N/A"
+    return {False: "OFF", True: "ON"}.get(value) or "---"
 
 
 def limits(iterable: Iterable) -> Tuple:
