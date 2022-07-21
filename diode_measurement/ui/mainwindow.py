@@ -7,7 +7,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from ..utils import format_metric, format_switch
 from .general import GeneralWidget
 from .logwindow import LogWidget
-from .plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
 from .role import RoleWidget
 
 __all__ = ["MainWindow"]
@@ -89,22 +88,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.helpMenu.addAction(self.aboutAction)
 
     def _createWidgets(self) -> None:
-        self.ivPlotWidget = IVPlotWidget()
-
-        self.itPlotWidget = ItPlotWidget()
-        self.itPlotWidget.setVisible(False)
-
-        self.cvPlotWidget = CVPlotWidget()
-
-        self.cv2PlotWidget = CV2PlotWidget()
-
-        self.ivWidget = QtWidgets.QWidget()
-
-        self.cvWidget = QtWidgets.QWidget()
-
         self.dataStackedWidget = QtWidgets.QStackedWidget()
-        self.dataStackedWidget.addWidget(self.ivWidget)
-        self.dataStackedWidget.addWidget(self.cvWidget)
         self.dataStackedWidget.setMinimumHeight(240)
 
         self.startButton = QtWidgets.QPushButton("&Start")
@@ -218,20 +202,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().addPermanentWidget(self.progressBar)
 
     def _createLayout(self) -> None:
-        ivLayout = QtWidgets.QHBoxLayout(self.ivWidget)
-        ivLayout.addWidget(self.ivPlotWidget)
-        ivLayout.addWidget(self.itPlotWidget)
-        ivLayout.setStretch(0, 1)
-        ivLayout.setStretch(1, 1)
-        ivLayout.setContentsMargins(0, 0, 0, 0)
-
-        cvLayout = QtWidgets.QHBoxLayout(self.cvWidget)
-        cvLayout.addWidget(self.cvPlotWidget)
-        cvLayout.addWidget(self.cv2PlotWidget)
-        cvLayout.setStretch(0, 1)
-        cvLayout.setStretch(1, 1)
-        cvLayout.setContentsMargins(0, 0, 0, 0)
-
         controlLayout = QtWidgets.QVBoxLayout()
         controlLayout.addWidget(self.startButton)
         controlLayout.addWidget(self.stopButton)
@@ -318,6 +288,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.dataStackedWidget)
         layout.addLayout(bottomLayout)
 
+    def setDataWidget(self, widget) -> None:
+        while self.dataStackedWidget.count():
+            self.dataStackedWidget.removeWidget(self.dataStackedWidget.currentWidget())
+        self.dataStackedWidget.addWidget(widget)
+
     def addRole(self, name: str) -> RoleWidget:
         if name in self.roleWidgets:
             raise KeyError(f"No suc role: {name}")
@@ -334,14 +309,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def clear(self) -> None:
         """Clear displayed data in plots and inputs."""
-        self.ivPlotWidget.clear()
-        self.ivPlotWidget.reset()
-        self.itPlotWidget.clear()
-        self.itPlotWidget.reset()
-        self.cvPlotWidget.clear()
-        self.cvPlotWidget.reset()
-        self.cv2PlotWidget.clear()
-        self.cv2PlotWidget.reset()
         self.smuVoltageLineEdit.setText("---")
         self.smuCurrentLineEdit.setText("---")
         self.setSMUOutputState(None)
@@ -415,14 +382,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.hide()
         self.progressBar.setRange(0, 1)
         self.progressBar.setValue(0)
-
-    def showIVPlots(self) -> None:
-        index = self.dataStackedWidget.indexOf(self.ivWidget)
-        self.dataStackedWidget.setCurrentIndex(index)
-
-    def showCVPlots(self) -> None:
-        index = self.dataStackedWidget.indexOf(self.cvWidget)
-        self.dataStackedWidget.setCurrentIndex(index)
 
     def isContinuous(self) -> bool:
         return self.continuousAction.isChecked()
