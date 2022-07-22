@@ -13,11 +13,9 @@ class K6517B(Electrometer):
 
     def reset(self) -> None:
         self._write("*RST")
-        self._query("*OPC?")
 
     def clear(self) -> None:
         self._write("*CLS")
-        self._query("*OPC?")
 
     def error_state(self) -> tuple:
         code, message = self._query(":SYST:ERR?").split(",")
@@ -71,9 +69,9 @@ class K6517B(Electrometer):
     def read_current(self, timeout=10.0, interval=0.250):
         # Request operation complete
         self._write("*CLS")
-        self._write("*OPC")
+        self._write_nowait("*OPC")
         # Initiate measurement
-        self._write(":INIT")
+        self._write_nowait(":INIT")
         threshold = time.time() + timeout
         interval = min(timeout, interval)
         while time.time() < threshold:
@@ -88,44 +86,40 @@ class K6517B(Electrometer):
         raise RuntimeError(f"Electrometer reading timeout, exceeded {timeout:G} s")
 
     def set_format_elements(self, elements: List[str]) -> None:
-        elements = ",".join(elements)
-        self._write(f":FORM:ELEM {elements}")
-        self._query("*OPC?")
+        value = ",".join(elements)
+        self._write(f":FORM:ELEM {value}")
 
     def set_sense_function(self, function: str) -> None:
         self._write(f":SENS:FUNC '{function}'")
-        self._query("*OPC?")
 
     def set_sense_current_range(self, level: float) -> None:
         self._write(f":SENS:CURR:RANG {level:E}")
-        self._query("*OPC?")
 
     def set_sense_current_range_auto(self, enabled: bool) -> None:
         self._write(f":SENS:CURR:RANG:AUTO {enabled:d}")
-        self._query("*OPC?")
 
     def set_sense_current_average_tcontrol(self, tcontrol: str) -> None:
         self._write(f":SENS:CURR:AVER:TCON {tcontrol}")
-        self._query("*OPC?")
 
     def set_sense_current_average_count(self, count: int) -> None:
         self._write(f":SENS:CURR:AVER:COUN {count:d}")
-        self._query("*OPC?")
 
     def set_sense_current_average_state(self, state: bool) -> None:
         self._write(f":SENS:CURR:AVER:STAT {state:d}")
-        self._query("*OPC?")
 
     def set_sense_current_nplcycles(self, nplc: float) -> None:
         self._write(f":SENS:CURR:NPLC {nplc:E}")
-        self._query("*OPC?")
 
     def set_zero_check_enabled(self, enabled: bool) -> None:
         self._write(f":SYST:ZCH {enabled:d}")
-        self._query("*OPC?")
 
     @handle_exception
     def _write(self, message):
+        self.resource.write(message)
+        self.resource.query("*OPC?")
+
+    @handle_exception
+    def _write_nowait(self, message):
         self.resource.write(message)
 
     @handle_exception

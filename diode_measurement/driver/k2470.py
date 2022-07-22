@@ -70,7 +70,7 @@ class K2470(SourceMeter):
         self._write(f":ROUT:TERM {terminal}")
 
     def set_source_function(self, function: str) -> None:
-        self._write(f":SOUR:FUNC VOLT")
+        self._write(f":SOUR:FUNC {function}")
 
     def set_sense_current_average_tcontrol(self, tcontrol: str) -> None:
         self._write(f":SENS:CURR:AVER:TCON {tcontrol}")

@@ -87,17 +87,17 @@ class E4980A(LCRMeter):
 
     def _fetch(self, timeout=10.0, interval=0.250) -> float:
         # Request operation complete
-        self.resource.write("*CLS")
-        self.resource.write("*OPC")
+        self._write("*CLS")
+        self._write_nowait("*OPC")
         # Initiate measurement
-        self.resource.write(":TRIG:IMM")
+        self._write_nowait(":TRIG:IMM")
         threshold = time.time() + timeout
         interval = min(timeout, interval)
         while time.time() < threshold:
             # Read event status
-            if int(self.resource.query("*ESR?")) & 0x1:
+            if int(self._query("*ESR?")) & 0x1:
                 try:
-                    result = self.resource.query(":FETCH?")
+                    result = self._query(":FETC?")
                     return float(result.split(",")[0])
                 except Exception as exc:
                     raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
@@ -135,6 +135,10 @@ class E4980A(LCRMeter):
     def _write(self, message):
         self.resource.write(message)
         self.resource.query("*OPC?")
+
+    @handle_exception
+    def _write_nowait(self, message):
+        self.resource.write(message)
 
     @handle_exception
     def _query(self, message):
