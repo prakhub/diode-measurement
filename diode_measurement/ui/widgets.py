@@ -2,6 +2,9 @@ import traceback
 
 from PyQt5 import QtCore, QtWidgets
 
+from ..driver import driver_factory
+from ..utils import open_resource
+
 __all__ = ["showException", "ResourceWidget"]
 
 
@@ -72,28 +75,33 @@ class ResourceWidget(QtWidgets.QGroupBox):
             lambda value: self.timeoutChanged.emit(value)
         )
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.modelLabel)
-        layout.addWidget(self.modelComboBox)
-        layout.addWidget(self.resourceLabel)
-        layout.addWidget(self.resourceLineEdit)
-        hbox = QtWidgets.QHBoxLayout()
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addWidget(self.terminationLabel)
-        vbox.addWidget(self.terminationComboBox)
-        hbox.addLayout(vbox)
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addWidget(self.timeoutLabel)
-        vbox.addWidget(self.timeoutSpinBox)
-        hbox.addLayout(vbox)
-        layout.addLayout(hbox)
-        layout.addStretch()
+        self.testConntectionButton = QtWidgets.QPushButton(self)
+        self.testConntectionButton.setText("&Test")
+        self.testConntectionButton.setStatusTip("Test instrument connection.")
+        self.testConntectionButton.setMaximumWidth(48)
+        self.testConntectionButton.clicked.connect(self.testConntection)
+
+        layout = QtWidgets.QGridLayout(self)
+        layout.addWidget(self.modelLabel, 0, 0, 1, 3)
+        layout.addWidget(self.modelComboBox, 1, 0, 1, 3)
+        layout.addWidget(self.resourceLabel, 2, 0, 1, 3)
+        layout.addWidget(self.resourceLineEdit, 3, 0, 1, 3)
+        layout.addWidget(self.terminationLabel, 4, 0, 1, 1)
+        layout.addWidget(self.timeoutLabel, 4, 1, 1, 1)
+        layout.addWidget(self.terminationComboBox, 5, 0, 1, 1)
+        layout.addWidget(self.timeoutSpinBox, 5, 1, 1, 1)
+        layout.addWidget(self.testConntectionButton, 5, 2, 1, 1)
+        layout.setRowStretch(6, 1)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(2, 0)
 
     def setLocked(self, state: bool) -> None:
         self.modelComboBox.setEnabled(not state)
         self.resourceLineEdit.setEnabled(not state)
         self.terminationComboBox.setEnabled(not state)
         self.timeoutSpinBox.setEnabled(not state)
+        self.testConntectionButton.setEnabled(not state)
 
     def model(self) -> str:
         return self.modelComboBox.currentText()
@@ -125,3 +133,19 @@ class ResourceWidget(QtWidgets.QGroupBox):
 
     def setTimeout(self, timeout: float) -> None:
         self.timeoutSpinBox.setValue(timeout)
+
+    def openResource(self) -> None:
+        return open_resource(self.resourceName(), self.termination(), self.timeout())
+
+    def readIdentity(self) -> str:
+        with self.openResource() as res:
+            instr = driver_factory(self.model())(res)
+            return instr.identity()
+
+    def testConntection(self) -> None:
+        try:
+            identity = self.readIdentity()
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Identity", format(exc))
+        else:
+            QtWidgets.QMessageBox.information(self, "Connection Test", format(identity))
