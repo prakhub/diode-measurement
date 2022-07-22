@@ -17,15 +17,18 @@ class RoleWidget(QtWidgets.QWidget):
         self.resourceWidget = ResourceWidget(self)
         self.resourceWidget.modelChanged.connect(self.modelChanged)
 
-        self.emptyWidget = QtWidgets.QWidget(self)
         self.stackedWidget = QtWidgets.QStackedWidget(self)
-        self.stackedWidget.addWidget(self.emptyWidget)
 
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(self.resourceWidget)
-        layout.addWidget(self.stackedWidget)
-        layout.setStretch(0, 1)
-        layout.setStretch(1, 2)
+        self.restoreDefaultsButton = QtWidgets.QPushButton(self)
+        self.restoreDefaultsButton.setText("Restore Defaults")
+        self.restoreDefaultsButton.clicked.connect(self.restoreDefaults)
+
+        layout = QtWidgets.QGridLayout(self)
+        layout.addWidget(self.resourceWidget, 0, 0, 2, 1)
+        layout.addWidget(self.stackedWidget, 0, 1, 1, 2)
+        layout.addWidget(self.restoreDefaultsButton, 1, 2, 1, 1)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 2)
 
     def name(self) -> str:
         return self.property("name")
@@ -77,6 +80,7 @@ class RoleWidget(QtWidgets.QWidget):
         self.resourceWidget.setLocked(state)
         for widget in self.instrumentPanels():
             widget.setLocked(state)
+        self.restoreDefaultsButton.setEnabled(not state)
 
     def addInstrumentPanel(self, widget: InstrumentPanel) -> None:
         self.resourceWidget.addModel(widget.model())
@@ -100,6 +104,12 @@ class RoleWidget(QtWidgets.QWidget):
     def modelChanged(self, model: str) -> None:
         widget = self.findInstrumentPanel(model)
         if widget is None:
-            self.stackedWidget.setCurrentWidget(self.emptyWidget)
+            self.stackedWidget.hide()
         else:
             self.stackedWidget.setCurrentWidget(widget)
+            self.stackedWidget.show()
+
+    def restoreDefaults(self) -> None:
+        widget = self.stackedWidget.currentWidget()
+        if isinstance(widget, InstrumentPanel):
+            widget.restoreDefaults()
