@@ -751,7 +751,6 @@ class A4284APanel(InstrumentPanel):
         apertureLayout.addWidget(self.integrationTimeComboBox)
         apertureLayout.addWidget(self.averagingRateLabel)
         apertureLayout.addWidget(self.averagingRateSpinBox)
-        apertureLayout.addStretch()
 
         # Correction
 

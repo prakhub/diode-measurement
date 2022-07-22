@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from PyQt5 import QtWidgets
 
 from .panels import InstrumentPanel
-from .widgets import ResourceWidget
+from .resource import ResourceWidget
 
 __all__ = ["RoleWidget"]
 
@@ -20,11 +20,11 @@ class RoleWidget(QtWidgets.QWidget):
         self.stackedWidget = QtWidgets.QStackedWidget(self)
 
         self.restoreDefaultsButton = QtWidgets.QPushButton(self)
-        self.restoreDefaultsButton.setText("Restore Defaults")
+        self.restoreDefaultsButton.setText("Restore &Defaults")
         self.restoreDefaultsButton.clicked.connect(self.restoreDefaults)
 
         layout = QtWidgets.QGridLayout(self)
-        layout.addWidget(self.resourceWidget, 0, 0, 2, 1)
+        layout.addWidget(self.resourceWidget, 0, 0, 1, 1)
         layout.addWidget(self.stackedWidget, 0, 1, 1, 2)
         layout.addWidget(self.restoreDefaultsButton, 1, 2, 1, 1)
         layout.setColumnStretch(0, 1)
@@ -62,19 +62,13 @@ class RoleWidget(QtWidgets.QWidget):
 
     def config(self) -> Dict[str, Any]:
         config = {}
-        # config["model"] = self.resourceWidget.model()
-        # config["resource_name"] = self.resourceWidget.resourceName()
-        widget = self.stackedWidget.currentWidget()
-        if isinstance(widget, InstrumentPanel):
-            config.update(widget.config())
+        for widget in self.instrumentPanels():
+            config[widget.model()] = widget.config()
         return config
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
-        for index in range(self.stackedWidget.count()):
-            widget = self.stackedWidget.widget(index)
-            if isinstance(widget, InstrumentPanel):
-                if widget.model() == self.model():
-                    widget.setConfig(config)
+    def setConfig(self, config: Dict[str, Dict[str, Any]]) -> None:
+        for widget in self.instrumentPanels():
+            widget.setConfig(config.get(widget.model(), {}))
 
     def setLocked(self, state: bool) -> None:
         self.resourceWidget.setLocked(state)
