@@ -1,25 +1,21 @@
 import logging
 import webbrowser
-
 from typing import Dict, List, Optional
 
-from PyQt5 import QtCore
-from PyQt5 import QtGui
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
-from .plots import IVPlotWidget
-from .plots import ItPlotWidget
-from .plots import CVPlotWidget
-from .plots import CV2PlotWidget
-
+from ..utils import format_metric, format_switch
 from .general import GeneralWidget
-from .role import RoleWidget
 from .logwindow import LogWidget
-
-from ..utils import format_metric
-from ..utils import format_switch
+from .role import RoleWidget
 
 __all__ = ["MainWindow"]
+
+
+def stylesheet_switch(state):
+    if state is None:
+        return ""
+    return "QLineEdit:enabled{ background-color: #339933; color: white; }" if state else ""
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -92,47 +88,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.helpMenu.addAction(self.aboutAction)
 
     def _createWidgets(self) -> None:
-        self.ivPlotWidget = IVPlotWidget()
-
-        self.itPlotWidget = ItPlotWidget()
-        self.itPlotWidget.setVisible(False)
-
-        self.cvPlotWidget = CVPlotWidget()
-
-        self.cv2PlotWidget = CV2PlotWidget()
-
-        self.ivWidget = QtWidgets.QWidget()
-
-        self.cvWidget = QtWidgets.QWidget()
-
         self.dataStackedWidget = QtWidgets.QStackedWidget()
-        self.dataStackedWidget.addWidget(self.ivWidget)
-        self.dataStackedWidget.addWidget(self.cvWidget)
         self.dataStackedWidget.setMinimumHeight(240)
 
         self.startButton = QtWidgets.QPushButton("&Start")
-        self.startButton.setToolTip("Start a new measurement")
         self.startButton.setStatusTip("Start a new measurement")
         self.startButton.setCheckable(True)
         self.startButton.setStyleSheet("QPushButton:enabled{ color: green; }")
 
         self.stopButton = QtWidgets.QPushButton("Sto&p")
-        self.stopButton.setToolTip("Stop an active measurement")
         self.stopButton.setStatusTip("Stop an active measurement")
-        self.stopButton.setStyleSheet("QPushButton:enabled{ color: red; }")
+        self.stopButton.setStyleSheet("QPushButton:enabled{ background-color: #ff0000; color: white; } QPushButton:hover{ background-color: #ff3333; }")
         self.stopButton.setCheckable(True)
         self.stopButton.setMinimumHeight(72)
 
         self.continuousCheckBox = QtWidgets.QCheckBox("&Continuous Meas.")
-        self.continuousCheckBox.setToolTip("Enable continuous measurement")
         self.continuousCheckBox.setStatusTip("Enable continuous measurement")
 
         self.resetCheckBox = QtWidgets.QCheckBox("&Reset Instruments")
-        self.resetCheckBox.setToolTip("Reset instruments on start")
         self.resetCheckBox.setStatusTip("Reset instruments on start")
 
         self.autoReconnectCheckBox = QtWidgets.QCheckBox("&Auto Reconnect")
-        self.autoReconnectCheckBox.setToolTip("Auto reconnect and retry on connection erros")
         self.autoReconnectCheckBox.setStatusTip("Auto reconnect and retry on connection erros")
 
         self.generalWidget = GeneralWidget()
@@ -163,7 +139,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.smuCurrentLineEdit.setReadOnly(True)
         self.smuCurrentLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
-        self.smuOutputStateLineEdit = QtWidgets.QLineEdit("---")
+        self.smuOutputStateLineEdit = QtWidgets.QLineEdit()
         self.smuOutputStateLineEdit.setReadOnly(True)
         self.smuOutputStateLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
@@ -211,7 +187,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loggingDockWidget.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
         self.loggingDockWidget.hide()
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.loggingDockWidget)
-        self.viewMenu.addAction(self.loggingDockWidget.toggleViewAction())
+
+        self.loggingAction = self.loggingDockWidget.toggleViewAction()
+        self.loggingAction.setStatusTip("Toggle logging dock window")
+        self.viewMenu.addAction(self.loggingAction)
 
         # Status bar
 
@@ -223,20 +202,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().addPermanentWidget(self.progressBar)
 
     def _createLayout(self) -> None:
-        ivLayout = QtWidgets.QHBoxLayout(self.ivWidget)
-        ivLayout.addWidget(self.ivPlotWidget)
-        ivLayout.addWidget(self.itPlotWidget)
-        ivLayout.setStretch(0, 1)
-        ivLayout.setStretch(1, 1)
-        ivLayout.setContentsMargins(0, 0, 0, 0)
-
-        cvLayout = QtWidgets.QHBoxLayout(self.cvWidget)
-        cvLayout.addWidget(self.cvPlotWidget)
-        cvLayout.addWidget(self.cv2PlotWidget)
-        cvLayout.setStretch(0, 1)
-        cvLayout.setStretch(1, 1)
-        cvLayout.setContentsMargins(0, 0, 0, 0)
-
         controlLayout = QtWidgets.QVBoxLayout()
         controlLayout.addWidget(self.startButton)
         controlLayout.addWidget(self.stopButton)
@@ -323,6 +288,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.dataStackedWidget)
         layout.addLayout(bottomLayout)
 
+    def setDataWidget(self, widget) -> None:
+        while self.dataStackedWidget.count():
+            self.dataStackedWidget.removeWidget(self.dataStackedWidget.currentWidget())
+        self.dataStackedWidget.addWidget(widget)
+
     def addRole(self, name: str) -> RoleWidget:
         if name in self.roleWidgets:
             raise KeyError(f"No suc role: {name}")
@@ -339,23 +309,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def clear(self) -> None:
         """Clear displayed data in plots and inputs."""
-        self.ivPlotWidget.clear()
-        self.ivPlotWidget.reset()
-        self.itPlotWidget.clear()
-        self.itPlotWidget.reset()
-        self.cvPlotWidget.clear()
-        self.cvPlotWidget.reset()
-        self.cv2PlotWidget.clear()
-        self.cv2PlotWidget.reset()
         self.smuVoltageLineEdit.setText("---")
         self.smuCurrentLineEdit.setText("---")
-        self.smuOutputStateLineEdit.setText("---")
+        self.setSMUOutputState(None)
         self.elmVoltageLineEdit.setText("---")
         self.elmCurrentLineEdit.setText("---")
-        self.elmOutputStateLineEdit.setText("---")
+        self.setELMOutputState(None)
         self.lcrVoltageLineEdit.setText("---")
         self.lcrCurrentLineEdit.setText("---")
-        self.lcrOutputStateLineEdit.setText("---")
+        self.setLCROutputState(None)
         self.dmmTemperatureLineEdit.setText("---")
 
     def setIdleState(self) -> None:
@@ -374,6 +336,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setChangeVoltageEnabled(False)
         for role in self.roles():
             role.setLocked(False)
+        self.setSMUOutputState(None)
+        self.setELMOutputState(None)
+        self.setLCROutputState(None)
         self.setProperty("locked", False)
 
     def setRunningState(self) -> None:
@@ -418,14 +383,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.setRange(0, 1)
         self.progressBar.setValue(0)
 
-    def showIVPlots(self) -> None:
-        index = self.dataStackedWidget.indexOf(self.ivWidget)
-        self.dataStackedWidget.setCurrentIndex(index)
-
-    def showCVPlots(self) -> None:
-        index = self.dataStackedWidget.indexOf(self.cvWidget)
-        self.dataStackedWidget.setCurrentIndex(index)
-
     def isContinuous(self) -> bool:
         return self.continuousAction.isChecked()
 
@@ -452,16 +409,28 @@ class MainWindow(QtWidgets.QMainWindow):
     def setAutoReconnect(self, enabled: bool) -> None:
         return self.autoReconnectCheckBox.setChecked(enabled)
 
+    def setSMUOutputState(self, state) -> None:
+        self.smuOutputStateLineEdit.setText(format_switch(state))
+        self.smuOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+
+    def setELMOutputState(self, state) -> None:
+        self.elmOutputStateLineEdit.setText(format_switch(state))
+        self.elmOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+
+    def setLCROutputState(self, state) -> None:
+        self.lcrOutputStateLineEdit.setText(format_switch(state))
+        self.lcrOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+
     def updateSourceVoltage(self, voltage: float) -> None:
         self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
 
     def updateSourceOutputState(self, state: bool) -> None:
         if self.smuGroupBox.isEnabled():
-            self.smuOutputStateLineEdit.setText(format_switch(state))
+            self.setSMUOutputState(state)
         elif self.elmGroupBox.isEnabled():
-            self.elmOutputStateLineEdit.setText(format_switch(state))
+            self.setELMOutputState(state)
         elif self.lcrGroupBox.isEnabled():
-            self.lcrOutputStateLineEdit.setText(format_switch(state))
+            self.setLCROutputState(state)
 
     def updateSMUCurrent(self, current: float) -> None:
         self.smuCurrentLineEdit.setText(format_metric(current, "A"))

@@ -12,10 +12,9 @@ import time
 
 from typing import Any, Dict, Union
 
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
-from .plugin import Plugin
+from . import Plugin
 
 __all__ = ["TCPServerPlugin"]
 
@@ -193,7 +192,7 @@ class RPCWidget(QtWidgets.QWidget):
         self.stateLabel.setText(text)
 
 
-class TCPServerPlugin(Plugin):
+class TCPServerPlugin(Plugin, QtCore.QObject):
 
     running = QtCore.pyqtSignal(bool)
     failed = QtCore.pyqtSignal(object)

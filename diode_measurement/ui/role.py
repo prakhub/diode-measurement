@@ -1,9 +1,10 @@
+import logging
 from typing import Any, Dict, List, Optional
 
 from PyQt5 import QtWidgets
 
 from .panels import InstrumentPanel
-from .widgets import ResourceWidget
+from .resource import ResourceWidget
 
 __all__ = ["RoleWidget"]
 
@@ -14,18 +15,23 @@ class RoleWidget(QtWidgets.QWidget):
         super().__init__(parent)
         self.setName(name)
 
-        self.resourceWidget = ResourceWidget()
+        self._resources: Dict[str, Any] = {}  # TODO
+
+        self.resourceWidget = ResourceWidget(self)
         self.resourceWidget.modelChanged.connect(self.modelChanged)
 
-        self.emptyWidget = QtWidgets.QWidget()
-        self.stackedWidget = QtWidgets.QStackedWidget()
-        self.stackedWidget.addWidget(self.emptyWidget)
+        self.stackedWidget = QtWidgets.QStackedWidget(self)
 
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(self.resourceWidget)
-        layout.addWidget(self.stackedWidget)
-        layout.setStretch(0, 1)
-        layout.setStretch(1, 2)
+        self.restoreDefaultsButton = QtWidgets.QPushButton(self)
+        self.restoreDefaultsButton.setText("Restore &Defaults")
+        self.restoreDefaultsButton.clicked.connect(self.restoreDefaults)
+
+        layout = QtWidgets.QGridLayout(self)
+        layout.addWidget(self.resourceWidget, 0, 0, 1, 1)
+        layout.addWidget(self.stackedWidget, 0, 1, 1, 2)
+        layout.addWidget(self.restoreDefaultsButton, 1, 2, 1, 1)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 2)
 
     def name(self) -> str:
         return self.property("name")
@@ -57,26 +63,38 @@ class RoleWidget(QtWidgets.QWidget):
     def setTimeout(self, timeout: float) -> None:
         self.resourceWidget.setTimeout(timeout)
 
-    def config(self) -> Dict[str, Any]:
-        config = {}
-        # config["model"] = self.resourceWidget.model()
-        # config["resource_name"] = self.resourceWidget.resourceName()
+    def resources(self) -> Dict[str, Any]:
+        return self._resources.copy()
+
+    def setResources(self, resources: Dict[str, Any]) -> None:
+        self._resources.update(resources)
+
+    def syncCurrentResource(self) -> None:
         widget = self.stackedWidget.currentWidget()
         if isinstance(widget, InstrumentPanel):
-            config.update(widget.config())
-        return config
+            model = widget.model()
+            resource = {
+                "resource_name": self.resourceName(),
+                "termination": self.termination(),
+                "timeout": self.timeout(),
+            }
+            self._resources.setdefault(model, {}).update(resource)
 
-    def setConfig(self, config: Dict[str, Any]) -> None:
-        for index in range(self.stackedWidget.count()):
-            widget = self.stackedWidget.widget(index)
-            if isinstance(widget, InstrumentPanel):
-                if widget.model() == self.model():
-                    widget.setConfig(config)
+    def configs(self) -> Dict[str, Any]:
+        configs = {}
+        for widget in self.instrumentPanels():
+            configs[widget.model()] = widget.config()
+        return configs
+
+    def setConfigs(self, configs: Dict[str, Dict[str, Any]]) -> None:
+        for widget in self.instrumentPanels():
+            widget.setConfig(configs.get(widget.model(), {}))
 
     def setLocked(self, state: bool) -> None:
         self.resourceWidget.setLocked(state)
         for widget in self.instrumentPanels():
             widget.setLocked(state)
+        self.restoreDefaultsButton.setEnabled(not state)
 
     def addInstrumentPanel(self, widget: InstrumentPanel) -> None:
         self.resourceWidget.addModel(widget.model())
@@ -98,8 +116,22 @@ class RoleWidget(QtWidgets.QWidget):
         return None
 
     def modelChanged(self, model: str) -> None:
+        self.syncCurrentResource()
         widget = self.findInstrumentPanel(model)
-        if widget is None:
-            self.stackedWidget.setCurrentWidget(self.emptyWidget)
-        else:
+        if isinstance(widget, InstrumentPanel):
+            try:
+                resource = self._resources.get(model, {})
+                self.setResourceName(resource.get("resource_name", ""))
+                self.setTermination(resource.get("termination", "\r\n"))
+                self.setTimeout(resource.get("timeout", 8.0))
+            except Exception as exc:
+                logging.exception(exc)
             self.stackedWidget.setCurrentWidget(widget)
+            self.stackedWidget.show()
+        else:
+            self.stackedWidget.hide()
+
+    def restoreDefaults(self) -> None:
+        widget = self.stackedWidget.currentWidget()
+        if isinstance(widget, InstrumentPanel):
+            widget.restoreDefaults()

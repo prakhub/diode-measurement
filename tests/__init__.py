@@ -11,4 +11,4 @@ class FakeResource:
         return self.buffer.pop(0)
 
     def clear(self):
-        pass
+        ...

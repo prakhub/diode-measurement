@@ -6,28 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.3] - 2022-07-20
+## [0.14.0] - 2022-07-22
+### Added
+- Colored stop button (#51).
+- Input parameters for Electrometers (#55).
+- Test instrument connection (#50).
+- Model specific persistent settings (#49).
 
+### Changed
+- Migrated to pytest (#54).
+
+## [0.13.3] - 2022-07-20
 ### Added
 - Toggle zero check for Electrometers (#52).
 
 ## [0.13.2] - 2022-07-20
-
 ### Fixed
 - Broken electrometer configuration for K6514/K6517B (#47).
 
 ## [0.13.1] - 2022-07-19
-
 ### Fixed
 - Broken persistent instrument settings (#45).
 
 ## [0.13.0] - 2022-07-18
-
 ### Added
 - Save screenshot of plots (see #43).
 
 ## [0.12.0] - 2022-06-30
-
 ### Added
 - Auto reconnect and retry for resource connections (see #41).
 
@@ -39,7 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show most recent log entries on measurement start.
 
 ## [0.11.0] - 2022-06-29
-
 ### Added
 - Additional options for LCR meters (#39).
 
@@ -48,7 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug in E4980A trigger configuration.
 
 ## [0.10.0] - 2022-06-28
-
 ### Added
 - Support for Agilent 4284A LCR Meter (#35).
 - Aperture and correction settings for LCR Meters.
@@ -58,45 +61,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored measurement thread handling.
 
 ## [0.9.3] - 2022-06-27
-
 ### Fixed
 - Show CV plots in range of < 1pF.
 
 ## [0.9.2] - 2022-05-05
-
 ### Fixed
 - Wait until voltage settled before output disable (#31).
 - Bug with continuous waiting times > 1 s (#32).
 - Reduced decimals for continuous waiting time.
 
 ## [0.9.1] - 2022-05-05
-
 ### Fixed
 - Broken change voltage function (#29).
 
 ## [0.9.0] - 2022-05-04
-
 ### Added
 - Route terminals to SMU settings (K2410, K2470) (#28).
 
 ## [0.8.2] - 2022-04-27
-
 ### Changed
 - Improved plot performance at high rates (#26).
 
 ## [0.8.1] - 2022-04-25
-
 ### Changed
 - Timestamp precision to µs in output file for fast readings (#24).
 
 ## [0.8.0] - 2022-03-30
-
 ### Added
 - NPLC to SMU settings (K2410, K2470, K2657A) (#20).
 - Improved fast reading performance in continuous mode (#21).
 
 ## [0.7.0] - 2022-03-24
-
 ### Added
 - Basic plugin system.
 - JSON-RPC remote control TCP server (#5).
@@ -165,7 +160,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.13.1...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.14.0...HEAD
+[0.14.0]: https://github.com/hephy-dd/diode-measurement/compare/0.13.3...0.14.0
+[0.13.3]: https://github.com/hephy-dd/diode-measurement/compare/0.13.2...0.13.3
+[0.13.2]: https://github.com/hephy-dd/diode-measurement/compare/0.13.1...0.13.2
 [0.13.1]: https://github.com/hephy-dd/diode-measurement/compare/0.13.0...0.13.1
 [0.13.0]: https://github.com/hephy-dd/diode-measurement/compare/0.12.0...0.13.0
 [0.12.0]: https://github.com/hephy-dd/diode-measurement/compare/0.11.0...0.12.0

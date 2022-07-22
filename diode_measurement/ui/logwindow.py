@@ -50,7 +50,6 @@ class LogWidget(QtWidgets.QTextEdit):
         super().__init__(parent)
         self.setReadOnly(True)
         self.document().setMaximumBlockCount(type(self).MaximumEntries)
-        self.setFont(QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont))
         self.recordsQueue = RecordsQueue()
         self.handler = Handler(self.received.emit)
         self.setLevel(logging.INFO)

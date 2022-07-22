@@ -1,10 +1,7 @@
 import os
-
 from typing import Any, Dict
 
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
-from PyQt5 import QtChart
+from PyQt5 import QtChart, QtCore, QtWidgets
 
 from ..utils import auto_scale
 

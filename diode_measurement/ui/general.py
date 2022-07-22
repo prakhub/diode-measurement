@@ -1,5 +1,4 @@
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 from ..utils import ureg
 
@@ -76,10 +75,6 @@ class GeneralWidget(QtWidgets.QWidget):
         self.outputToolButton.setStatusTip("Select output directory")
         self.outputToolButton.clicked.connect(self.selectOutput)
 
-        self.saveScreenshotCheckBox = QtWidgets.QCheckBox(self)
-        self.saveScreenshotCheckBox.setText("Save Screenshot")
-        self.saveScreenshotCheckBox.setStatusTip("Save screenshot of plots at end of measurement")
-
         self.waitingTimeContinuousSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeContinuousSpinBox.setSuffix(" s")
         self.waitingTimeContinuousSpinBox.setDecimals(2)
@@ -133,7 +128,6 @@ class GeneralWidget(QtWidgets.QWidget):
         outputLayout.addWidget(self.outputLineEdit)
         outputLayout.addWidget(self.outputToolButton)
         layout.addLayout(outputLayout)
-        layout.addWidget(self.saveScreenshotCheckBox)
         layout.addStretch()
 
         layout = QtWidgets.QVBoxLayout(self.rampGroupBox)
@@ -256,12 +250,6 @@ class GeneralWidget(QtWidgets.QWidget):
         path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select ouput path", self.outputDir())
         if path:
             self.setOutputDir(path)
-
-    def isSaveScreenshot(self):
-        return self.saveScreenshotCheckBox.isChecked()
-
-    def setSaveScreenshot(self, enabled):
-        self.saveScreenshotCheckBox.setChecked(enabled)
 
     def setVoltageUnit(self, unit):
         self.beginVoltageSpinBox.setSuffix(f" {unit}")

@@ -35,11 +35,11 @@ from .ui.panels import K2700Panel
 from .ui.widgets import showException
 from .ui.dialogs import ChangeVoltageDialog
 
+from .ui.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
+
 from .measurement import Measurement
 from .measurement.iv import IVMeasurement
 from .measurement.cv import CVMeasurement
-
-from .plugin import PluginRegistryMixin
 
 from .reader import Reader
 from .writer import Writer
@@ -102,14 +102,7 @@ class MeasurementRunner:
             measurement.run()
 
 
-class AbstractController(QtCore.QObject):
-
-    def __init__(self, view, parent=None) -> None:
-        super().__init__(parent)
-        self.view = view
-
-
-class Controller(PluginRegistryMixin, AbstractController):
+class Controller(QtCore.QObject):
 
     started = QtCore.pyqtSignal()
     aborted = QtCore.pyqtSignal()
@@ -120,7 +113,8 @@ class Controller(PluginRegistryMixin, AbstractController):
     requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
 
     def __init__(self, view, parent=None) -> None:
-        super().__init__(view, parent)
+        super().__init__(parent)
+        self.view = view
 
         self.abortRequested = threading.Event()
         self.measurementThread: Optional[threading.Thread] = None
@@ -129,15 +123,21 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.rpc_params: Cache = Cache()
 
         self.view.setProperty("contentsUrl", "https://github.com/hephy-dd/diode-measurement")
-        self.view.setProperty("about", f"<h3>Diode Measurement</h3><p>Version {__version__}</p><p>&copy; 2021-2022 <a href=\"https://hephy.at\">HEPHY.at</a><p>")
+        self.view.setProperty("about", f"""
+            <h3>Diode Measurement</h3>
+            <p>IV/CV measurements for silicon sensors.</p>
+            <p>Version {__version__}</p>
+            <p>This software is licensed under the GNU General Public License Version 3.</p>
+            <p>Copyright &copy; 2021-2022 <a href=\"https://hephy.at\">HEPHY.at</a></p>
+        """)
 
         # Controller
-        self.ivPlotsController = IVPlotsController(self.view, self)
-        self.cvPlotsController = CVPlotsController(self.view, self)
+        self.ivPlotsController = IVPlotsController(self)
+        self.cvPlotsController = CVPlotsController(self)
+
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
         self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
         self.failed.connect(self.handleException)
-        self.finished.connect(self.saveScreenshot)
 
         # Source meter unit
         role = self.view.addRole("SMU")
@@ -250,7 +250,6 @@ class Controller(PluginRegistryMixin, AbstractController):
         state["continuous"] = self.view.isContinuous()
         state["reset"] = self.view.isReset()
         state["auto_reconnect"] = self.view.isAutoReconnect()
-        state["save_screenshot"] = self.view.generalWidget.isSaveScreenshot()
         state["voltage_begin"] = self.view.generalWidget.beginVoltage()
         state["voltage_end"] = self.view.generalWidget.endVoltage()
         state["voltage_step"] = self.view.generalWidget.stepVoltage()
@@ -293,7 +292,6 @@ class Controller(PluginRegistryMixin, AbstractController):
     def shutdown(self):
         self.stateMachine.stop()
         self.abortRequested.set()
-        self.uninstallPlugins()
 
     @handle_exception
     def loadSettings(self):
@@ -343,9 +341,6 @@ class Controller(PluginRegistryMixin, AbstractController):
         path = settings.value("outputDir", os.path.expanduser("~"))
         self.view.generalWidget.setOutputDir(path)
 
-        saveScreenshot = settings.value("saveScreenshot", False, bool)
-        self.view.generalWidget.setSaveScreenshot(saveScreenshot)
-
         voltage = settings.value("beginVoltage", 1, float)
         self.view.generalWidget.setBeginVoltage(voltage)
 
@@ -378,7 +373,8 @@ class Controller(PluginRegistryMixin, AbstractController):
             role.setResourceName(settings.value("resource", ""))
             role.setTermination(settings.value("termination", ""))
             role.setTimeout(settings.value("timeout", 4, int))
-            role.setConfig(settings.value("config", {}, dict))
+            role.setResources(settings.value("resources", {}, dict))
+            role.setConfigs(settings.value("configs", {}, dict))
             settings.endGroup()
 
         settings.endGroup()
@@ -425,9 +421,6 @@ class Controller(PluginRegistryMixin, AbstractController):
         path = self.view.generalWidget.outputDir()
         settings.setValue("outputDir", path)
 
-        saveScreenshot = self.view.generalWidget.isSaveScreenshot()
-        settings.setValue("saveScreenshot", saveScreenshot)
-
         voltage = self.view.generalWidget.beginVoltage()
         settings.setValue("beginVoltage", voltage)
 
@@ -460,7 +453,8 @@ class Controller(PluginRegistryMixin, AbstractController):
             settings.setValue("resource", role.resourceName())
             settings.setValue("termination", role.termination())
             settings.setValue("timeout", role.timeout())
-            settings.setValue("config", role.config())
+            settings.setValue("resources", role.resources())
+            settings.setValue("configs", role.configs())
             settings.endGroup()
 
         settings.endGroup()
@@ -477,6 +471,8 @@ class Controller(PluginRegistryMixin, AbstractController):
             logger.info("Importing measurement file: %s", filename)
             self.view.setEnabled(False)
             self.view.clear()
+            self.ivPlotsController.clear()
+            self.cvPlotsController.clear()
             try:
                 # Open in binary mode!
                 with open(filename, "rb") as fp:
@@ -493,6 +489,8 @@ class Controller(PluginRegistryMixin, AbstractController):
                         if spec["type"] == meta.get("measurement_type"):
                             self.view.generalWidget.measurementComboBox.setCurrentIndex(index)
                             break
+                if meta.get("sample"):
+                    self.view.generalWidget.setSampleName(meta.get("sample"))
                 if meta.get("voltage_begin"):
                     self.view.generalWidget.setBeginVoltage(meta.get("voltage_begin"))
                 if meta.get("voltage_end"):
@@ -515,18 +513,6 @@ class Controller(PluginRegistryMixin, AbstractController):
                     self.cvPlotsController.onLoadCV2Readings(data)
             finally:
                 self.view.setEnabled(True)
-
-    @handle_exception
-    def saveScreenshot(self) -> None:
-        """Save screenshot of active IV/CV plots."""
-        if self.state.get("save_screenshot"):
-            p = pathlib.Path(str(self.state.get("filename")))
-            # Only if output file was produced.
-            if p.exists():
-                filename = str(p.with_suffix(".png"))
-                pixmap = self.view.dataStackedWidget.grab()
-                pixmap.save(filename, "PNG")
-                logger.info("Saved screenshot to %s", filename)
 
     # State slots
 
@@ -589,7 +575,8 @@ class Controller(PluginRegistryMixin, AbstractController):
 
     def onContinuousToggled(self, checked):
         self.view.setContinuous(checked)
-        self.view.itPlotWidget.setVisible(checked)
+        self.ivPlotsController.setContinuous(checked)
+        self.cvPlotsController.setContinuous(checked)
         self.view.generalWidget.continuousGroupBox.setEnabled(checked)
 
     def onContinuousChanged(self, state):
@@ -599,11 +586,11 @@ class Controller(PluginRegistryMixin, AbstractController):
         spec = DEFAULTS[index]
 
         if spec.get("type") == "iv":
-            self.view.showIVPlots()
+            self.view.setDataWidget(self.ivPlotsController.dataWidget)
             self.view.continuousAction.setEnabled(True)
             self.view.generalWidget.continuousGroupBox.setEnabled(self.view.isContinuous())
         elif spec.get("type") == "cv":
-            self.view.showCVPlots()
+            self.view.setDataWidget(self.cvPlotsController.dataWidget)
             self.view.continuousAction.setEnabled(False)
             self.view.generalWidget.continuousGroupBox.setEnabled(False)
         self.updateContinuousOption()
@@ -654,18 +641,20 @@ class Controller(PluginRegistryMixin, AbstractController):
         self.view.generalWidget.setCurrentCompliance(value)
 
     def onToggleSmu(self, state):
-        self.view.ivPlotWidget.smuSeries.setVisible(state)
-        self.view.itPlotWidget.smuSeries.setVisible(state)
+        self.ivPlotsController.toggleSmuSeries(state)
+        self.cvPlotsController.toggleSmuSeries(state)
         self.view.smuGroupBox.setEnabled(state)
         self.view.smuGroupBox.setVisible(state)
 
     def onToggleElm(self, state):
-        self.view.ivPlotWidget.elmSeries.setVisible(state)
-        self.view.itPlotWidget.elmSeries.setVisible(state)
+        self.ivPlotsController.toggleElmSeries(state)
+        self.cvPlotsController.toggleElmSeries(state)
         self.view.elmGroupBox.setEnabled(state)
         self.view.elmGroupBox.setVisible(state)
 
     def onToggleLcr(self, state):
+        self.ivPlotsController.toggleLcrSeries(state)
+        self.cvPlotsController.toggleLcrSeries(state)
         self.view.lcrGroupBox.setEnabled(state)
         self.view.lcrGroupBox.setVisible(state)
 
@@ -807,10 +796,22 @@ class Controller(PluginRegistryMixin, AbstractController):
             self.finished.emit()
 
 
-class IVPlotsController(AbstractController):
+class IVPlotsController(QtCore.QObject):
 
-    def __init__(self, view, parent=None) -> None:
-        super().__init__(view, parent)
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+
+        self.ivPlotWidget = IVPlotWidget()
+        self.itPlotWidget = ItPlotWidget()
+        self.itPlotWidget.setVisible(False)
+        self.dataWidget = QtWidgets.QWidget()
+        self.ivLayout = QtWidgets.QHBoxLayout(self.dataWidget)
+        self.ivLayout.addWidget(self.ivPlotWidget)
+        self.ivLayout.addWidget(self.itPlotWidget)
+        self.ivLayout.setStretch(0, 1)
+        self.ivLayout.setStretch(1, 1)
+        self.ivLayout.setContentsMargins(0, 0, 0, 0)
+
         self.ivReadingQueue = []
         self.ivReadingLock = threading.RLock()
         self.itReadingQueue = []
@@ -823,8 +824,24 @@ class IVPlotsController(AbstractController):
     def clear(self):
         self.ivReadingQueue.clear()
         self.itReadingQueue.clear()
-        self.view.ivPlotWidget.clear()
-        self.view.itPlotWidget.clear()
+        self.ivPlotWidget.clear()
+        self.ivPlotWidget.reset()
+        self.itPlotWidget.clear()
+        self.itPlotWidget.reset()
+
+    def toggleSmuSeries(self, state):
+        self.ivPlotWidget.smuSeries.setVisible(state)
+        self.itPlotWidget.smuSeries.setVisible(state)
+
+    def toggleElmSeries(self, state):
+        self.ivPlotWidget.elmSeries.setVisible(state)
+        self.itPlotWidget.elmSeries.setVisible(state)
+
+    def toggleLcrSeries(self, state):
+        ...
+
+    def setContinuous(self, enabled):
+        self.itPlotWidget.setVisible(enabled)
 
     def onFlushIVReadings(self) -> None:
         with self.ivReadingLock:
@@ -833,23 +850,23 @@ class IVPlotsController(AbstractController):
         for reading in readings:
             self.onIVReading(reading, fit=False)
         if len(readings):
-            self.view.ivPlotWidget.fit()
+            self.ivPlotWidget.fit()
 
     def onIVReading(self, reading: dict, fit: bool = True) -> None:
         voltage: float = reading.get("voltage", math.nan)
         i_smu: float = reading.get("i_smu", math.nan)
         i_elm: float = reading.get("i_elm", math.nan)
         if math.isfinite(voltage) and math.isfinite(i_smu):
-            self.view.ivPlotWidget.append("smu", voltage, i_smu)
+            self.ivPlotWidget.append("smu", voltage, i_smu)
         if math.isfinite(voltage) and math.isfinite(i_elm):
-            self.view.ivPlotWidget.append("elm", voltage, i_elm)
+            self.ivPlotWidget.append("elm", voltage, i_elm)
         if fit:
-            self.view.ivPlotWidget.fit()
+            self.ivPlotWidget.fit()
 
     def onLoadIVReadings(self, readings: List[dict]) -> None:
         smuPoints = []
         elmPoints = []
-        widget = self.view.ivPlotWidget
+        widget = self.ivPlotWidget
         widget.clear()
         for reading in readings:
             voltage: float = reading.get("voltage", math.nan)
@@ -865,6 +882,9 @@ class IVPlotsController(AbstractController):
                 widget.vLimits.append(voltage)
         widget.series.get("smu").replace(smuPoints)
         widget.series.get("elm").replace(elmPoints)
+        if self.parent():
+            self.parent().onToggleSmu(True)
+            self.parent().onToggleElm(bool(len(elmPoints)))
         widget.fit()
 
     def onFlushItReadings(self) -> None:
@@ -874,23 +894,23 @@ class IVPlotsController(AbstractController):
         for reading in readings:
             self.onItReading(reading, fit=False)
         if len(readings):
-            self.view.itPlotWidget.fit()
+            self.itPlotWidget.fit()
 
     def onItReading(self, reading: dict, fit: bool = True) -> None:
         timestamp: float = reading.get("timestamp", math.nan)
         i_smu: float = reading.get("i_smu", math.nan)
         i_elm: float = reading.get("i_elm", math.nan)
         if math.isfinite(timestamp) and math.isfinite(i_smu):
-            self.view.itPlotWidget.append("smu", timestamp, i_smu)
+            self.itPlotWidget.append("smu", timestamp, i_smu)
         if math.isfinite(timestamp) and math.isfinite(i_elm):
-            self.view.itPlotWidget.append("elm", timestamp, i_elm)
+            self.itPlotWidget.append("elm", timestamp, i_elm)
         if fit:
-            self.view.itPlotWidget.fit()
+            self.itPlotWidget.fit()
 
     def onLoadItReadings(self, readings: List[dict]) -> None:
         smuPoints: List[QtCore.QPointF] = []
         elmPoints: List[QtCore.QPointF] = []
-        widget = self.view.itPlotWidget
+        widget = self.itPlotWidget
         widget.clear()
         for reading in readings:
             timestamp: float = reading.get("timestamp", math.nan)
@@ -909,10 +929,21 @@ class IVPlotsController(AbstractController):
         widget.fit()
 
 
-class CVPlotsController(AbstractController):
+class CVPlotsController(QtCore.QObject):
 
-    def __init__(self, view, parent=None) -> None:
-        super().__init__(view, parent)
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+
+        self.cvPlotWidget = CVPlotWidget()
+        self.cv2PlotWidget = CV2PlotWidget()
+        self.dataWidget = QtWidgets.QWidget()
+        self.cvLayout = QtWidgets.QHBoxLayout(self.dataWidget)
+        self.cvLayout.addWidget(self.cvPlotWidget)
+        self.cvLayout.addWidget(self.cv2PlotWidget)
+        self.cvLayout.setStretch(0, 1)
+        self.cvLayout.setStretch(1, 1)
+        self.cvLayout.setContentsMargins(0, 0, 0, 0)
+
         self.cvReadingQueue = []
         self.cvReadingLock = threading.RLock()
 
@@ -921,7 +952,20 @@ class CVPlotsController(AbstractController):
 
     def clear(self):
         self.cvReadingQueue.clear()
-        self.view.cvPlotWidget.clear()
+        self.cvPlotWidget.clear()
+        self.cvPlotWidget.reset()
+
+    def toggleSmuSeries(self, state):
+        ...
+
+    def toggleElmSeries(self, state):
+        ...
+
+    def toggleLcrSeries(self, state):
+        ...
+
+    def setContinuous(self, enabled):
+        ...
 
     def onFlushCvReadings(self) -> None:
         with self.cvReadingLock:
@@ -930,22 +974,20 @@ class CVPlotsController(AbstractController):
         for reading in readings:
             self.onCVReading(reading, fit=False)
         if len(readings):
-            self.view.cvPlotWidget.fit()
+            self.cvPlotWidget.fit()
 
     def onCVReading(self, reading: dict, fit: bool = True) -> None:
         voltage: float = reading.get("voltage", math.nan)
         c_lcr: float = reading.get("c_lcr", math.nan)
         c2_lcr: float = reading.get("c2_lcr", math.nan)
         if math.isfinite(voltage) and math.isfinite(c_lcr):
-            self.view.cvPlotWidget.append("lcr", voltage, c_lcr)
+            self.cvPlotWidget.append("lcr", voltage, c_lcr)
         if math.isfinite(voltage) and math.isfinite(c2_lcr):
-            self.view.cv2PlotWidget.append("lcr", voltage, c2_lcr)
-        if fit:
-            self.view.itPlotWidget.fit()
+            self.cv2PlotWidget.append("lcr", voltage, c2_lcr)
 
     def onLoadCVReadings(self, readings: List[dict]) -> None:
         lcrPoints: List[QtCore.QPointF] = []
-        widget = self.view.cvPlotWidget
+        widget = self.cvPlotWidget
         widget.clear()
         for reading in readings:
             voltage: float = reading.get("voltage", math.nan)
@@ -959,7 +1001,7 @@ class CVPlotsController(AbstractController):
 
     def onLoadCV2Readings(self, readings: List[dict]) -> None:
         lcr2Points: List[QtCore.QPointF] = []
-        widget = self.view.cv2PlotWidget
+        widget = self.cv2PlotWidget
         widget.clear()
         for reading in readings:
             voltage: float = reading.get("voltage", math.nan)
@@ -972,10 +1014,11 @@ class CVPlotsController(AbstractController):
         widget.fit()
 
 
-class ChangeVoltageController(AbstractController):
+class ChangeVoltageController(QtCore.QObject):
 
     def __init__(self, view, state, parent=None) -> None:
-        super().__init__(view, parent)
+        super().__init__(parent)
+        self.view = view
         self.state = state
         # Connect signals
         self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)

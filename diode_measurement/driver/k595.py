@@ -32,10 +32,10 @@ class K595(LCRMeter):
         result = self._query("U1X")[3:]
         for index, value in enumerate(result):
             if value == "1":
-                return index, ERROR_MESSAGES.get(index, "Unknown Error")
+                return index + 100, ERROR_MESSAGES.get(index, "Unknown Error")
         return 0, "No Error"
 
-    def configure(self, **options) -> None:
+    def configure(self, options: dict) -> None:
         self._write("T0X")
         self._write("V0X")
 
@@ -43,7 +43,7 @@ class K595(LCRMeter):
         return self.get_voltage_level() != 0
 
     def set_output_enabled(self, enabled: bool) -> None:
-        pass  # not available
+        ...  # not available
 
     def get_voltage_level(self) -> float:
         self._write("F1X")
@@ -54,10 +54,10 @@ class K595(LCRMeter):
         self._write(f"V{level:.2f}X")
 
     def set_voltage_range(self, level: float) -> None:
-        pass  # TODO
+        ...  # TODO
 
     def set_current_compliance_level(self, level: float) -> None:
-        pass  # not available
+        ...  # not available
 
     def compliance_tripped(self) -> bool:
         self._write("F1X")

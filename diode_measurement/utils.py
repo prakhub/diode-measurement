@@ -4,6 +4,8 @@ import pint
 
 from typing import Iterable, Tuple
 
+import pyvisa
+
 __all__ = [
     "ureg",
     "safe_filename",
@@ -38,6 +40,13 @@ def get_resource(resource_name: str) -> Tuple[str, str]:
         visa_library = "@py"
 
     return resource_name, visa_library
+
+
+def open_resource(resource_name: str, termination: str, timeout: float):
+    resource_name, visa_library = get_resource(resource_name)
+    timeout_millisecs = timeout * 1e3
+    rm = pyvisa.ResourceManager(visa_library)
+    return rm.open_resource(resource_name=resource_name, read_termination=termination, write_termination=termination, timeout=timeout_millisecs)
 
 
 def safe_filename(filename: str) -> str:
@@ -86,7 +95,7 @@ def format_switch(value: bool) -> str:
     >>> format_switch(False)
     'OFF'
     """
-    return {False: "OFF", True: "ON"}.get(value) or "N/A"
+    return {False: "OFF", True: "ON"}.get(value) or "---"
 
 
 def limits(iterable: Iterable) -> Tuple:
