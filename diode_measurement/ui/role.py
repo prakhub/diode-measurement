@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List, Optional
 
 from PyQt5 import QtWidgets
@@ -13,6 +14,8 @@ class RoleWidget(QtWidgets.QWidget):
     def __init__(self, name, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
         self.setName(name)
+
+        self._resources: Dict[str, Any] = {}  # TODO
 
         self.resourceWidget = ResourceWidget(self)
         self.resourceWidget.modelChanged.connect(self.modelChanged)
@@ -60,6 +63,23 @@ class RoleWidget(QtWidgets.QWidget):
     def setTimeout(self, timeout: float) -> None:
         self.resourceWidget.setTimeout(timeout)
 
+    def resources(self) -> Dict[str, Any]:
+        return self._resources.copy()
+
+    def setResources(self, resources: Dict[str, Any]) -> None:
+        self._resources.update(resources)
+
+    def syncCurrentResource(self) -> None:
+        widget = self.stackedWidget.currentWidget()
+        if isinstance(widget, InstrumentPanel):
+            model = widget.model()
+            resource = {
+                "resource_name": self.resourceName(),
+                "termination": self.termination(),
+                "timeout": self.timeout(),
+            }
+            self._resources.setdefault(model, {}).update(resource)
+
     def config(self) -> Dict[str, Any]:
         config = {}
         for widget in self.instrumentPanels():
@@ -96,12 +116,20 @@ class RoleWidget(QtWidgets.QWidget):
         return None
 
     def modelChanged(self, model: str) -> None:
+        self.syncCurrentResource()
         widget = self.findInstrumentPanel(model)
-        if widget is None:
-            self.stackedWidget.hide()
-        else:
+        if isinstance(widget, InstrumentPanel):
+            try:
+                resource = self._resources.get(model, {})
+                self.setResourceName(resource.get("resource_name", ""))
+                self.setTermination(resource.get("termination", "\r\n"))
+                self.setTimeout(resource.get("timeout", 8.0))
+            except Exception as exc:
+                logging.exception(exc)
             self.stackedWidget.setCurrentWidget(widget)
             self.stackedWidget.show()
+        else:
+            self.stackedWidget.hide()
 
     def restoreDefaults(self) -> None:
         widget = self.stackedWidget.currentWidget()

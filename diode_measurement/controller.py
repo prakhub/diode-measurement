@@ -373,6 +373,7 @@ class Controller(QtCore.QObject):
             role.setResourceName(settings.value("resource", ""))
             role.setTermination(settings.value("termination", ""))
             role.setTimeout(settings.value("timeout", 4, int))
+            role.setResources(settings.value("resources", {}, dict))
             role.setConfig(settings.value("config", {}, dict))
             settings.endGroup()
 
@@ -452,6 +453,7 @@ class Controller(QtCore.QObject):
             settings.setValue("resource", role.resourceName())
             settings.setValue("termination", role.termination())
             settings.setValue("timeout", role.timeout())
+            settings.setValue("resources", role.resources())
             settings.setValue("config", role.config())
             settings.endGroup()
 
