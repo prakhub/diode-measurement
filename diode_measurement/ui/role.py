@@ -80,15 +80,15 @@ class RoleWidget(QtWidgets.QWidget):
             }
             self._resources.setdefault(model, {}).update(resource)
 
-    def config(self) -> Dict[str, Any]:
-        config = {}
+    def configs(self) -> Dict[str, Any]:
+        configs = {}
         for widget in self.instrumentPanels():
-            config[widget.model()] = widget.config()
-        return config
+            configs[widget.model()] = widget.config()
+        return configs
 
-    def setConfig(self, config: Dict[str, Dict[str, Any]]) -> None:
+    def setConfigs(self, configs: Dict[str, Dict[str, Any]]) -> None:
         for widget in self.instrumentPanels():
-            widget.setConfig(config.get(widget.model(), {}))
+            widget.setConfig(configs.get(widget.model(), {}))
 
     def setLocked(self, state: bool) -> None:
         self.resourceWidget.setLocked(state)
