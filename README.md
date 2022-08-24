@@ -107,13 +107,43 @@ timestamp[s]	voltage[V]	i_smu[A]	i_elm[A]	temperature[degC]
 1629455368.29	+5.000E+00	+4.261E-08	+3.740E-08	+NAN
 1629455369.71	+4.000E+00	+7.708E-08	+9.495E-08	+NAN
 1629455370.49	+3.000E+00	+3.460E-08	+6.264E-08	+NAN
-...          	...       	...       	...
+...          	...       	...       	...       	...
 
 timestamp[s]	voltage[V]	i_smu[A]	i_elm[A]	temperature[degC]
 1629455385.69	+3.000E+00	+3.996E-04	+7.137E-08	+NAN
 1629455387.65	+3.000E+00	+7.353E-04	+3.079E-08	+NAN
 1629455389.56	+3.000E+00	+9.081E-04	+1.266E-08	+NAN
-...          	...       	...
+...          	...       	...       	...       	...
+```
+
+### IV Bias
+
+IV bias measurement data consist of up to two CSV tables with the second
+(optional) table containing continuous bias measurement data.
+
+#### Example
+
+```csv
+sample: Unnamed
+measurement_type: iv_bias
+bias_voltage[V]: +1.000E+01
+voltage_begin[V]: +5.000E+00
+voltage_end[V]: -1.000E+01
+voltage_step[V]: +1.000E+00
+waiting_time[s]: +1.000E-01
+current_compliance[A]: +1.000E-06
+
+timestamp[s]	voltage[V]	i_smu[A]	i_smu2[A]	i_elm[A]	temperature[degC]
+1629455368.29	+5.000E+00	+4.261E-08	+3.723E-08	+3.740E-08	+NAN
+1629455369.71	+4.000E+00	+7.708E-08	+6.513E-08	+9.495E-08	+NAN
+1629455370.49	+3.000E+00	+3.460E-08	+2.410E-08	+6.264E-08	+NAN
+...          	...       	...       	...       	...       	...
+
+timestamp[s]	voltage[V]	i_smu[A]	i_smu2[A]	i_elm[A]	temperature[degC]
+1629455385.69	+3.000E+00	+3.996E-08	+2.657E-08	+7.137E-08	+NAN
+1629455387.65	+3.000E+00	+7.353E-08	+6.154E-08	+3.079E-08	+NAN
+1629455389.56	+3.000E+00	+9.081E-08	+8.426E-08	+1.266E-08	+NAN
+...          	...       	...       	...       	...       	...
 ```
 
 ### CV
@@ -136,7 +166,7 @@ timestamp[s]	voltage[V]	i_smu[A]	c_lcr[F]	c_lcr[F]	temperature[degC]
 1629455368.29	+5.000E+00	+4.261E-08	+3.740E-05	7.149E+08	+NAN
 1629455369.71	+4.000E+00	+7.708E-08	+9.495E-05	1.109E+08	+NAN
 1629455370.49	+3.000E+00	+3.460E-08	+6.264E-05	2.549E+08	+NAN
-...          	...       	...       	...       	...
+...          	...       	...       	...       	...      	...
 ```
 
 ## JSON-RPC
@@ -196,7 +226,7 @@ Request an application state snapshot.
 This will return application state parameters.
 
 ```json
-{"jsonrpc": "2.0", "result": {"state": "ramping", "measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "elm_current": 0.0021, "lcr_capacity": null, "temperature": 24.031}, "id": 0}
+{"jsonrpc": "2.0", "result": {"state": "ramping", "measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "smu2_current": 0.0018, "elm_current": 0.0021, "lcr_capacity": null, "temperature": 24.031}, "id": 0}
 ```
 
 ### States

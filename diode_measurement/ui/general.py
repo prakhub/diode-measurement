@@ -22,6 +22,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.measurementComboBox = QtWidgets.QComboBox()
 
         self.smuCheckBox = QtWidgets.QCheckBox("SMU")
+        self.smu2CheckBox = QtWidgets.QCheckBox("SMU2")
         self.elmCheckBox = QtWidgets.QCheckBox("ELM")
         self.lcrCheckBox = QtWidgets.QCheckBox("LCR")
         self.dmmCheckBox = QtWidgets.QCheckBox("DMM")
@@ -43,6 +44,11 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.waitingTimeSpinBox = QtWidgets.QDoubleSpinBox()
         self.waitingTimeSpinBox.setSuffix(" s")
+
+        self.biasVoltageSpinBox = QtWidgets.QDoubleSpinBox()
+        self.biasVoltageSpinBox.setDecimals(3)
+        self.biasVoltageSpinBox.setRange(-2000.0, +2000.0)
+        self.biasVoltageSpinBox.setSuffix(" V")
 
         self.currentComplianceSpinBox = QtWidgets.QDoubleSpinBox()
         self.currentComplianceSpinBox.setDecimals(3)
@@ -99,6 +105,9 @@ class GeneralWidget(QtWidgets.QWidget):
         self.rampGroupBox = QtWidgets.QGroupBox()
         self.rampGroupBox.setTitle("Ramp")
 
+        self.biasGroupBox = QtWidgets.QGroupBox()
+        self.biasGroupBox.setTitle("Bias Voltage (SMU2)")
+
         self.complianceGroupBox = QtWidgets.QGroupBox()
         self.complianceGroupBox.setTitle("Compliance")
 
@@ -114,6 +123,7 @@ class GeneralWidget(QtWidgets.QWidget):
         layout.addWidget(self.instrumentWidget)
         self.instrumentLayout = QtWidgets.QHBoxLayout(self.instrumentWidget)
         self.instrumentLayout.addWidget(self.smuCheckBox)
+        self.instrumentLayout.addWidget(self.smu2CheckBox)
         self.instrumentLayout.addWidget(self.elmCheckBox)
         self.instrumentLayout.addWidget(self.lcrCheckBox)
         self.instrumentLayout.addWidget(self.dmmCheckBox)
@@ -139,6 +149,9 @@ class GeneralWidget(QtWidgets.QWidget):
         layout.addWidget(self.stepVoltageSpinBox)
         layout.addWidget(QtWidgets.QLabel("Waiting Time"))
         layout.addWidget(self.waitingTimeSpinBox)
+
+        layout = QtWidgets.QVBoxLayout(self.biasGroupBox)
+        layout.addWidget(self.biasVoltageSpinBox)
         layout.addStretch()
 
         layout = QtWidgets.QVBoxLayout(self.complianceGroupBox)
@@ -162,7 +175,10 @@ class GeneralWidget(QtWidgets.QWidget):
         vbox.addWidget(self.measurementGroupBox)
         vbox.addWidget(self.outputGroupBox)
         layout.addLayout(vbox)
-        layout.addWidget(self.rampGroupBox)
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.rampGroupBox)
+        vbox.addWidget(self.biasGroupBox)
+        layout.addLayout(vbox)
         vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(self.complianceGroupBox)
         vbox.addWidget(self.continuousGroupBox)
@@ -180,6 +196,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.endVoltageSpinBox.setEnabled(True)
         self.stepVoltageSpinBox.setEnabled(True)
         self.waitingTimeSpinBox.setEnabled(True)
+        self.biasVoltageSpinBox.setEnabled(True)
         self.changeVoltageButton.setEnabled(False)
         self.currentComplianceSpinBox.setEnabled(True)
         self.continueInComplianceCheckBox.setEnabled(True)
@@ -192,6 +209,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.endVoltageSpinBox.setEnabled(False)
         self.stepVoltageSpinBox.setEnabled(False)
         self.waitingTimeSpinBox.setEnabled(False)
+        self.biasVoltageSpinBox.setEnabled(False)
 
     def setStoppingState(self):
         self.changeVoltageButton.setEnabled(False)
@@ -209,6 +227,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setSMUEnabled(self, enabled):
         return self.smuCheckBox.setChecked(enabled)
+
+    def isSMU2Enabled(self):
+        return self.smu2CheckBox.isChecked()
+
+    def setSMU2Enabled(self, enabled):
+        return self.smu2CheckBox.setChecked(enabled)
 
     def isELMEnabled(self):
         return self.elmCheckBox.isChecked()
@@ -285,6 +309,14 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setWaitingTime(self, value):
         self.waitingTimeSpinBox.setValue(value)
+
+    def biasVoltage(self):
+        unit = self.biasVoltageSpinBox.suffix().strip()
+        return (self.biasVoltageSpinBox.value() * ureg(unit)).to("V").m
+
+    def setBiasVoltage(self, value):
+        unit = self.biasVoltageSpinBox.suffix().strip()
+        self.biasVoltageSpinBox.setValue((value * ureg("V")).to(unit).m)
 
     def setCurrentComplianceUnit(self, unit):
         self.currentComplianceSpinBox.setSuffix(f" {unit}")

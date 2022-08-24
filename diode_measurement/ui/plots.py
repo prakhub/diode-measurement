@@ -187,6 +187,12 @@ class IVPlotWidget(PlotWidget):
         self.smuSeries.setPointsVisible(True)
         self.chart().addSeries(self.smuSeries)
 
+        self.smu2Series = QtChart.QLineSeries()
+        self.smu2Series.setName("SMU2")
+        self.smu2Series.setColor(QtCore.Qt.darkRed)
+        self.smu2Series.setPointsVisible(True)
+        self.chart().addSeries(self.smu2Series)
+
         self.elmSeries = QtChart.QLineSeries()
         self.elmSeries.setName("ELM")
         self.elmSeries.setColor(QtCore.Qt.blue)
@@ -196,6 +202,7 @@ class IVPlotWidget(PlotWidget):
         self.iAxis = QtChart.QValueAxis()
         self.chart().addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
+        self.smu2Series.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
         self.iDynamicAxis = DynamicValueAxis(self.iAxis, "A")
@@ -210,12 +217,14 @@ class IVPlotWidget(PlotWidget):
         self.vAxis.setRange(-100, +100)
         self.chart().addAxis(self.vAxis, QtCore.Qt.AlignBottom)
         self.smuSeries.attachAxis(self.vAxis)
+        self.smu2Series.attachAxis(self.vAxis)
         self.elmSeries.attachAxis(self.vAxis)
 
         self.iLimits = LimitsAggregator(self)
         self.vLimits = LimitsAggregator(self)
 
         self.series["smu"] = self.smuSeries
+        self.series["smu2"] = self.smu2Series
         self.series["elm"] = self.elmSeries
 
     def fitVAxis(self) -> None:
@@ -274,6 +283,12 @@ class ItPlotWidget(PlotWidget):
         self.smuSeries.setPointsVisible(True)
         self.chart().addSeries(self.smuSeries)
 
+        self.smu2Series = QtChart.QLineSeries()
+        self.smu2Series.setName("SMU2")
+        self.smu2Series.setColor(QtCore.Qt.darkRed)
+        self.smu2Series.setPointsVisible(True)
+        self.chart().addSeries(self.smu2Series)
+
         self.elmSeries = QtChart.QLineSeries()
         self.elmSeries.setName("ELM")
         self.elmSeries.setColor(QtCore.Qt.blue)
@@ -284,6 +299,7 @@ class ItPlotWidget(PlotWidget):
         self.iAxis.hide()
         self.chart().addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
+        self.smu2Series.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
 
         self.iDynamicAxis = DynamicValueAxis(self.iAxis, "A")
@@ -297,12 +313,14 @@ class ItPlotWidget(PlotWidget):
         self.tAxis.setTickCount(3)
         self.chart().addAxis(self.tAxis, QtCore.Qt.AlignBottom)
         self.smuSeries.attachAxis(self.tAxis)
+        self.smu2Series.attachAxis(self.tAxis)
         self.elmSeries.attachAxis(self.tAxis)
 
         self.iLimits = LimitsAggregator(self)
         self.tLimits = LimitsAggregator(self)
 
         self.series["smu"] = self.smuSeries
+        self.series["smu2"] = self.smu2Series
         self.series["elm"] = self.elmSeries
 
     def fitTAxis(self) -> None:

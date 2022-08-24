@@ -38,6 +38,7 @@ from .ui.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
 
 from .measurement import Measurement
 from .measurement.iv import IVMeasurement
+from .measurement.iv_bias import IVBiasMeasurement
 from .measurement.cv import CVMeasurement
 
 from .reader import Reader
@@ -56,6 +57,7 @@ logger = logging.getLogger(__name__)
 
 MEASUREMENTS = {
     "iv": IVMeasurement,
+    "iv_bias": IVBiasMeasurement,
     "cv": CVMeasurement,
 }
 
@@ -95,6 +97,9 @@ class MeasurementRunner:
                 if isinstance(measurement, IVMeasurement):
                     measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
                     measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                if isinstance(measurement, IVBiasMeasurement):
+                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_bias_row(reading))
+                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_bias_row(reading))
                 if isinstance(measurement, CVMeasurement):
                     measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
                 measurement.finishedHandlers.append(lambda: writer.flush())
@@ -145,6 +150,13 @@ class Controller(QtCore.QObject):
         role.addInstrumentPanel(K2470Panel())
         role.addInstrumentPanel(K2657APanel())
 
+        # Bias source meter unit
+        role = self.view.addRole("SMU2")
+        role.addInstrumentPanel(K237Panel())
+        role.addInstrumentPanel(K2410Panel())
+        role.addInstrumentPanel(K2470Panel())
+        role.addInstrumentPanel(K2657APanel())
+
         # Electrometer
         role = self.view.addRole("ELM")
         role.addInstrumentPanel(K6514Panel())
@@ -185,10 +197,12 @@ class Controller(QtCore.QObject):
         self.update.connect(self.onUpdate)
 
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
+        self.view.generalWidget.smu2CheckBox.toggled.connect(self.onToggleSmu2)
         self.view.generalWidget.elmCheckBox.toggled.connect(self.onToggleElm)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
         self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
 
+        self.onToggleSmu2(False)
         self.onToggleElm(False)
         self.onToggleLcr(False)
         self.onToggleDmm(False)
@@ -234,6 +248,7 @@ class Controller(QtCore.QObject):
             snapshot["sample"] = self.cache.get("sample")
             snapshot["source_voltage"] = self.cache.get("source_voltage")
             snapshot["smu_current"] = self.cache.get("smu_current")
+            snapshot["smu2_current"] = self.cache.get("smu2_current")
             snapshot["elm_current"] = self.cache.get("elm_current")
             snapshot["lcr_capacity"] = self.cache.get("lcr_capacity")
             snapshot["temperature"] = self.cache.get("dmm_temperature")
@@ -253,6 +268,7 @@ class Controller(QtCore.QObject):
         state["voltage_end"] = self.view.generalWidget.endVoltage()
         state["voltage_step"] = self.view.generalWidget.stepVoltage()
         state["waiting_time"] = self.view.generalWidget.waitingTime()
+        state["bias_voltage"] = self.view.generalWidget.biasVoltage()
         state["current_compliance"] = self.view.generalWidget.currentCompliance()
         state["continue_in_compliance"] = self.view.generalWidget.isContinueInCompliance()
         state["waiting_time_continuous"] = self.view.generalWidget.waitingTimeContinuous()
@@ -278,7 +294,11 @@ class Controller(QtCore.QObject):
         elif self.view.generalWidget.isLCREnabled():
             state["source"] = "lcr"
 
+        if self.view.generalWidget.isSMU2Enabled():
+            state["bias_source"] = "smu2"
+
         state.get("smu").update({"enabled": self.view.generalWidget.isSMUEnabled()})
+        state.get("smu2").update({"enabled": self.view.generalWidget.isSMU2Enabled()})
         state.get("elm").update({"enabled": self.view.generalWidget.isELMEnabled()})
         state.get("lcr").update({"enabled": self.view.generalWidget.isLCREnabled()})
         state.get("dmm").update({"enabled": self.view.generalWidget.isDMMEnabled()})
@@ -322,6 +342,9 @@ class Controller(QtCore.QObject):
         enabled = settings.value("smu/enabled", False, bool)
         self.view.generalWidget.setSMUEnabled(enabled)
 
+        enabled = settings.value("smu2/enabled", False, bool)
+        self.view.generalWidget.setSMU2Enabled(enabled)
+
         enabled = settings.value("elm/enabled", False, bool)
         self.view.generalWidget.setELMEnabled(enabled)
 
@@ -351,6 +374,9 @@ class Controller(QtCore.QObject):
 
         waitingTime = settings.value("waitingTime", 1, float)
         self.view.generalWidget.setWaitingTime(waitingTime)
+
+        voltage = settings.value("biasVoltage", 0, float)
+        self.view.generalWidget.setBiasVoltage(voltage)
 
         currentCompliance = settings.value("currentCompliance", 1, float)
         self.view.generalWidget.setCurrentCompliance(currentCompliance)
@@ -402,6 +428,9 @@ class Controller(QtCore.QObject):
         enabled = self.view.generalWidget.isSMUEnabled()
         settings.setValue("smu/enabled", enabled)
 
+        enabled = self.view.generalWidget.isSMU2Enabled()
+        settings.setValue("smu2/enabled", enabled)
+
         enabled = self.view.generalWidget.isELMEnabled()
         settings.setValue("elm/enabled", enabled)
 
@@ -431,6 +460,9 @@ class Controller(QtCore.QObject):
 
         waitingTime = self.view.generalWidget.waitingTime()
         settings.setValue("waitingTime", waitingTime)
+
+        voltage = self.view.generalWidget.biasVoltage()
+        settings.setValue("biasVoltage", voltage)
 
         currentCompliance = self.view.generalWidget.currentCompliance()
         settings.setValue("currentCompliance", currentCompliance)
@@ -504,10 +536,10 @@ class Controller(QtCore.QObject):
                     self.view.generalWidget.setCurrentCompliance(meta.get("current_compliance"))
 
                 # Data
-                if meta.get("measurement_type") == "iv":
+                if meta.get("measurement_type") in ["iv", "iv_bias"]:
                     self.ivPlotsController.onLoadIVReadings(data)
                     self.ivPlotsController.onLoadItReadings(continuousData)
-                if meta.get("measurement_type") == "cv":
+                if meta.get("measurement_type") in ["cv"]:
                     self.cvPlotsController.onLoadCVReadings(data)
                     self.cvPlotsController.onLoadCV2Readings(data)
             finally:
@@ -551,9 +583,15 @@ class Controller(QtCore.QObject):
         if "source_voltage" in data:
             self.view.updateSourceVoltage(data.get("source_voltage"))
             cache.update({"source_voltage": data.get("source_voltage")})
+        if "bias_source_voltage" in data:
+            self.view.updateBiasSourceVoltage(data.get("bias_source_voltage"))
+            cache.update({"bias_source_voltage": data.get("bias_source_voltage")})
         if "smu_current" in data:
             self.view.updateSMUCurrent(data.get("smu_current"))
             cache.update({"smu_current": data.get("smu_current")})
+        if "smu2_current" in data:
+            self.view.updateSMU2Current(data.get("smu2_current"))
+            cache.update({"smu2_current": data.get("smu2_current")})
         if "elm_current" in data:
             self.view.updateELMCurrent(data.get("elm_current"))
             cache.update({"elm_current": data.get("elm_current")})
@@ -565,6 +603,8 @@ class Controller(QtCore.QObject):
             cache.update({"dmm_temperature": data.get("dmm_temperature")})
         if "source_output_state" in data:
             self.view.updateSourceOutputState(data.get("source_output_state"))
+        if "bias_source_output_state" in data:
+            self.view.updateBiasSourceOutputState(data.get("bias_source_output_state"))
         if "message" in data:
             self.view.setMessage(data.get("message", ""))
         if "progress" in data:
@@ -587,27 +627,49 @@ class Controller(QtCore.QObject):
         if spec.get("type") == "iv":
             self.view.setDataWidget(self.ivPlotsController.dataWidget)
             self.view.continuousAction.setEnabled(True)
+            self.view.generalWidget.biasGroupBox.setEnabled(False)
+            self.view.generalWidget.continuousGroupBox.setEnabled(self.view.isContinuous())
+        elif spec.get("type") == "iv_bias":
+            self.view.setDataWidget(self.ivPlotsController.dataWidget)
+            self.view.continuousAction.setEnabled(True)
+            self.view.generalWidget.biasGroupBox.setEnabled(True)
             self.view.generalWidget.continuousGroupBox.setEnabled(self.view.isContinuous())
         elif spec.get("type") == "cv":
             self.view.setDataWidget(self.cvPlotsController.dataWidget)
             self.view.continuousAction.setEnabled(False)
+            self.view.generalWidget.biasGroupBox.setEnabled(False)
             self.view.generalWidget.continuousGroupBox.setEnabled(False)
         self.updateContinuousOption()
 
         enabled = "SMU" in spec.get("instruments", [])
         self.view.generalWidget.smuCheckBox.setEnabled(enabled)
+        self.view.generalWidget.smuCheckBox.setVisible(enabled)
         self.view.smuGroupBox.setEnabled(enabled)
+        self.view.smuGroupBox.setVisible(enabled)
+
+        enabled = "SMU2" in spec.get("instruments", [])
+        self.view.generalWidget.smu2CheckBox.setEnabled(enabled)
+        self.view.generalWidget.smu2CheckBox.setVisible(enabled)
+        self.view.smu2GroupBox.setEnabled(enabled)
+        self.view.smu2GroupBox.setVisible(enabled)
 
         enabled = "ELM" in spec.get("instruments", [])
         self.view.generalWidget.elmCheckBox.setEnabled(enabled)
+        self.view.generalWidget.elmCheckBox.setVisible(enabled)
         self.view.elmGroupBox.setEnabled(enabled)
+        self.view.elmGroupBox.setVisible(enabled)
 
         enabled = "LCR" in spec.get("instruments", [])
         self.view.generalWidget.lcrCheckBox.setEnabled(enabled)
+        self.view.generalWidget.lcrCheckBox.setVisible(enabled)
         self.view.lcrGroupBox.setEnabled(enabled)
+        self.view.lcrGroupBox.setVisible(enabled)
 
         enabled = "SMU" in spec.get("default_instruments", [])
         self.view.generalWidget.setSMUEnabled(enabled)
+
+        enabled = "SMU2" in spec.get("default_instruments", [])
+        self.view.generalWidget.setSMU2Enabled(enabled)
 
         enabled = "ELM" in spec.get("default_instruments", [])
         self.view.generalWidget.setELMEnabled(enabled)
@@ -645,6 +707,12 @@ class Controller(QtCore.QObject):
         self.view.smuGroupBox.setEnabled(state)
         self.view.smuGroupBox.setVisible(state)
 
+    def onToggleSmu2(self, state):
+        self.ivPlotsController.toggleSmu2Series(state)
+        self.cvPlotsController.toggleSmu2Series(state)
+        self.view.smu2GroupBox.setEnabled(state)
+        self.view.smu2GroupBox.setVisible(state)
+
     def onToggleElm(self, state):
         self.ivPlotsController.toggleElmSeries(state)
         self.cvPlotsController.toggleElmSeries(state)
@@ -679,7 +747,7 @@ class Controller(QtCore.QObject):
 
     def updateContinuousOption(self):
         # Tweak continuous option
-        validTypes = ["iv"]
+        validTypes = ["iv", "iv_bias"]
         currentMeasurement = self.view.generalWidget.currentMeasurement()
         enabled = False
         if currentMeasurement:
@@ -712,6 +780,8 @@ class Controller(QtCore.QObject):
         measurement.update.connect(self.update)
 
         if isinstance(measurement, IVMeasurement):
+            self.connectIVPlots(measurement)
+        elif isinstance(measurement, IVBiasMeasurement):
             self.connectIVPlots(measurement)
         elif isinstance(measurement, CVMeasurement):
             self.connectCVPlots(measurement)
@@ -832,6 +902,10 @@ class IVPlotsController(QtCore.QObject):
         self.ivPlotWidget.smuSeries.setVisible(state)
         self.itPlotWidget.smuSeries.setVisible(state)
 
+    def toggleSmu2Series(self, state):
+        self.ivPlotWidget.smu2Series.setVisible(state)
+        self.itPlotWidget.smu2Series.setVisible(state)
+
     def toggleElmSeries(self, state):
         self.ivPlotWidget.elmSeries.setVisible(state)
         self.itPlotWidget.elmSeries.setVisible(state)
@@ -854,9 +928,12 @@ class IVPlotsController(QtCore.QObject):
     def onIVReading(self, reading: dict, fit: bool = True) -> None:
         voltage: float = reading.get("voltage", math.nan)
         i_smu: float = reading.get("i_smu", math.nan)
+        i_smu2: float = reading.get("i_smu2", math.nan)
         i_elm: float = reading.get("i_elm", math.nan)
         if math.isfinite(voltage) and math.isfinite(i_smu):
             self.ivPlotWidget.append("smu", voltage, i_smu)
+        if math.isfinite(voltage) and math.isfinite(i_smu2):
+            self.ivPlotWidget.append("smu2", voltage, i_smu2)
         if math.isfinite(voltage) and math.isfinite(i_elm):
             self.ivPlotWidget.append("elm", voltage, i_elm)
         if fit:
@@ -864,25 +941,33 @@ class IVPlotsController(QtCore.QObject):
 
     def onLoadIVReadings(self, readings: List[dict]) -> None:
         smuPoints = []
+        smu2Points = []
         elmPoints = []
         widget = self.ivPlotWidget
         widget.clear()
         for reading in readings:
             voltage: float = reading.get("voltage", math.nan)
             i_smu: float = reading.get("i_smu", math.nan)
+            i_smu2: float = reading.get("i_smu2", math.nan)
             i_elm: float = reading.get("i_elm", math.nan)
             if math.isfinite(voltage) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(voltage, i_smu))
                 widget.iLimits.append(i_smu)
+                widget.vLimits.append(voltage)
+            if math.isfinite(voltage) and math.isfinite(i_smu2):
+                smu2Points.append(QtCore.QPointF(voltage, i_smu2))
+                widget.iLimits.append(i_smu2)
                 widget.vLimits.append(voltage)
             if math.isfinite(voltage) and math.isfinite(i_elm):
                 elmPoints.append(QtCore.QPointF(voltage, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.vLimits.append(voltage)
         widget.series.get("smu").replace(smuPoints)
+        widget.series.get("smu2").replace(smu2Points)
         widget.series.get("elm").replace(elmPoints)
         if self.parent():
             self.parent().onToggleSmu(True)
+            self.parent().onToggleSmu2(bool(len(smu2Points)))
             self.parent().onToggleElm(bool(len(elmPoints)))
         widget.fit()
 
@@ -898,9 +983,12 @@ class IVPlotsController(QtCore.QObject):
     def onItReading(self, reading: dict, fit: bool = True) -> None:
         timestamp: float = reading.get("timestamp", math.nan)
         i_smu: float = reading.get("i_smu", math.nan)
+        i_smu2: float = reading.get("i_smu2", math.nan)
         i_elm: float = reading.get("i_elm", math.nan)
         if math.isfinite(timestamp) and math.isfinite(i_smu):
             self.itPlotWidget.append("smu", timestamp, i_smu)
+        if math.isfinite(timestamp) and math.isfinite(i_smu2):
+            self.itPlotWidget.append("smu2", timestamp, i_smu2)
         if math.isfinite(timestamp) and math.isfinite(i_elm):
             self.itPlotWidget.append("elm", timestamp, i_elm)
         if fit:
@@ -908,22 +996,29 @@ class IVPlotsController(QtCore.QObject):
 
     def onLoadItReadings(self, readings: List[dict]) -> None:
         smuPoints: List[QtCore.QPointF] = []
+        smu2Points: List[QtCore.QPointF] = []
         elmPoints: List[QtCore.QPointF] = []
         widget = self.itPlotWidget
         widget.clear()
         for reading in readings:
             timestamp: float = reading.get("timestamp", math.nan)
             i_smu: float = reading.get("i_smu", math.nan)
+            i_smu2: float = reading.get("i_smu2", math.nan)
             i_elm: float = reading.get("i_elm", math.nan)
             if math.isfinite(timestamp) and math.isfinite(i_smu):
                 smuPoints.append(QtCore.QPointF(timestamp * 1e3, i_smu))
                 widget.iLimits.append(i_smu)
+                widget.tLimits.append(timestamp)
+            if math.isfinite(timestamp) and math.isfinite(i_smu2):
+                smu2Points.append(QtCore.QPointF(timestamp * 1e3, i_smu2))
+                widget.iLimits.append(i_smu2)
                 widget.tLimits.append(timestamp)
             if math.isfinite(timestamp) and math.isfinite(i_elm):
                 elmPoints.append(QtCore.QPointF(timestamp * 1e3, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.tLimits.append(timestamp)
         widget.series.get("smu").replace(smuPoints)
+        widget.series.get("smu2").replace(smu2Points)
         widget.series.get("elm").replace(elmPoints)
         widget.fit()
 
@@ -955,6 +1050,9 @@ class CVPlotsController(QtCore.QObject):
         self.cvPlotWidget.reset()
 
     def toggleSmuSeries(self, state):
+        ...
+
+    def toggleSmu2Series(self, state):
         ...
 
     def toggleElmSeries(self, state):
