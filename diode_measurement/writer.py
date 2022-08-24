@@ -42,6 +42,8 @@ class Writer:
         self._current_table = None
         self.write_tag("sample", data.get("sample"))
         self.write_tag("measurement_type", data.get("measurement_type"))
+        if "bias_voltage" in data:
+            self.write_tag("bias_voltage[V]", safe_format(data.get("bias_voltage"), "+.3E"))
         self.write_tag("voltage_begin[V]", safe_format(data.get("voltage_begin"), "+.3E"))
         self.write_tag("voltage_end[V]", safe_format(data.get("voltage_end"), "+.3E"))
         self.write_tag("voltage_step[V]", safe_format(data.get("voltage_step"), "+.3E"))
@@ -68,6 +70,27 @@ class Writer:
         ])
         self.flush()
 
+    def write_iv_bias_row(self, data: dict) -> None:
+        if self._current_table != "iv":
+            self._current_table = "iv"
+            self.write_table_header([
+                "timestamp[s]",
+                "voltage[V]",
+                "i_smu[A]",
+                "i_smu2[A]",
+                "i_elm[A]",
+                "temperature[degC]"
+            ])
+        self.write_table_row([
+            safe_format(data.get("timestamp"), ".6f"),
+            safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("i_smu2"), "+.3E"),
+            safe_format(data.get("i_elm"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E")
+        ])
+        self.flush()
+
     def write_it_row(self, data: dict) -> None:
         if self._current_table != "it":
             self._current_table = "it"
@@ -82,6 +105,27 @@ class Writer:
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("i_elm"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E")
+        ])
+        self.flush()
+
+    def write_it_bias_row(self, data: dict) -> None:
+        if self._current_table != "it":
+            self._current_table = "it"
+            self.write_table_header([
+                "timestamp[s]",
+                "voltage[V]",
+                "i_smu[A]",
+                "i_smu2[A]",
+                "i_elm[A]",
+                "temperature[degC]"
+            ])
+        self.write_table_row([
+            safe_format(data.get("timestamp"), ".6f"),
+            safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
             safe_format(data.get("t_dmm"), "+.3E")
         ])

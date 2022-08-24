@@ -136,6 +136,8 @@ class RangeMeasurement(Measurement):
     def is_continuous(self) -> bool:
         return self.state.get("continuous") is True
 
+    # Source
+
     def get_source_output_state(self):
         return self.source_instrument.get_output_enabled()
 
@@ -158,6 +160,30 @@ class RangeMeasurement(Measurement):
         logger.info("Source voltage range: %gV", voltage)
         self.source_instrument.set_voltage_range(voltage)
 
+    # Bias source
+
+    def get_bias_source_output_state(self):
+        return self.bias_source_instrument.get_output_enabled()
+
+    def set_bias_source_output_state(self, state):
+        logger.info("Bias source output state: %s", state)
+        self.bias_source_instrument.set_output_enabled(state)
+        self.update.emit({"bias_source_output_state": state})
+        self.state["bias_source_output_state"] = state
+
+    def get_bias_source_voltage(self):
+        return self.bias_source_instrument.get_voltage_level()
+
+    def set_bias_source_voltage(self, voltage):
+        logger.info("Bias source voltage level: %gV", voltage)
+        self.bias_source_instrument.set_voltage_level(voltage)
+        self.update.emit({"bias_source_voltage": voltage})
+        self.state["bias_source_voltage"] = voltage
+
+    def set_bias_source_voltage_range(self, voltage):
+        logger.info("Bias source voltage range: %gV", voltage)
+        self.bias_source_instrument.set_voltage_range(voltage)
+
     def check_current_compliance(self):
         """Raise exception if current compliance tripped and continue in
         compliance option is not active.
@@ -177,6 +203,26 @@ class RangeMeasurement(Measurement):
     def set_source_compliance(self, compiance):
         logger.info("Source current compliance level: %gA", compiance)
         self.source_instrument.set_current_compliance_level(compiance)
+
+    def set_bias_source_compliance(self, compiance):
+        logger.info("Bias source current compliance level: %gA", compiance)
+        self.bias_source_instrument.set_current_compliance_level(compiance)
+
+    def check_bias_current_compliance(self):
+        """Raise exception if biascurrent compliance tripped and continue in
+        compliance option is not active.
+        """
+        if not self.state.get("continue_in_compliance", False):
+            if self.bias_source_instrument.compliance_tripped():
+                raise RuntimeError("Source compliance tripped!")
+
+    def update_bias_current_compliance(self):
+        """Update current compliance if value changed."""
+        current_compliance = self.state.get("current_compliance", 0.0)
+        if self.bias_current_compliance != current_compliance:
+            self.bias_current_compliance = current_compliance
+            self.set_bias_source_compliance(self.bias_current_compliance)
+            self.checkErrorState(self.bias_source_instrument)
 
     def apply_waiting_time(self):
         waiting_time = self.state.get("waiting_time", 1.0)
@@ -245,6 +291,16 @@ class RangeMeasurement(Measurement):
         else:
             raise RuntimeError("No source instrument set")
 
+        # Bias
+
+        self.bias_source_instrument = None
+        if self.state.get("measurement_type") in ["iv_bias"]:
+            bias_source = self.state.get("bias_source")
+            if bias_source in self.contexts:
+                self.bias_source_instrument = self.contexts.get(bias_source)
+            else:
+                raise RuntimeError("No bias source instrument set")
+
         logger.debug("querying context identities...")
         for key, context in self.contexts.items():
             logger.debug("reading %s identity...", key.upper())
@@ -261,6 +317,18 @@ class RangeMeasurement(Measurement):
             self.rampZero()
         else:
             self.set_source_voltage(0.0)
+
+        # Bias
+
+        if self.bias_source_instrument:
+            logger.debug("get bias source output state...")
+            bias_source_output_state = self.get_bias_source_output_state()
+            logger.debug("get bias source output state... done.")
+
+            if bias_source_output_state:
+                self.rampBiasZero()
+            else:
+                self.set_bias_source_voltage(0.0)
 
         # Reset (optional)
         if self.state.get("reset"):
@@ -287,6 +355,16 @@ class RangeMeasurement(Measurement):
         self.current_compliance = self.state.get("current_compliance", 0.0)
         self.set_source_compliance(self.current_compliance)
         self.checkErrorState(self.source_instrument)
+
+        self.bias_current_compliance = self.state.get("current_compliance", 0.0)
+        if self.bias_source_instrument:
+            self.set_bias_source_compliance(self.bias_current_compliance)
+            self.checkErrorState(self.bias_source_instrument)
+
+        if self.bias_source_instrument:
+            self.set_bias_source_output_state(True)
+            self.rampBias()
+            self.checkErrorState(self.bias_source_instrument)
 
         # Enable output
         self.set_source_output_state(True)
@@ -327,8 +405,13 @@ class RangeMeasurement(Measurement):
             self.apply_waiting_time()
 
             self.acquireReading()
+
             self.check_current_compliance()
             self.update_current_compliance()
+
+            if self.bias_source_instrument:
+                self.check_bias_current_compliance()
+                self.update_bias_current_compliance()
 
             estimate.advance()
 
@@ -353,6 +436,9 @@ class RangeMeasurement(Measurement):
                 logger.info("ELM zero check: on")
 
             self.rampZero()
+
+            if self.bias_source_instrument:
+                self.rampBiasZero()
 
             # HACK: wait until capacitors discared before output disable
             def read_source_voltage():
@@ -381,10 +467,15 @@ class RangeMeasurement(Measurement):
 
             self.set_source_output_state(False)
 
+            if self.bias_source_instrument:
+                self.set_bias_source_output_state(False)
+
         finally:
             self.update.emit({
                 "source_voltage": None,
+                "bias_source_voltage": None,
                 "smu_current": None,
+                "smu2_current": None,
                 "elm_current": None,
                 "lcr_capacity": None,
                 "dmm_temperature": None
@@ -423,6 +514,7 @@ class RangeMeasurement(Measurement):
         source_voltage = self.state.get("source_voltage", 0.0)
         self.update.emit({
             "smu_current": None,
+            "smu2_current": None,
             "elm_current": None,
             "lcr_capacity": None,
             "dmm_temperature": None
@@ -434,6 +526,47 @@ class RangeMeasurement(Measurement):
             self.update_estimate_progress(estimate)
 
             self.set_source_voltage(voltage)
+            time.sleep(.250)
+            estimate.advance()
+
+    def rampBias(self):
+        bias_voltage = self.state.get("bias_voltage", 0.0)
+        self.set_bias_source_voltage_range(bias_voltage)
+
+        voltage_begin = 0.0
+        ramp = LinearRange(
+            voltage_begin,
+            bias_voltage,
+            5.0
+        )
+        estimate = Estimate(len(ramp))
+
+        for step, voltage in enumerate(ramp):
+            self.update_estimate_message(f"Ramp bias to {ramp.end} V", estimate)
+            self.update_estimate_progress(estimate)
+
+            if self.stop_requested:
+                break
+            self.set_bias_source_voltage(voltage)
+            time.sleep(.250)
+            estimate.advance()
+
+    def rampBiasZero(self):
+        bias_source_voltage = self.state.get("bias_source_voltage", 0.0)
+        self.update.emit({
+            "smu_current": None,
+            "smu2_current": None,
+            "elm_current": None,
+            "lcr_capacity": None,
+            "dmm_temperature": None
+        })
+        ramp = LinearRange(bias_source_voltage, 0.0, 5.0)
+        estimate = Estimate(len(ramp))
+        for step, voltage in enumerate(ramp):
+            self.update_estimate_message(f"Ramp bias to {ramp.end} V", estimate)
+            self.update_estimate_progress(estimate)
+
+            self.set_bias_source_voltage(voltage)
             time.sleep(.250)
             estimate.advance()
 
@@ -470,11 +603,16 @@ class RangeMeasurement(Measurement):
 
             self.update.emit({
                 "smu_current": reading.get("i_smu"),
+                "smu2_current": reading.get("i_smu2"),
                 "elm_current": reading.get("i_elm")
             })
 
             self.check_current_compliance()
             self.update_current_compliance()
+
+            if self.bias_source_instrument:
+                self.check_bias_current_compliance()
+                self.update_bias_current_compliance()
 
             estimate.advance()
 

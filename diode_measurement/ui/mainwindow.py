@@ -122,6 +122,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.smuGroupBox = QtWidgets.QGroupBox()
         self.smuGroupBox.setTitle("SMU Status")
 
+        self.smu2GroupBox = QtWidgets.QGroupBox()
+        self.smu2GroupBox.setTitle("SMU2 Status")
+
         self.elmGroupBox = QtWidgets.QGroupBox()
         self.elmGroupBox.setTitle("ELM Status")
 
@@ -142,6 +145,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.smuOutputStateLineEdit = QtWidgets.QLineEdit()
         self.smuOutputStateLineEdit.setReadOnly(True)
         self.smuOutputStateLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.smu2VoltageLineEdit = QtWidgets.QLineEdit("---")
+        self.smu2VoltageLineEdit.setReadOnly(True)
+        self.smu2VoltageLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.smu2CurrentLineEdit = QtWidgets.QLineEdit("---")
+        self.smu2CurrentLineEdit.setReadOnly(True)
+        self.smu2CurrentLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.smu2OutputStateLineEdit = QtWidgets.QLineEdit()
+        self.smu2OutputStateLineEdit.setReadOnly(True)
+        self.smu2OutputStateLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
         self.elmVoltageLineEdit = QtWidgets.QLineEdit("---")
         self.elmVoltageLineEdit.setReadOnly(True)
@@ -227,6 +242,23 @@ class MainWindow(QtWidgets.QMainWindow):
         smuGroupBox.setStretch(1, 3)
         smuGroupBox.setStretch(2, 1)
 
+        smu2GroupBox = QtWidgets.QHBoxLayout(self.smu2GroupBox)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
+        vboxLayout.addWidget(self.smu2VoltageLineEdit)
+        smu2GroupBox.addLayout(vboxLayout)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Current"))
+        vboxLayout.addWidget(self.smu2CurrentLineEdit)
+        smu2GroupBox.addLayout(vboxLayout)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
+        vboxLayout.addWidget(self.smu2OutputStateLineEdit)
+        smu2GroupBox.addLayout(vboxLayout)
+        smu2GroupBox.setStretch(0, 3)
+        smu2GroupBox.setStretch(1, 3)
+        smu2GroupBox.setStretch(2, 1)
+
         elmGroupBox = QtWidgets.QHBoxLayout(self.elmGroupBox)
         vboxLayout = QtWidgets.QVBoxLayout()
         vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
@@ -275,6 +307,7 @@ class MainWindow(QtWidgets.QMainWindow):
         bottomLayout.addWidget(self.controlTabWidget)
         vboxLayout = QtWidgets.QVBoxLayout()
         vboxLayout.addWidget(self.smuGroupBox)
+        vboxLayout.addWidget(self.smu2GroupBox)
         vboxLayout.addWidget(self.elmGroupBox)
         vboxLayout.addWidget(self.lcrGroupBox)
         vboxLayout.addWidget(self.dmmGroupBox)
@@ -312,6 +345,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.smuVoltageLineEdit.setText("---")
         self.smuCurrentLineEdit.setText("---")
         self.setSMUOutputState(None)
+        self.smu2VoltageLineEdit.setText("---")
+        self.smu2CurrentLineEdit.setText("---")
+        self.setSMU2OutputState(None)
         self.elmVoltageLineEdit.setText("---")
         self.elmCurrentLineEdit.setText("---")
         self.setELMOutputState(None)
@@ -337,6 +373,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for role in self.roles():
             role.setLocked(False)
         self.setSMUOutputState(None)
+        self.setSMU2OutputState(None)
         self.setELMOutputState(None)
         self.setLCROutputState(None)
         self.setProperty("locked", False)
@@ -413,6 +450,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.smuOutputStateLineEdit.setText(format_switch(state))
         self.smuOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
 
+    def setSMU2OutputState(self, state) -> None:
+        self.smu2OutputStateLineEdit.setText(format_switch(state))
+        self.smu2OutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+
     def setELMOutputState(self, state) -> None:
         self.elmOutputStateLineEdit.setText(format_switch(state))
         self.elmOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
@@ -424,6 +465,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def updateSourceVoltage(self, voltage: float) -> None:
         self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
 
+    def updateBiasSourceVoltage(self, voltage: float) -> None:
+        self.smu2VoltageLineEdit.setText(format_metric(voltage, "V"))
+
     def updateSourceOutputState(self, state: bool) -> None:
         if self.smuGroupBox.isEnabled():
             self.setSMUOutputState(state)
@@ -432,8 +476,15 @@ class MainWindow(QtWidgets.QMainWindow):
         elif self.lcrGroupBox.isEnabled():
             self.setLCROutputState(state)
 
+    def updateBiasSourceOutputState(self, state: bool) -> None:
+        if self.smu2GroupBox.isEnabled():
+            self.setSMU2OutputState(state)
+
     def updateSMUCurrent(self, current: float) -> None:
         self.smuCurrentLineEdit.setText(format_metric(current, "A"))
+
+    def updateSMU2Current(self, current: float) -> None:
+        self.smu2CurrentLineEdit.setText(format_metric(current, "A"))
 
     def updateELMVoltage(self, voltage: float) -> None:
         self.elmVoltageLineEdit.setText(format_metric(voltage, "V"))
