@@ -9,8 +9,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Iterator, Optional
 
-from PyQt5 import QtCore
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 from . import __version__
 
@@ -240,8 +239,8 @@ class Controller(QtCore.QObject):
             snapshot["temperature"] = self.cache.get("dmm_temperature")
             return snapshot
 
-    def prepareState(self):
-        state = {}
+    def prepareState(self) -> Dict[str, Any]:
+        state: Dict[str, Any] = {}
 
         state["sample"] = self.view.generalWidget.sampleName()
         state["measurement_type"] = self.view.generalWidget.currentMeasurement().get("type")
@@ -262,15 +261,15 @@ class Controller(QtCore.QObject):
             key = role.name().lower()
             resource = role.resourceWidget.resourceName()
             resource_name, visa_library = get_resource(resource)
-            state.setdefault(key, {})
-            state.get(key).update({
+            config = state.setdefault(key, {})
+            config.update({
                 "resource_name": resource_name,
                 "visa_library": visa_library,
                 "model": role.resourceWidget.model(),
                 "termination": role.resourceWidget.termination(),
                 "timeout": role.resourceWidget.timeout()
             })
-            state.get(key).update(role.config())
+            config.update(role.configs())
 
         if self.view.generalWidget.isSMUEnabled():
             state["source"] = "smu"
