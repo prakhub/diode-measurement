@@ -304,7 +304,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def findRole(self, name: str) -> Optional[RoleWidget]:
         return self.roleWidgets.get(name)
 
-    def roles(self) -> List:
+    def roles(self) -> List[RoleWidget]:
         return list(self.roleWidgets.values())
 
     def clear(self) -> None:

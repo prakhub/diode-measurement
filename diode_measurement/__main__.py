@@ -47,8 +47,6 @@ def main():
 
     if args.style:
         app.setStyle(args.style)
-    else:
-        app.setStyle("Fusion")
 
     app.bootstrap()
 

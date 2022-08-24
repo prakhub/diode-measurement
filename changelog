@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2022-08-24
+### Fixed
+- Issue preventing starting a measurement (#57).
+
 ## [0.14.0] - 2022-07-22
 ### Added
 - Colored stop button (#51).
@@ -160,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.14.0...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.14.1...HEAD
+[0.14.1]: https://github.com/hephy-dd/diode-measurement/compare/0.14.0...0.14.1
 [0.14.0]: https://github.com/hephy-dd/diode-measurement/compare/0.13.3...0.14.0
 [0.13.3]: https://github.com/hephy-dd/diode-measurement/compare/0.13.2...0.13.3
 [0.13.2]: https://github.com/hephy-dd/diode-measurement/compare/0.13.1...0.13.2
