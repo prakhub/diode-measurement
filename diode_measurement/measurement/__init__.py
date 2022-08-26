@@ -521,6 +521,7 @@ class RangeMeasurement(Measurement):
         })
         ramp = LinearRange(source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
+        logging.info("Ramp source to zero...")
         for step, voltage in enumerate(ramp):
             self.update_estimate_message(f"Ramp to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
@@ -528,6 +529,7 @@ class RangeMeasurement(Measurement):
             self.set_source_voltage(voltage)
             time.sleep(.250)
             estimate.advance()
+        logging.info("Ramp source to zero... done.")
 
     def rampBias(self):
         bias_voltage = self.state.get("bias_voltage", 0.0)
@@ -541,6 +543,7 @@ class RangeMeasurement(Measurement):
         )
         estimate = Estimate(len(ramp))
 
+        logging.info("Ramp bias source to %g V...", ramp.end)
         for step, voltage in enumerate(ramp):
             self.update_estimate_message(f"Ramp bias to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
@@ -550,6 +553,7 @@ class RangeMeasurement(Measurement):
             self.set_bias_source_voltage(voltage)
             time.sleep(.250)
             estimate.advance()
+        logging.info("Ramp bias source to %g V... done.", ramp.end)
 
     def rampBiasZero(self):
         bias_source_voltage = self.state.get("bias_source_voltage", 0.0)
@@ -562,6 +566,7 @@ class RangeMeasurement(Measurement):
         })
         ramp = LinearRange(bias_source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
+        logging.info("Ramp bias source to zero...")
         for step, voltage in enumerate(ramp):
             self.update_estimate_message(f"Ramp bias to {ramp.end} V", estimate)
             self.update_estimate_progress(estimate)
@@ -569,6 +574,7 @@ class RangeMeasurement(Measurement):
             self.set_bias_source_voltage(voltage)
             time.sleep(.250)
             estimate.advance()
+        logging.info("Ramp bias source to zero... done.")
 
     def rampToContinuous(self, end_voltage, step_voltage, waiting_time):
         source_voltage = self.state.get("source_voltage", 0.0)

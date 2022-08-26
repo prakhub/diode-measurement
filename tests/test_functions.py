@@ -84,3 +84,12 @@ class TestFunctions:
         self.assert_range(-2.5e-24, 2.5e-24, 2.5e-24, [-2.5e-24, 0, 2.5e-24])
         self.assert_range(2.5e-24, -2.5e-24, 2.5e-24, [2.5e-24, 0, -2.5e-24])  # auto step
         self.assert_range(2.5e-24, -2.5e-24, -2.5e-24, [2.5e-24, 0, -2.5e-24])
+
+        self.assert_range(-2.5e+24, 2.5e+24, -2.5e+24, [-2.5e+24, 0, 2.5e+24])  # auto step
+        self.assert_range(-2.5e+24, 2.5e+24, 2.5e+24, [-2.5e+24, 0, 2.5e+24])
+        self.assert_range(2.5e+24, -2.5e+24, 2.5e+24, [2.5e+24, 0, -2.5e+24])  # auto step
+        self.assert_range(2.5e+24, -2.5e+24, -2.5e+24, [2.5e+24, 0, -2.5e+24])
+
+        self.assert_range(0, 0, 5.0, [], 0)
+        self.assert_range(0, 1, 5.0, [0, 1], 1)  # limited step
+        self.assert_range(1, 0, 5.0, [1, 0], 1)  # limited step
