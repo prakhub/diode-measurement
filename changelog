@@ -6,7 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.15.1] - 2022-08-26
+## [0.15.2] - 2022-08-30
+### Fixed
+- Selected instrument options are not configured (#63).
+
+## [0.15.1] - 2022-08-26 [YANKED]
 ### Fixed
 - Issue with step in linear range function (#61).
 
@@ -18,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Issue preventing starting a measurement (#57).
 
-## [0.14.0] - 2022-07-22
+## [0.14.0] - 2022-07-22 [YANKED]
 ### Added
 - Colored stop button (#51).
 - Input parameters for Electrometers (#55).
@@ -172,7 +176,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.1...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.2...HEAD
+[0.15.2]: https://github.com/hephy-dd/diode-measurement/compare/0.15.1...0.15.2
 [0.15.1]: https://github.com/hephy-dd/diode-measurement/compare/0.15.0...0.15.1
 [0.15.0]: https://github.com/hephy-dd/diode-measurement/compare/0.14.1...0.15.0
 [0.14.1]: https://github.com/hephy-dd/diode-measurement/compare/0.14.0...0.14.1

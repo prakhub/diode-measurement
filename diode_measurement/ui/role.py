@@ -80,6 +80,12 @@ class RoleWidget(QtWidgets.QWidget):
             }
             self._resources.setdefault(model, {}).update(resource)
 
+    def currentConfig(self) -> Dict[str, Any]:
+        widget = self.stackedWidget.currentWidget()
+        if isinstance(widget, InstrumentPanel):
+            return widget.config()
+        return {}
+
     def configs(self) -> Dict[str, Any]:
         configs = {}
         for widget in self.instrumentPanels():
