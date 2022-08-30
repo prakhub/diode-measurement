@@ -285,7 +285,7 @@ class Controller(QtCore.QObject):
                 "termination": role.resourceWidget.termination(),
                 "timeout": role.resourceWidget.timeout()
             })
-            config.update(role.configs())
+            config.update({"options": role.currentConfig()})
 
         if self.view.generalWidget.isSMUEnabled():
             state["source"] = "smu"

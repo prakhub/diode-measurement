@@ -346,7 +346,9 @@ class RangeMeasurement(Measurement):
         # Configure
         for key, context in self.contexts.items():
             logger.info("Configure %s...", key.upper())
-            options = self.state.get(key)
+            options = self.state.get(key, {}).get("options", {})
+            for name, value in options.items():
+                logger.info("%s: %r" , name, value)
             context.configure(options)
             self.checkErrorState(context)
             logger.info("Configure %s... done.", key.upper())
