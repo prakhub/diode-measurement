@@ -1,18 +1,21 @@
+import logging
 from typing import Dict, Optional
 
 from .driver import driver_factory
 from .resource import Resource, AutoReconnectResource
 
+logger = logging.getLogger(__name__)
+
 
 class Station:
 
-    def __init__(self, state):
-        self._state = state
+    def __init__(self, state: Dict) -> None:
+        self.state: Dict = state
         self.resources: Dict = {}
         self.contexts: Dict = {}
 
-    def register_instrument(self, name: str):
-        role = self._state.get(name, {})
+    def register_instrument(self, name: str) -> None:
+        role: Dict = self.state.get(name, {})
         if not role.get("enabled"):
             return None
         model = role.get("model")
@@ -27,7 +30,7 @@ class Station:
             logger.warning("No such driver: %s", model)
             return None
         # If auto reconnect use experimental class AutoReconnectResource
-        auto_reconnect = self._state.get("auto_reconnect", False)
+        auto_reconnect = self.state.get("auto_reconnect", False)
         resource_cls = AutoReconnectResource if auto_reconnect else Resource
         resource = resource_cls(
             resource_name=resource_name,
@@ -37,6 +40,7 @@ class Station:
             timeout=timeout
         )
         self.resources[name] = cls, resource
+        return None
 
     def get(self, name: str) -> Optional[object]:
         return self.contexts.get(name)
