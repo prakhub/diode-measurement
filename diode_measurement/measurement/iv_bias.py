@@ -19,16 +19,16 @@ class IVBiasMeasurement(RangeMeasurement):
 
     itChangeVoltageReady = QtCore.pyqtSignal()
 
-    def __init__(self, state: Dict[str, Any]) -> None:
-        super().__init__(state)
+    def __init__(self, station, state: Dict[str, Any]) -> None:
+        super().__init__(station, state)
         self.ivReadingHandlers: List[Callable] = []
         self.itReadingHandlers: List[Callable] = []
 
     def acquireReadingData(self, voltage=None):
-        smu = self.contexts.get("smu")
-        smu2 = self.contexts.get("smu2")
-        elm = self.contexts.get("elm")
-        dmm = self.contexts.get("dmm")
+        smu = self.station.get("smu")
+        smu2 = self.station.get("smu2")
+        elm = self.station.get("elm")
+        dmm = self.station.get("dmm")
         if voltage is None:
             voltage = self.get_source_voltage()
         if smu:

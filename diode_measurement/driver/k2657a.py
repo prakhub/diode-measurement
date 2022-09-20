@@ -1,4 +1,6 @@
-from .driver import SourceMeter, handle_exception
+from typing import Any, Dict, Optional
+
+from .driver import SourceMeter, InstrumentError, handle_exception, parse_tsp_error
 
 __all__ = ["K2657A"]
 
@@ -14,13 +16,10 @@ class K2657A(SourceMeter):
     def clear(self) -> None:
         self._write("status.reset()")
 
-    def error_state(self) -> tuple:
-        code, message, *_ = self._print("errorqueue.next()").split("\t")
-        code = int(float(code))
-        message = message.strip().strip('"')
-        return code, message
+    def next_error(self) -> Optional[InstrumentError]:
+        return parse_tsp_error(self._print("errorqueue.next()"))
 
-    def configure(self, options: dict) -> None:
+    def configure(self, options: Dict[str, Any]) -> None:
         beeper_enable = options.get("beeper.enable", False)
         self.set_beeper_enable(beeper_enable)
 

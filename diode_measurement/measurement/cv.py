@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 class CVMeasurement(RangeMeasurement):
 
-    def __init__(self, state: Dict[str, Any]) -> None:
-        super().__init__(state)
+    def __init__(self, station, state: Dict[str, Any]) -> None:
+        super().__init__(station, state)
         self.cvReadingHandlers: List[Callable] = []
 
     def extendCVReading(self, reading: dict) -> dict:
@@ -31,9 +31,9 @@ class CVMeasurement(RangeMeasurement):
         return reading
 
     def acquireReadingData(self):
-        smu = self.contexts.get("smu")
-        lcr = self.contexts.get("lcr")
-        dmm = self.contexts.get("dmm")
+        smu = self.station.get("smu")
+        lcr = self.station.get("lcr")
+        dmm = self.station.get("dmm")
         voltage = self.get_source_voltage()
         if lcr:
             c_lcr = lcr.read_capacity()

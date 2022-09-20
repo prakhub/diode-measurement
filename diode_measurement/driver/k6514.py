@@ -1,7 +1,7 @@
 import time
-from typing import List
+from typing import Any, Dict, List, Optional
 
-from .driver import Electrometer, handle_exception
+from .driver import Electrometer, InstrumentError, handle_exception, parse_scpi_error
 
 __all__ = ["K6514"]
 
@@ -17,13 +17,10 @@ class K6514(Electrometer):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
-        code, message = self._query(":SYST:ERR?").split(",")
-        code = int(code)
-        message = message.strip().strip('"')
-        return code, message
+    def next_error(self) -> Optional[InstrumentError]:
+        return parse_scpi_error(self._query(":SYST:ERR?"))
 
-    def configure(self, options: dict) -> None:
+    def configure(self, options: Dict[str, Any]) -> None:
         self.set_format_elements(["READ"])
         self.set_sense_function("CURR")
 

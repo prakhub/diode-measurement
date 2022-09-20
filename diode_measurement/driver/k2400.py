@@ -1,4 +1,6 @@
-from .driver import SourceMeter, handle_exception
+from typing import Any, Dict, Optional
+
+from .driver import SourceMeter, InstrumentError, handle_exception, parse_scpi_error
 
 __all__ = ["K2400"]
 
@@ -16,13 +18,10 @@ class K2400(SourceMeter):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
-        code, message = self._query(":SYST:ERR?").split(",")
-        code = int(code)
-        message = message.strip().strip('"')
-        return code, message
+    def next_error(self) -> Optional[InstrumentError]:
+        return parse_scpi_error(self._query(":SYST:ERR?"))
 
-    def configure(self, options: dict) -> None:
+    def configure(self, options: Dict[str, Any]) -> None:
         beeper_state = options.get("beeper.state", False)
         self.set_system_beeper_state(beeper_state)
 

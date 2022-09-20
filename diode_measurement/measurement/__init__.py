@@ -6,9 +6,6 @@ from typing import Any, Callable, Dict, List
 
 from PyQt5 import QtCore
 
-from ..resource import Resource, AutoReconnectResource
-from ..driver import driver_factory
-
 from ..functions import LinearRange
 from ..estimate import Estimate
 
@@ -24,45 +21,17 @@ class Measurement(QtCore.QObject):
     update = QtCore.pyqtSignal(dict)
     failed = QtCore.pyqtSignal(object)
 
-    def __init__(self, state: Dict[str, Any]) -> None:
+    def __init__(self, station, state: Dict[str, Any]) -> None:
         super().__init__()
+        self.station = station
         self.state: Dict[str, Any] = state
-        self.contexts: Dict = {}
-        self._instruments: Dict = {}
         self.startedHandlers: List[Callable] = []
         self.finishedHandlers: List[Callable] = []
 
-    def registerInstrument(self, name: str):
-        role = self.state.get(name, {})
-        if not role.get("enabled"):
-            return None
-        model = role.get("model")
-        resource_name = role.get("resource_name")
-        if not resource_name.strip():
-            raise ValueError(f"Empty resource name not allowed for {name.upper()} ({model}).")
-        visa_library = role.get("visa_library")
-        termination = role.get("termination")
-        timeout = role.get("timeout") * 1000  # in millisecs
-        cls = driver_factory(model)
-        if not cls:
-            logger.warning("No such driver: %s", model)
-            return None
-        # If auto reconnect use experimental class AutoReconnectResource
-        auto_reconnect = self.state.get("auto_reconnect", False)
-        resource_cls = AutoReconnectResource if auto_reconnect else Resource
-        resource = resource_cls(
-            resource_name=resource_name,
-            visa_library=visa_library,
-            read_termination=termination,
-            write_termination=termination,
-            timeout=timeout
-        )
-        self._instruments[name] = cls, resource
-
     def checkErrorState(self, context):
-        code, message = context.error_state()
-        if code:
-            raise RuntimeError(f"Instrument Error: {code}: {message}")
+        error = context.next_error()
+        if error:
+            raise RuntimeError(f"Instrument Error: {error}")
 
     def update_rpc_state(self, state) -> None:
         self.update.emit({"rpc_state": state})
@@ -89,14 +58,14 @@ class Measurement(QtCore.QObject):
             for handler in self.startedHandlers:
                 handler()
             logger.debug("handle started callbacks... done.")
-            self.contexts.clear()
+            self.station.reset()
             with contextlib.ExitStack() as stack:
                 logger.debug("creating instrument contexts...")
-                for key, value in self._instruments.items():
+                for key, value in self.station.resources.items():
                     cls, resource = value
                     logger.debug("creating instrument context %s: %s...", key, cls.__name__)
                     context = cls(stack.enter_context(resource))
-                    self.contexts[key] = context
+                    self.station.contexts[key] = context
                 logger.debug("creating instrument contexts... done.")
                 try:
                     logger.debug("initialize...")
@@ -121,16 +90,13 @@ class Measurement(QtCore.QObject):
             for handler in self.finishedHandlers:
                 handler()
             logger.debug("handle finished callbacks... done.")
-            self.contexts.clear()
+            self.station.reset()
             self.finished.emit()
             self.update_rpc_state("idle")
             logger.debug("run measurement... done.")
 
 
 class RangeMeasurement(Measurement):
-
-    def __init__(self, state):
-        super().__init__(state)
 
     @property
     def is_continuous(self) -> bool:
@@ -286,8 +252,8 @@ class RangeMeasurement(Measurement):
 
     def initialize(self):
         source = self.state.get("source")
-        if source in self.contexts:
-            self.source_instrument = self.contexts.get(source)
+        if source in self.station.contexts:
+            self.source_instrument = self.station.get(source)
         else:
             raise RuntimeError("No source instrument set")
 
@@ -296,13 +262,13 @@ class RangeMeasurement(Measurement):
         self.bias_source_instrument = None
         if self.state.get("measurement_type") in ["iv_bias"]:
             bias_source = self.state.get("bias_source")
-            if bias_source in self.contexts:
-                self.bias_source_instrument = self.contexts.get(bias_source)
+            if bias_source in self.station.contexts:
+                self.bias_source_instrument = self.station.get(bias_source)
             else:
                 raise RuntimeError("No bias source instrument set")
 
         logger.debug("querying context identities...")
-        for key, context in self.contexts.items():
+        for key, context in self.station.contexts.items():
             logger.debug("reading %s identity...", key.upper())
             identity = context.identity()
             logger.debug("reading %s identity... done.", key.upper())
@@ -332,21 +298,21 @@ class RangeMeasurement(Measurement):
 
         # Reset (optional)
         if self.state.get("reset"):
-            for key, context in self.contexts.items():
+            for key, context in self.station.contexts.items():
                 logger.info("Reset %s...", key.upper())
                 context.reset()
                 logger.info("Reset %s... done.", key.upper())
 
         # Clear state
-        for key, context in self.contexts.items():
+        for key, context in self.station.contexts.items():
             logger.info("Clear %s...", key.upper())
             context.clear()
             logger.info("Clear %s... done.", key.upper())
 
         # Configure
-        for key, context in self.contexts.items():
+        for key, context in self.station.contexts.items():
             logger.info("Configure %s...", key.upper())
-            options = self.state.get(key, {}).get("options", {})
+            options: Dict[str, Any] = self.state.get(key, {}).get("options", {})
             for name, value in options.items():
                 logger.info("%s: %r" , name, value)
             context.configure(options)
@@ -371,7 +337,7 @@ class RangeMeasurement(Measurement):
         # Enable output
         self.set_source_output_state(True)
 
-        elm = self.contexts.get("elm")
+        elm = self.station.get("elm")
         if elm is not None:
             elm.set_zero_check_enabled(False)
             logger.info("ELM zero check: off")
@@ -432,7 +398,7 @@ class RangeMeasurement(Measurement):
 
     def finalize(self):
         try:
-            elm = self.contexts.get("elm")
+            elm = self.station.get("elm")
             if elm is not None:
                 elm.set_zero_check_enabled(True)
                 logger.info("ELM zero check: on")

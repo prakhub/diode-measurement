@@ -36,6 +36,7 @@ from .ui.dialogs import ChangeVoltageDialog
 
 from .ui.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
 
+from .station import Station
 from .measurement import Measurement
 from .measurement.iv import IVMeasurement
 from .measurement.iv_bias import IVBiasMeasurement
@@ -774,8 +775,14 @@ class Controller(QtCore.QObject):
         measurement.cvReadingLock = self.cvPlotsController.cvReadingLock
 
     def createMeasurement(self):
+        station = Station(self.state)
+
+        # Prepare role drivers
+        for role in self.view.roles():
+            station.register_instrument(role.name().lower())
+
         measurementType = self.state.get("measurement_type")
-        measurement = MEASUREMENTS.get(measurementType)(self.state)
+        measurement = MEASUREMENTS.get(measurementType)(station, self.state)
 
         measurement.update.connect(self.update)
 
@@ -785,10 +792,6 @@ class Controller(QtCore.QObject):
             self.connectIVPlots(measurement)
         elif isinstance(measurement, CVMeasurement):
             self.connectCVPlots(measurement)
-
-        # Prepare role drivers
-        for role in self.view.roles():
-            measurement.registerInstrument(role.name().lower())
 
         measurement.failed.connect(self.handleException)
 
