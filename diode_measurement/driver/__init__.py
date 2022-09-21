@@ -1,6 +1,7 @@
-from typing import Dict
+from typing import Dict, Type
 
 # Drivers
+from .driver import Driver
 from .k237 import K237
 from .k595 import K595
 from .k2410 import K2410
@@ -11,10 +12,11 @@ from .k6514 import K6514
 from .k6517b import K6517B
 from .e4980a import E4980A
 from .a4284a import A4284A
+from .environbox import EnvironBox
 
 __all__ = ["driver_factory"]
 
-DRIVERS: Dict[str, type] = {
+driver_registry: Dict[str, Type[Driver]] = {
     "K237": K237,
     "K595": K595,
     "K2410": K2410,
@@ -25,12 +27,13 @@ DRIVERS: Dict[str, type] = {
     "K6517B": K6517B,
     "E4980A": E4980A,
     "A4284A": A4284A,
+    "EnvironmentBox": EnvironBox,
 }
 
 
-def driver_factory(model: str) -> type:
+def driver_factory(model: str) -> Type[Driver]:
     """Return driver class referenced by model."""
-    driver = DRIVERS.get(model)
+    driver = driver_registry.get(model)
     if driver is None:
         raise ValueError(f"No such driver: {model}")
     return driver

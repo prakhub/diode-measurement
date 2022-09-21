@@ -28,6 +28,7 @@ class IVMeasurement(RangeMeasurement):
         smu = self.station.get("smu")
         elm = self.station.get("elm")
         dmm = self.station.get("dmm")
+        env = self.station.get("env")
         if voltage is None:
             voltage = self.get_source_voltage()
         if smu:
@@ -42,12 +43,17 @@ class IVMeasurement(RangeMeasurement):
             t_dmm = dmm.read_temperature()
         else:
             t_dmm = float("NaN")
+        if env:
+            t_env = env.read_temperature()
+        else:
+            t_env = float("NaN")
         return {
             "timestamp": time.time(),
             "voltage": voltage,
             "i_smu": i_smu,
             "i_elm": i_elm,
-            "t_dmm": t_dmm
+            "t_dmm": t_dmm,
+            "t_env": t_env,
         }
 
     def acquireReading(self):
@@ -58,7 +64,8 @@ class IVMeasurement(RangeMeasurement):
         self.update.emit({
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
-            "dmm_temperature": reading.get("t_dmm")
+            "dmm_temperature": reading.get("t_dmm"),
+            "env_temperature": reading.get("t_env"),
         })
         for handler in self.ivReadingHandlers:
             handler(reading)
@@ -100,7 +107,8 @@ class IVMeasurement(RangeMeasurement):
                 self.update.emit({
                     "smu_current": reading.get("i_smu"),
                     "elm_current": reading.get("i_elm"),
-                    "dmm_temperature": reading.get("t_dmm")
+                    "dmm_temperature": reading.get("t_dmm"),
+                    "env_temperature": reading.get("t_env"),
                 })
 
                 t = time.time()

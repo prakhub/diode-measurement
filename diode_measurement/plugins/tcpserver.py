@@ -94,13 +94,19 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         self.data = self.request.recv(self.buffer_size).strip().decode("utf-8")
         logger.info("%s wrote: %s", self.client_address[0], self.data)
-        self.server.messageReady.emit(format(self.data))
-        response = self.server.rpcHandler.handle(self.data)
+        self.append_message(format(self.data))
+        response = self.handle_rpc(self.data)
         if response:
             data = response.json.encode("utf-8")
             logger.info("%s returned: %s", self.client_address[0], response.json)
-            self.server.messageReady.emit(format(response.json))
+            self.append_message(format(response.json))
             self.request.sendall(data)
+
+    def handle_rpc(self, data: str) -> jsonrpc.base.JSONRPCBaseResponse:
+        return self.server.rpc_handle(data)  # type: ignore
+
+    def append_message(self, message: str) -> None:
+        self.server.append_message(message)  # type: ignore
 
 
 class TCPServer(socketserver.TCPServer):
@@ -297,8 +303,8 @@ class TCPServerPlugin(Plugin, QtCore.QObject):
 
     def _setupServer(self, server):
         self._shutdownHandlers.append(server.shutdown)
-        server.rpcHandler = self.rpcHandler
-        server.messageReady = self.messageReady
+        server.rpc_handle = self.rpcHandler.handle
+        server.append_message = self.messageReady.emit
 
     def run(self):
         while self._enabled.is_set():
@@ -310,7 +316,7 @@ class TCPServerPlugin(Plugin, QtCore.QObject):
                 time.sleep(.50)
 
     def _runServer(self, hostname: str, port: int) -> None:
-        logger.info("TCP started %s:%s", hostname, port)
+        logger.info("TCP server started %s:%s", hostname, port)
         try:
             with TCPServer((hostname, port), TCPHandler) as server:
                 self.running.emit(True)
@@ -318,10 +324,10 @@ class TCPServerPlugin(Plugin, QtCore.QObject):
                 server.serve_forever()
         except Exception as exc:
             logger.exception(exc)
-            self.setServerEnabled(False)
+            self.rpcWidget.setServerEnabled(False)
             self.failed.emit(exc)
         finally:
-            logger.info("TCP stopped %s:%s", hostname, port)
+            logger.info("TCP server stopped %s:%s", hostname, port)
             self.running.emit(False)
             self._shutdownHandlers.clear()
             time.sleep(.50)

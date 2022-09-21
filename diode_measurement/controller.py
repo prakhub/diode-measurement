@@ -7,7 +7,7 @@ import threading
 import time
 
 from datetime import datetime
-from typing import Any, Dict, List, Iterator, Optional
+from typing import Any, Dict, List, Iterable, Iterator, Optional, Type
 
 from PyQt5 import QtCore, QtWidgets
 
@@ -31,9 +31,12 @@ from .ui.panels import A4284APanel
 # DMM
 from .ui.panels import K2700Panel
 
+# Environment
+from .ui.panels import EnvironBoxPanel
+
 from .ui.widgets import showException
 from .ui.dialogs import ChangeVoltageDialog
-
+from .ui.mainwindow import MainWindow
 from .ui.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
 
 from .station import Station
@@ -54,9 +57,12 @@ from .settings import DEFAULTS
 
 __all__ = ["Controller"]
 
+StateType = Dict[str, Any]
+ReadingType = Dict[str, float]
+
 logger = logging.getLogger(__name__)
 
-MEASUREMENTS = {
+measurement_registry: Dict[str, Type[Measurement]] = {
     "iv": IVMeasurement,
     "iv_bias": IVBiasMeasurement,
     "cv": CVMeasurement,
@@ -117,13 +123,13 @@ class Controller(QtCore.QObject):
 
     requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
 
-    def __init__(self, view, parent=None) -> None:
+    def __init__(self, view: MainWindow, parent=None) -> None:
         super().__init__(parent)
-        self.view = view
+        self.view: MainWindow = view
 
         self.abortRequested = threading.Event()
         self.measurementThread: Optional[threading.Thread] = None
-        self.state: Dict[str, Any] = {}
+        self.state: StateType = {}
         self.cache: Cache = Cache()
         self.rpc_params: Cache = Cache()
 
@@ -173,6 +179,9 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("DMM")
         role.addInstrumentPanel(K2700Panel())
 
+        role = self.view.addRole("ENV")
+        role.addInstrumentPanel(EnvironBoxPanel())
+
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
         self.view.startAction.triggered.connect(self.started)
@@ -202,11 +211,13 @@ class Controller(QtCore.QObject):
         self.view.generalWidget.elmCheckBox.toggled.connect(self.onToggleElm)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
         self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
+        self.view.generalWidget.environCheckBox.toggled.connect(self.onToggleEnviron)
 
         self.onToggleSmu2(False)
         self.onToggleElm(False)
         self.onToggleLcr(False)
         self.onToggleDmm(False)
+        self.onToggleEnviron(False)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
@@ -242,6 +253,16 @@ class Controller(QtCore.QObject):
 
     def snapshot(self):
         """Return application state snapshot."""
+
+        def select_temperature(data) -> Optional[float]:
+            dmm_temperature = data.get("dmm_temperature", float("NaN"))
+            if isinstance(dmm_temperature, float) and math.isfinite(dmm_temperature):
+                return dmm_temperature
+            env_temperature = data.get("env_temperature", float("NaN"))
+            if isinstance(env_temperature, float) and math.isfinite(env_temperature):
+                return env_temperature
+            return None
+
         with self.cache:
             snapshot = {}
             snapshot["state"] = self.cache.get("rpc_state", "idle")
@@ -252,11 +273,11 @@ class Controller(QtCore.QObject):
             snapshot["smu2_current"] = self.cache.get("smu2_current")
             snapshot["elm_current"] = self.cache.get("elm_current")
             snapshot["lcr_capacity"] = self.cache.get("lcr_capacity")
-            snapshot["temperature"] = self.cache.get("dmm_temperature")
+            snapshot["temperature"] = select_temperature(self.cache)  # TODO
             return snapshot
 
-    def prepareState(self) -> Dict[str, Any]:
-        state: Dict[str, Any] = {}
+    def prepareState(self) -> StateType:
+        state: StateType = {}
 
         state["sample"] = self.view.generalWidget.sampleName()
         state["measurement_type"] = self.view.generalWidget.currentMeasurement().get("type")
@@ -298,11 +319,12 @@ class Controller(QtCore.QObject):
         if self.view.generalWidget.isSMU2Enabled():
             state["bias_source"] = "smu2"
 
-        state.get("smu").update({"enabled": self.view.generalWidget.isSMUEnabled()})
-        state.get("smu2").update({"enabled": self.view.generalWidget.isSMU2Enabled()})
-        state.get("elm").update({"enabled": self.view.generalWidget.isELMEnabled()})
-        state.get("lcr").update({"enabled": self.view.generalWidget.isLCREnabled()})
-        state.get("dmm").update({"enabled": self.view.generalWidget.isDMMEnabled()})
+        state.setdefault("smu", {}).update({"enabled": self.view.generalWidget.isSMUEnabled()})
+        state.setdefault("smu2", {}).update({"enabled": self.view.generalWidget.isSMU2Enabled()})
+        state.setdefault("elm", {}).update({"enabled": self.view.generalWidget.isELMEnabled()})
+        state.setdefault("lcr", {}).update({"enabled": self.view.generalWidget.isLCREnabled()})
+        state.setdefault("dmm", {}).update({"enabled": self.view.generalWidget.isDMMEnabled()})
+        state.setdefault("env", {}).update({"enabled": self.view.generalWidget.isEnvironEnabled()})
 
         for key, value in state.items():
             logger.info("> %s: %s", key, value)
@@ -354,6 +376,9 @@ class Controller(QtCore.QObject):
 
         enabled = settings.value("dmm/enabled", False, bool)
         self.view.generalWidget.setDMMEnabled(enabled)
+
+        enabled = settings.value("environ/enabled", False, bool)
+        self.view.generalWidget.setEnvironEnabled(enabled)
 
         enabled = settings.value("outputEnabled", False, bool)
         self.view.generalWidget.setOutputEnabled(enabled)
@@ -440,6 +465,9 @@ class Controller(QtCore.QObject):
 
         enabled = self.view.generalWidget.isDMMEnabled()
         settings.setValue("dmm/enabled", enabled)
+
+        enabled = self.view.generalWidget.isEnvironEnabled()
+        settings.setValue("environ/enabled", enabled)
 
         enabled = self.view.generalWidget.isOutputEnabled()
         settings.setValue("outputEnabled", enabled)
@@ -577,35 +605,38 @@ class Controller(QtCore.QObject):
     def handleException(self, exc):
         showException(exc, self.view)
 
-    def onUpdate(self, data):
-        cache = {}
+    def onUpdate(self, data: Dict[str, Any]) -> None:
+        cache: Dict[str, Any] = {}
         if "rpc_state" in data:
             cache.update({"rpc_state": data.get("rpc_state")})
         if "source_voltage" in data:
-            self.view.updateSourceVoltage(data.get("source_voltage"))
+            self.view.updateSourceVoltage(data.get("source_voltage"))  # type: ignore
             cache.update({"source_voltage": data.get("source_voltage")})
         if "bias_source_voltage" in data:
-            self.view.updateBiasSourceVoltage(data.get("bias_source_voltage"))
+            self.view.updateBiasSourceVoltage(data.get("bias_source_voltage"))  # type: ignore
             cache.update({"bias_source_voltage": data.get("bias_source_voltage")})
         if "smu_current" in data:
-            self.view.updateSMUCurrent(data.get("smu_current"))
+            self.view.updateSMUCurrent(data.get("smu_current"))  # type: ignore
             cache.update({"smu_current": data.get("smu_current")})
         if "smu2_current" in data:
-            self.view.updateSMU2Current(data.get("smu2_current"))
+            self.view.updateSMU2Current(data.get("smu2_current"))  # type: ignore
             cache.update({"smu2_current": data.get("smu2_current")})
         if "elm_current" in data:
-            self.view.updateELMCurrent(data.get("elm_current"))
+            self.view.updateELMCurrent(data.get("elm_current"))  # type: ignore
             cache.update({"elm_current": data.get("elm_current")})
         if "lcr_capacity" in data:
-            self.view.updateLCRCapacity(data.get("lcr_capacity"))
+            self.view.updateLCRCapacity(data.get("lcr_capacity"))  # type: ignore
             cache.update({"lcr_capacity": data.get("lcr_capacity")})
         if "dmm_temperature" in data:
-            self.view.updateDMMTemperature(data.get("dmm_temperature"))
+            self.view.updateDMMTemperature(data.get("dmm_temperature"))  # type: ignore
             cache.update({"dmm_temperature": data.get("dmm_temperature")})
+        if "env_temperature" in data:
+            self.view.updateEnvironTemperature(data.get("env_temperature"))  # type: ignore
+            cache.update({"env_temperature": data.get("env_temperature")})
         if "source_output_state" in data:
-            self.view.updateSourceOutputState(data.get("source_output_state"))
+            self.view.updateSourceOutputState(data.get("source_output_state"))  # type: ignore
         if "bias_source_output_state" in data:
-            self.view.updateBiasSourceOutputState(data.get("bias_source_output_state"))
+            self.view.updateBiasSourceOutputState(data.get("bias_source_output_state"))  # type: ignore
         if "message" in data:
             self.view.setMessage(data.get("message", ""))
         if "progress" in data:
@@ -619,7 +650,7 @@ class Controller(QtCore.QObject):
         self.cvPlotsController.setContinuous(checked)
         self.view.generalWidget.continuousGroupBox.setEnabled(checked)
 
-    def onContinuousChanged(self, state):
+    def onContinuousChanged(self, state) -> None:
         self.onContinuousToggled(state == QtCore.Qt.Checked)
 
     def onMeasurementChanged(self, index):
@@ -702,51 +733,55 @@ class Controller(QtCore.QObject):
         value = spec.get("default_current_compliance", 0.0)
         self.view.generalWidget.setCurrentCompliance(value)
 
-    def onToggleSmu(self, state):
+    def onToggleSmu(self, state) -> None:
         self.ivPlotsController.toggleSmuSeries(state)
         self.cvPlotsController.toggleSmuSeries(state)
         self.view.smuGroupBox.setEnabled(state)
         self.view.smuGroupBox.setVisible(state)
 
-    def onToggleSmu2(self, state):
+    def onToggleSmu2(self, state) -> None:
         self.ivPlotsController.toggleSmu2Series(state)
         self.cvPlotsController.toggleSmu2Series(state)
         self.view.smu2GroupBox.setEnabled(state)
         self.view.smu2GroupBox.setVisible(state)
 
-    def onToggleElm(self, state):
+    def onToggleElm(self, state) -> None:
         self.ivPlotsController.toggleElmSeries(state)
         self.cvPlotsController.toggleElmSeries(state)
         self.view.elmGroupBox.setEnabled(state)
         self.view.elmGroupBox.setVisible(state)
 
-    def onToggleLcr(self, state):
+    def onToggleLcr(self, state) -> None:
         self.ivPlotsController.toggleLcrSeries(state)
         self.cvPlotsController.toggleLcrSeries(state)
         self.view.lcrGroupBox.setEnabled(state)
         self.view.lcrGroupBox.setVisible(state)
 
-    def onToggleDmm(self, state):
+    def onToggleDmm(self, state) -> None:
         self.view.dmmGroupBox.setEnabled(state)
         self.view.dmmGroupBox.setVisible(state)
 
-    def onOutputEditingFinished(self):
+    def onToggleEnviron(self, state) -> None:
+        self.view.environGroupBox.setEnabled(state)
+        self.view.environGroupBox.setVisible(state)
+
+    def onOutputEditingFinished(self) -> None:
         if not self.view.generalWidget.outputLineEdit.text().strip():
             self.view.generalWidget.outputLineEdit.setText(os.path.expanduser("~"))
 
-    def onCurrentComplianceChanged(self, value):
+    def onCurrentComplianceChanged(self, value: float) -> None:
         logger.info("updated current_compliance: %s", format_metric(value, "A"))
         self.state.update({"current_compliance": value})
 
-    def onContinueInComplianceChanged(self, checked):
+    def onContinueInComplianceChanged(self, checked: bool) -> None:
         logger.info("updated continue_in_compliance: %s", checked)
         self.state.update({"continue_in_compliance": checked})
 
-    def onWaitingTimeContinuousChanged(self, value):
+    def onWaitingTimeContinuousChanged(self, value: float) -> None:
         logger.info("updated waiting_time_continuous: %s", format_metric(value, "s"))
         self.state.update({"waiting_time_continuous": value})
 
-    def updateContinuousOption(self):
+    def updateContinuousOption(self) -> None:
         # Tweak continuous option
         validTypes = ["iv", "iv_bias"]
         currentMeasurement = self.view.generalWidget.currentMeasurement()
@@ -756,7 +791,7 @@ class Controller(QtCore.QObject):
             enabled = measurementType in validTypes
         self.view.continuousCheckBox.setEnabled(enabled)
 
-    def createFilename(self):
+    def createFilename(self) -> str:
         path = self.view.generalWidget.outputDir()
         sample = self.state.get("sample")
         timestamp = datetime.fromtimestamp(self.state.get("timestamp", 0)).strftime("%Y-%m-%dT%H-%M-%S")
@@ -774,15 +809,20 @@ class Controller(QtCore.QObject):
         measurement.cvReadingQueue = self.cvPlotsController.cvReadingQueue
         measurement.cvReadingLock = self.cvPlotsController.cvReadingLock
 
-    def createMeasurement(self):
-        station = Station(self.state)
+    def createMeasurement(self) -> Measurement:
+        station = Station()
 
         # Prepare role drivers
+        auto_reconnect = self.state.get("auto_reconnect", False)
         for role in self.view.roles():
-            station.register_instrument(role.name().lower())
+            name = role.name().lower()
+            station.register_instrument(name, self.state.get(name, {}), auto_reconnect)  # TODO
 
-        measurementType = self.state.get("measurement_type")
-        measurement = MEASUREMENTS.get(measurementType)(station, self.state)
+        measurement_type = self.state.get("measurement_type", "")
+        cls = measurement_registry.get(measurement_type)
+        if cls is None:
+            raise ValueError(f"No such measurement type: {measurement_type!r}")
+        measurement = cls(station, self.state)
 
         measurement.update.connect(self.update)
 
@@ -858,7 +898,7 @@ class Controller(QtCore.QObject):
             self.aborted.emit()
             self.finished.emit()
 
-    def runMeasurement(self, measurement):
+    def runMeasurement(self, measurement: Measurement) -> None:
         try:
             MeasurementRunner(measurement)()
         except Exception as exc:
@@ -884,9 +924,9 @@ class IVPlotsController(QtCore.QObject):
         self.ivLayout.setStretch(1, 1)
         self.ivLayout.setContentsMargins(0, 0, 0, 0)
 
-        self.ivReadingQueue = []
+        self.ivReadingQueue: List[ReadingType] = []
         self.ivReadingLock = threading.RLock()
-        self.itReadingQueue = []
+        self.itReadingQueue: List[ReadingType] = []
         self.itReadingLock = threading.RLock()
 
         self.updateTimer = QtCore.QTimer()
@@ -928,7 +968,7 @@ class IVPlotsController(QtCore.QObject):
         if len(readings):
             self.ivPlotWidget.fit()
 
-    def onIVReading(self, reading: dict, fit: bool = True) -> None:
+    def onIVReading(self, reading: ReadingType, fit: bool = True) -> None:
         voltage: float = reading.get("voltage", math.nan)
         i_smu: float = reading.get("i_smu", math.nan)
         i_smu2: float = reading.get("i_smu2", math.nan)
@@ -942,7 +982,7 @@ class IVPlotsController(QtCore.QObject):
         if fit:
             self.ivPlotWidget.fit()
 
-    def onLoadIVReadings(self, readings: List[dict]) -> None:
+    def onLoadIVReadings(self, readings: Iterable[ReadingType]) -> None:
         smuPoints = []
         smu2Points = []
         elmPoints = []
@@ -965,13 +1005,14 @@ class IVPlotsController(QtCore.QObject):
                 elmPoints.append(QtCore.QPointF(voltage, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.vLimits.append(voltage)
-        widget.series.get("smu").replace(smuPoints)
-        widget.series.get("smu2").replace(smu2Points)
-        widget.series.get("elm").replace(elmPoints)
-        if self.parent():
-            self.parent().onToggleSmu(True)
-            self.parent().onToggleSmu2(bool(len(smu2Points)))
-            self.parent().onToggleElm(bool(len(elmPoints)))
+        widget.smuSeries.replace(smuPoints)
+        widget.smu2Series.replace(smu2Points)
+        widget.elmSeries.replace(elmPoints)
+        parent = self.parent()
+        if isinstance(parent, Controller):
+            parent.onToggleSmu(True)
+            parent.onToggleSmu2(bool(len(smu2Points)))
+            parent.onToggleElm(bool(len(elmPoints)))
         widget.fit()
 
     def onFlushItReadings(self) -> None:
@@ -983,7 +1024,7 @@ class IVPlotsController(QtCore.QObject):
         if len(readings):
             self.itPlotWidget.fit()
 
-    def onItReading(self, reading: dict, fit: bool = True) -> None:
+    def onItReading(self, reading: ReadingType, fit: bool = True) -> None:
         timestamp: float = reading.get("timestamp", math.nan)
         i_smu: float = reading.get("i_smu", math.nan)
         i_smu2: float = reading.get("i_smu2", math.nan)
@@ -997,7 +1038,7 @@ class IVPlotsController(QtCore.QObject):
         if fit:
             self.itPlotWidget.fit()
 
-    def onLoadItReadings(self, readings: List[dict]) -> None:
+    def onLoadItReadings(self, readings: Iterable[ReadingType]) -> None:
         smuPoints: List[QtCore.QPointF] = []
         smu2Points: List[QtCore.QPointF] = []
         elmPoints: List[QtCore.QPointF] = []
@@ -1020,9 +1061,9 @@ class IVPlotsController(QtCore.QObject):
                 elmPoints.append(QtCore.QPointF(timestamp * 1e3, i_elm))
                 widget.iLimits.append(i_elm)
                 widget.tLimits.append(timestamp)
-        widget.series.get("smu").replace(smuPoints)
-        widget.series.get("smu2").replace(smu2Points)
-        widget.series.get("elm").replace(elmPoints)
+        widget.smuSeries.replace(smuPoints)
+        widget.smu2Series.replace(smu2Points)
+        widget.elmSeries.replace(elmPoints)
         widget.fit()
 
 
@@ -1041,7 +1082,7 @@ class CVPlotsController(QtCore.QObject):
         self.cvLayout.setStretch(1, 1)
         self.cvLayout.setContentsMargins(0, 0, 0, 0)
 
-        self.cvReadingQueue = []
+        self.cvReadingQueue: List[ReadingType] = []
         self.cvReadingLock = threading.RLock()
 
         self.updateTimer = QtCore.QTimer()
@@ -1096,7 +1137,7 @@ class CVPlotsController(QtCore.QObject):
                 lcrPoints.append(QtCore.QPointF(voltage, c_lcr))
                 widget.cLimits.append(c_lcr)
                 widget.vLimits.append(voltage)
-        widget.series.get("lcr").replace(lcrPoints)
+        widget.lcrSeries.replace(lcrPoints)
         widget.fit()
 
     def onLoadCV2Readings(self, readings: List[dict]) -> None:
@@ -1110,15 +1151,15 @@ class CVPlotsController(QtCore.QObject):
                 lcr2Points.append(QtCore.QPointF(voltage, c2_lcr))
                 widget.cLimits.append(c2_lcr)
                 widget.vLimits.append(voltage)
-        widget.series.get("lcr").replace(lcr2Points)
+        widget.lcrSeries.replace(lcr2Points)
         widget.fit()
 
 
 class ChangeVoltageController(QtCore.QObject):
 
-    def __init__(self, view, state, parent=None) -> None:
+    def __init__(self, view: MainWindow, state, parent=None) -> None:
         super().__init__(parent)
-        self.view = view
+        self.view: MainWindow = view
         self.state = state
         # Connect signals
         self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)

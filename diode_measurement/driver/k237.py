@@ -6,7 +6,7 @@ from .driver import SourceMeter, InstrumentError, handle_exception
 
 __all__ = ["K237"]
 
-ERROR_MESSAGES = {
+ERROR_MESSAGES: Dict[int, str] = {
     0: "Trigger Overrun",
     1: "IDDC",
     2: "IDDCO",
@@ -55,7 +55,8 @@ class K237(SourceMeter):
         result = self._query("U1X").strip()[3:]
         for index, value in enumerate(result):
             if value == "1":
-                return InstrumentError(index + 100, ERROR_MESSAGES.get(index, "Unknown Error"))
+                message = ERROR_MESSAGES.get(index, "Unknown Error")
+                return InstrumentError(index, message)
         return None
 
     def configure(self, options: Dict[str, Any]) -> None:
@@ -109,7 +110,7 @@ class K237(SourceMeter):
         result = self.resource.query(message)
         return result.strip()
 
-    def _voltage_range(self, level):
+    def _voltage_range(self, level: float) -> int:
         level = abs(level)
         if level <= 1.1:
             return 1

@@ -26,6 +26,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.elmCheckBox = QtWidgets.QCheckBox("ELM")
         self.lcrCheckBox = QtWidgets.QCheckBox("LCR")
         self.dmmCheckBox = QtWidgets.QCheckBox("DMM")
+        self.environCheckBox = QtWidgets.QCheckBox("ENV")
 
         self.beginVoltageSpinBox = QtWidgets.QDoubleSpinBox()
         self.beginVoltageSpinBox.setDecimals(3)
@@ -127,6 +128,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.instrumentLayout.addWidget(self.elmCheckBox)
         self.instrumentLayout.addWidget(self.lcrCheckBox)
         self.instrumentLayout.addWidget(self.dmmCheckBox)
+        self.instrumentLayout.addWidget(self.environCheckBox)
         self.instrumentLayout.addStretch()
         self.instrumentLayout.setContentsMargins(0, 0, 0, 0)
 
@@ -251,6 +253,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setDMMEnabled(self, enabled):
         return self.dmmCheckBox.setChecked(enabled)
+
+    def isEnvironEnabled(self):
+        return self.environCheckBox.isChecked()
+
+    def setEnvironEnabled(self, enabled):
+        return self.environCheckBox.setChecked(enabled)
 
     def isOutputEnabled(self):
         return self.outputGroupBox.isChecked()

@@ -58,15 +58,7 @@ class Measurement(QtCore.QObject):
             for handler in self.startedHandlers:
                 handler()
             logger.debug("handle started callbacks... done.")
-            self.station.reset()
-            with contextlib.ExitStack() as stack:
-                logger.debug("creating instrument contexts...")
-                for key, value in self.station.resources.items():
-                    cls, resource = value
-                    logger.debug("creating instrument context %s: %s...", key, cls.__name__)
-                    context = cls(stack.enter_context(resource))
-                    self.station.contexts[key] = context
-                logger.debug("creating instrument contexts... done.")
+            with self.station:
                 try:
                     logger.debug("initialize...")
                     self.initialize()
@@ -90,7 +82,6 @@ class Measurement(QtCore.QObject):
             for handler in self.finishedHandlers:
                 handler()
             logger.debug("handle finished callbacks... done.")
-            self.station.reset()
             self.finished.emit()
             self.update_rpc_state("idle")
             logger.debug("run measurement... done.")
@@ -446,7 +437,8 @@ class RangeMeasurement(Measurement):
                 "smu2_current": None,
                 "elm_current": None,
                 "lcr_capacity": None,
-                "dmm_temperature": None
+                "dmm_temperature": None,
+                "env_temperature": None,
             })
 
     def acquireReading(self):
@@ -485,7 +477,8 @@ class RangeMeasurement(Measurement):
             "smu2_current": None,
             "elm_current": None,
             "lcr_capacity": None,
-            "dmm_temperature": None
+            "dmm_temperature": None,
+            "env_temperature": None,
         })
         ramp = LinearRange(source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))
@@ -530,7 +523,8 @@ class RangeMeasurement(Measurement):
             "smu2_current": None,
             "elm_current": None,
             "lcr_capacity": None,
-            "dmm_temperature": None
+            "dmm_temperature": None,
+            "env_temperature": None,
         })
         ramp = LinearRange(bias_source_voltage, 0.0, 5.0)
         estimate = Estimate(len(ramp))

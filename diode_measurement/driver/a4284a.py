@@ -1,7 +1,7 @@
 import time
 from typing import Any, Dict, Optional
 
-from .driver import LCRMeter, handle_exception, parse_scpi_error
+from .driver import LCRMeter, InstrumentError, handle_exception, parse_scpi_error
 
 __all__ = ["A4284A"]
 
@@ -17,7 +17,7 @@ class A4284A(LCRMeter):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def next_error(self) -> tuple:
+    def next_error(self) -> Optional[InstrumentError]:
         return parse_scpi_error(self._query(":SYST:ERR?"))
 
     def configure(self, options: Dict[str, Any]) -> None:

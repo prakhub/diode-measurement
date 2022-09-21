@@ -34,6 +34,7 @@ class CVMeasurement(RangeMeasurement):
         smu = self.station.get("smu")
         lcr = self.station.get("lcr")
         dmm = self.station.get("dmm")
+        env = self.station.get("env")
         voltage = self.get_source_voltage()
         if lcr:
             c_lcr = lcr.read_capacity()
@@ -47,12 +48,17 @@ class CVMeasurement(RangeMeasurement):
             t_dmm = dmm.read_temperature()
         else:
             t_dmm = float("NaN")
+        if env:
+            t_env = env.read_temperature()
+        else:
+            t_env = float("NaN")
         return {
             "timestamp": time.time(),
             "voltage": voltage,
             "i_smu": i_smu,
             "c_lcr": c_lcr,
-            "t_dmm": t_dmm
+            "t_dmm": t_dmm,
+            "t_env": t_env,
         }
 
     def acquireReading(self):
@@ -64,7 +70,8 @@ class CVMeasurement(RangeMeasurement):
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
             "lcr_capacity": reading.get("c_lcr"),
-            "dmm_temperature": reading.get("t_dmm")
+            "dmm_temperature": reading.get("t_dmm"),
+            "env_temperature": reading.get("t_env"),
         })
         for handler in self.cvReadingHandlers:
             handler(reading)

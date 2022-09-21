@@ -5,7 +5,7 @@ from .driver import LCRMeter, InstrumentError, handle_exception
 
 __all__ = ["K595"]
 
-ERROR_MESSAGES = {
+ERROR_MESSAGES: Dict[int, str] = {
     0: "IDDC",
     1: "IDDCO",
     2: "No Remote",
@@ -33,7 +33,8 @@ class K595(LCRMeter):
         result = self._query("U1X")[3:]
         for index, value in enumerate(result):
             if value == "1":
-                return index + 100, ERROR_MESSAGES.get(index, "Unknown Error")
+                message = ERROR_MESSAGES.get(index, "Unknown Error")
+                return InstrumentError(index, message)
         return None
 
     def configure(self, options: Dict[str, Any]) -> None:

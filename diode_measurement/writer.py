@@ -1,7 +1,7 @@
 import csv
 import math
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 __all__ = ["Writer"]
 
@@ -12,6 +12,18 @@ def safe_format(value: Any, format_spec: str = None) -> str:
         return format(value, format_spec or "")
     except Exception:
         return format(math.nan)
+
+
+def get_temperature(data: Dict[str, Any]) -> float:
+    t_dmm = data.get("t_dmm")
+    if isinstance(t_dmm, float):
+        if math.isfinite(t_dmm):
+            return t_dmm
+    t_env = data.get("t_env")
+    if isinstance(t_env, float):
+        if math.isfinite(t_env):
+            return t_env
+    return math.nan
 
 
 class Writer:
@@ -66,7 +78,7 @@ class Writer:
             safe_format(data.get("voltage"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(get_temperature(data), "+.3E")
         ])
         self.flush()
 
@@ -87,7 +99,7 @@ class Writer:
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(get_temperature(data), "+.3E")
         ])
         self.flush()
 
@@ -106,7 +118,7 @@ class Writer:
             safe_format(data.get("voltage"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(get_temperature(data), "+.3E")
         ])
         self.flush()
 
@@ -127,7 +139,7 @@ class Writer:
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(get_temperature(data), "+.3E")
         ])
         self.flush()
 
@@ -148,6 +160,6 @@ class Writer:
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("c_lcr"), "+.3E"),
             safe_format(data.get("c2_lcr"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(get_temperature(data), "+.3E")
         ])
         self.flush()

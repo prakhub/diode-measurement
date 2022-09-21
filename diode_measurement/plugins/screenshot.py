@@ -38,7 +38,7 @@ class ScreenshotPlugin(Plugin):
         layout = context.view.generalWidget.outputGroupBox.layout()
         layout.removeWidget(self.saveScreenshotCheckBox)
 
-        self.saveScreenshotCheckBox.setParent(None)
+        self.saveScreenshotCheckBox.setParent(None)  # type: ignore
         self.saveScreenshotCheckBox.deleteLater()
 
     def loadSettings(self) -> None:

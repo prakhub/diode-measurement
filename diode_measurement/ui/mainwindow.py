@@ -134,6 +134,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dmmGroupBox = QtWidgets.QGroupBox()
         self.dmmGroupBox.setTitle("DMM Status")
 
+        self.environGroupBox = QtWidgets.QGroupBox()
+        self.environGroupBox.setTitle("ENV Status")
+
         self.smuVoltageLineEdit = QtWidgets.QLineEdit("---")
         self.smuVoltageLineEdit.setReadOnly(True)
         self.smuVoltageLineEdit.setAlignment(QtCore.Qt.AlignRight)
@@ -185,6 +188,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dmmTemperatureLineEdit = QtWidgets.QLineEdit("---")
         self.dmmTemperatureLineEdit.setReadOnly(True)
         self.dmmTemperatureLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.environTemperatureLineEdit = QtWidgets.QLineEdit("---")
+        self.environTemperatureLineEdit.setReadOnly(True)
+        self.environTemperatureLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
         centralWidget = QtWidgets.QWidget()
         self.setCentralWidget(centralWidget)
@@ -302,6 +309,15 @@ class MainWindow(QtWidgets.QMainWindow):
         dmmGroupBox.setStretch(0, 2)
         dmmGroupBox.setStretch(1, 3)
 
+        environGroupBox = QtWidgets.QHBoxLayout(self.environGroupBox)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Temperature"))
+        vboxLayout.addWidget(self.environTemperatureLineEdit)
+        environGroupBox.addLayout(vboxLayout)
+        environGroupBox.addStretch()
+        environGroupBox.setStretch(0, 2)
+        environGroupBox.setStretch(1, 3)
+
         bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addLayout(controlLayout)
         bottomLayout.addWidget(self.controlTabWidget)
@@ -311,6 +327,7 @@ class MainWindow(QtWidgets.QMainWindow):
         vboxLayout.addWidget(self.elmGroupBox)
         vboxLayout.addWidget(self.lcrGroupBox)
         vboxLayout.addWidget(self.dmmGroupBox)
+        vboxLayout.addWidget(self.environGroupBox)
         vboxLayout.addStretch()
         bottomLayout.addLayout(vboxLayout)
         bottomLayout.setStretch(0, 0)
@@ -355,6 +372,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrCurrentLineEdit.setText("---")
         self.setLCROutputState(None)
         self.dmmTemperatureLineEdit.setText("---")
+        self.environTemperatureLineEdit.setText("---")
 
     def setIdleState(self) -> None:
         self.importAction.setEnabled(True)
@@ -431,6 +449,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return self.changeVoltageAction.isEnabled()
 
     def setChangeVoltageEnabled(self, state: bool) -> None:
+        state = state and self.stopAction.isEnabled()  # TODO
         self.changeVoltageAction.setEnabled(state)
         self.generalWidget.changeVoltageButton.setEnabled(state)
 
@@ -497,6 +516,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateDMMTemperature(self, temperature: float) -> None:
         self.dmmTemperatureLineEdit.setText(format_metric(temperature, "°C"))
+
+    def updateEnvironTemperature(self, temperature: float) -> None:
+        self.environTemperatureLineEdit.setText(format_metric(temperature, "°C"))
 
     def showContents(self) -> None:
         webbrowser.open(self.property("contentsUrl"))

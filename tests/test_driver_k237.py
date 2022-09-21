@@ -26,9 +26,9 @@ class TestDriverK237:
         assert res.buffer == ["U1X"]
 
         res.buffer = ["23701000000000000000000000000"]
-        assert d.next_error() == (101, "IDDC")
+        assert d.next_error() == (1, "IDDC")
         assert res.buffer == ["U1X"]
 
         res.buffer = ["23700000000001000000000000000"]
-        assert d.next_error() == (110, "In Standby")
+        assert d.next_error() == (10, "In Standby")
         assert res.buffer == ["U1X"]

@@ -42,7 +42,7 @@ def get_resource(resource_name: str) -> Tuple[str, str]:
     return resource_name, visa_library
 
 
-def open_resource(resource_name: str, termination: str, timeout: float):
+def open_resource(resource_name: str, termination: str, timeout: float) -> pyvisa.Resource:
     resource_name, visa_library = get_resource(resource_name)
     timeout_millisecs = timeout * 1e3
     rm = pyvisa.ResourceManager(visa_library)

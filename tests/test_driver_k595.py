@@ -26,9 +26,9 @@ class TestDriverK595:
         assert res.buffer == ["U1X"]
 
         res.buffer = ["59510000000000000000000000000"]
-        assert d.next_error() == (100, "IDDC")
+        assert d.next_error() == (0, "IDDC")
         assert res.buffer == ["U1X"]
 
         res.buffer = ["59501000000000000000000000000"]
-        assert d.next_error() == (101, "IDDCO")
+        assert d.next_error() == (1, "IDDCO")
         assert res.buffer == ["U1X"]

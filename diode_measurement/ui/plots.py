@@ -158,20 +158,20 @@ class PlotWidget(QtChart.QChartView):
         if filename:
             if os.path.splitext(filename)[1] != ".png":
                 filename = f"{filename}.png"
-            try:
-                self.grab().save(filename)
-            except Exception:
-                pass
+            if not self.grab().save(filename):
+                QtWidgets.QMessageBox.critical(self, "Failed to save", f"Failed to save to file {filename!r}")
 
     def clear(self) -> None:
         for series in self.chart().series():
-            series.clear()
+            if isinstance(series, QtChart.QXYSeries):
+                series.clear()
 
     def isReverse(self) -> bool:
         for series in self.chart().series():
-            if series.count():
-                if series.at(series.count() - 1).x() < series.at(0).x():
-                    return True
+            if isinstance(series, QtChart.QXYSeries):
+                if series.count():
+                    if series.at(series.count() - 1).x() < series.at(0).x():
+                        return True
         return False
 
 

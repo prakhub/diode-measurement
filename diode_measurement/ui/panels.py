@@ -15,6 +15,7 @@ __all__ = [
     "K6517BPanel",
     "A4284APanel",
     "E4980APanel",
+    "EnvironBoxPanel",
 ]
 
 ConfigType = Dict[str, Any]
@@ -974,3 +975,46 @@ class E4980APanel(InstrumentPanel):
         self.lengthComboBox.setEnabled(not state)
         self.openEnabledCheckBox.setEnabled(not state)
         self.shortEnabledCheckBox.setEnabled(not state)
+
+
+class EnvironBoxPanel(InstrumentPanel):
+
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
+        super().__init__("EnvironmentBox", parent)
+
+        self.temperatureGroupBox = QtWidgets.QGroupBox()
+        self.temperatureGroupBox.setTitle("Temperature")
+
+        self.temperatureSourceLabel = QtWidgets.QLabel("Sensor")
+
+        self.temperatureSourceComboBox = QtWidgets.QComboBox()
+        self.temperatureSourceComboBox.addItem("Box Temperature", "box_temperature")
+        self.temperatureSourceComboBox.addItem("PT100_1", "pt100_1")
+        self.temperatureSourceComboBox.addItem("PT100_2", "pt100_2")
+
+        temperatureLayout = QtWidgets.QVBoxLayout(self.temperatureGroupBox)
+        temperatureLayout.addWidget(self.temperatureSourceLabel)
+        temperatureLayout.addWidget(self.temperatureSourceComboBox)
+        temperatureLayout.addStretch()
+
+        # Layout
+
+        rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.temperatureGroupBox)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(rightLayout)
+        layout.addStretch()
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+        self.bindParameter("temperature_source", WidgetParameter(self.temperatureSourceComboBox))
+
+        self.restoreDefaults()
+
+    def restoreDefaults(self) -> None:
+        self.temperatureSourceComboBox.setCurrentIndex(0)
+
+    def setLocked(self, state: bool) -> None:
+        self.temperatureSourceComboBox.setEnabled(not state)

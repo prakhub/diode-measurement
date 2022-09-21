@@ -25,9 +25,9 @@ class InstrumentError:
 
     def __eq__(self, other) -> bool:
         if isinstance(other, InstrumentError):
-            return self.code, self.message == other.code, other.message
+            return (self.code, self.message) == (other.code, other.message)
         elif isinstance(other, tuple) and len(other) == 2:
-            return self.code, self.message == other[0], other[1]
+            return (self.code, self.message) == (other[0], other[1])
         return super().__eq__(other)
 
     def __str__(self) -> str:
@@ -35,18 +35,24 @@ class InstrumentError:
 
 
 def parse_scpi_error(response: str) -> Optional[InstrumentError]:
-    code, message = response.split(",", 1)
-    code = int(code)
-    message = message.strip().strip('"')
+    try:
+        code_raw, message_raw = response.split(",", 1)
+        code = int(code_raw)
+        message = message_raw.strip().strip('"')
+    except Exception as exc:
+        raise RuntimeError(f"Failed to parse instrument error: {response!r}") from exc
     if code:
         return InstrumentError(code, message)
     return None
 
 
 def parse_tsp_error(response: str) -> Optional[InstrumentError]:
-    code, message, *_ = response.split("\t")
-    code = int(float(code))
-    message = message.strip().strip('"')
+    try:
+        code_raw, message_raw, *_ = response.split("\t")
+        code = int(float(code_raw))
+        message = message_raw.strip().strip('"')
+    except Exception as exc:
+        raise RuntimeError(f"Failed to parse instrument error: {response!r}") from exc
     if code:
         return InstrumentError(code, message)
     return None

@@ -115,11 +115,8 @@ class ResourceWidget(QtWidgets.QGroupBox):
     def setTimeout(self, timeout: float) -> None:
         self.timeoutSpinBox.setValue(timeout)
 
-    def openResource(self) -> None:
-        return open_resource(self.resourceName(), self.termination(), self.timeout())
-
     def readIdentity(self) -> str:
-        with self.openResource() as res:
+        with open_resource(self.resourceName(), self.termination(), self.timeout()) as res:
             instr = driver_factory(self.model())(res)
             return instr.identity()
 
