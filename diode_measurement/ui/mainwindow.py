@@ -32,6 +32,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._createLayout()
 
     def _createActions(self) -> None:
+        self.openProjectAction = QtWidgets.QAction("&Open Project")
+
+        self.saveAsProjectAction = QtWidgets.QAction("&Save As Project")
+
         self.importAction = QtWidgets.QAction("&Import File...")
         self.importAction.setStatusTip("Import measurement data")
 
@@ -69,6 +73,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _createMenus(self) -> None:
         self.fileMenu = self.menuBar().addMenu("&File")
+        self.fileMenu.addAction(self.openProjectAction)
+        self.fileMenu.addAction(self.saveAsProjectAction)
         self.fileMenu.addAction(self.importAction)
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.quitAction)

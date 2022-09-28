@@ -32,7 +32,16 @@ class ScreenshotPlugin(Plugin):
 
         self.context.finished.connect(self.saveScreenshot)
 
+        context.registerConfigParameter(
+            "plugins.screenshot.is_save_screenshot",
+            lambda: self.saveScreenshotCheckBox.isChecked(),
+            lambda value: self.saveScreenshotCheckBox.setChecked(value),
+            bool
+        )
+
     def removeWidgets(self, context) -> None:
+        context.removeConfigParameter("plugins.screenshot.is_save_screenshot")
+
         context.finished.disconnect(self.saveScreenshot)
 
         layout = context.view.generalWidget.outputGroupBox.layout()

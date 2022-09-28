@@ -221,8 +221,29 @@ class TCPServerPlugin(Plugin, QtCore.QObject):
         self.loadSettings()
         self._startThread()
         self._messageTimer.start(250)
+        context.registerConfigParameter(
+            "plugins.tcpserver.enabled",
+            lambda: self.rpcWidget.isServerEnabled(),
+            lambda value: self.rpcWidget.setServerEnabled(value),
+            bool
+        )
+        context.registerConfigParameter(
+            "plugins.tcpserver.hostname",
+            lambda: self.rpcWidget.hostname(),
+            lambda value: self.rpcWidget.setHostname(value),
+            str
+        )
+        context.registerConfigParameter(
+            "plugins.tcpserver.port",
+            lambda: self.rpcWidget.port(),
+            lambda value: self.rpcWidget.setPort(value),
+            int
+        )
 
     def uninstall(self, context):
+        context.removeConfigParameter("plugins.tcpserver.enabled")
+        context.removeConfigParameter("plugins.tcpserver.hostname")
+        context.removeConfigParameter("plugins.tcpserver.port")
         self._messageTimer.stop()
         self.failed.disconnect(context.handleException)
         self._enabled.clear()

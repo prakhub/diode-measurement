@@ -1,4 +1,5 @@
 import contextlib
+import json
 import logging
 import math
 import os
@@ -125,6 +126,8 @@ class Controller(QtCore.QObject):
 
     def __init__(self, view: MainWindow, parent=None) -> None:
         super().__init__(parent)
+        self._configParameters: dict = {}
+
         self.view: MainWindow = view
 
         self.abortRequested = threading.Event()
@@ -182,6 +185,10 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("ENV")
         role.addInstrumentPanel(EnvironBoxPanel())
 
+        self.view.openProjectAction.triggered.connect(lambda: self.onOpenProject())
+
+        self.view.saveAsProjectAction.triggered.connect(lambda: self.onSaveAsProject())
+
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
         self.view.startAction.triggered.connect(self.started)
@@ -221,6 +228,37 @@ class Controller(QtCore.QObject):
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
+
+        self.registerConfigParameter(
+            "is_continuous",
+            lambda: self.view.isContinuous(),
+            lambda value: self.view.setContinuous(value),
+            bool
+        )
+        self.registerConfigParameter(
+            "is_reset_instruments",
+            lambda: self.view.isReset(),
+            lambda value: self.view.setReset(value),
+            bool
+        )
+        self.registerConfigParameter(
+            "is_auto_reconnect",
+            lambda: self.view.isAutoReconnect(),
+            lambda value: self.view.setAutoReconnect(value),
+            bool
+        )
+        self.registerConfigParameter(
+            "sample_name",
+            lambda: self.view.generalWidget.sampleName(),
+            lambda value: self.view.generalWidget.setSampleName(value),
+            str
+        )
+        self.registerConfigParameter(
+            "output_dir",
+            lambda: self.view.generalWidget.outputDir(),
+            lambda value: self.view.generalWidget.setOutputDir(value),
+            str
+        )
 
         # States
 
@@ -518,6 +556,40 @@ class Controller(QtCore.QObject):
             settings.endGroup()
 
         settings.endGroup()
+
+    @handle_exception
+    def onOpenProject(self):
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.view,
+            "Open Project File",
+            ".",
+            "Project (*.pro);;All (*)",
+            "Project"
+        )
+        if os.path.isfile(filename):
+            with open(filename, "rt") as fp:
+                config = json.load(fp)
+            supported_version = ["1.0"]
+            version = config.get("version")
+            if version not in supported_version:
+                raise RuntimeError(f"Invalid project version: {version!r}")
+            self.updateConfig(config)
+
+    @handle_exception
+    def onSaveAsProject(self):
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.view,
+            "Save As Project File",
+            ".",
+            "Project (*.pro)"
+        )
+        if filename:
+            if not filename.endswith(".pro"):
+                filename += ".pro"
+            config = self.config()
+            config.update({"version": "1.0"})
+            with open(filename, "wt") as fp:
+                json.dump(config, fp)
 
     @handle_exception
     def onImportFile(self):
@@ -907,6 +979,26 @@ class Controller(QtCore.QObject):
         finally:
             self.finished.emit()
 
+    def registerConfigParameter(self, key, getter, setter, type):
+        self._configParameters[key] = (key, getter, setter, type)
+
+    def removeConfigParameter(self, key):
+        if key in self._configParameters:
+            del self._configParameters[key]
+
+    def config(self):
+        config = {}
+        for key, getter, _, type_ in self._configParameters.values():
+            config.update({key: type_(getter())})
+        return config
+
+    def updateConfig(self, config):
+        for key, value in config.items():
+            if key not in self._configParameters:
+                logger.warning(f"Ignoring unknown config paramter: {key!r}")
+            else:
+                _, _, setter, type_ = self._configParameters[key]
+                setter(type_(value))
 
 class IVPlotsController(QtCore.QObject):
 
