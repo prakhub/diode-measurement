@@ -466,10 +466,10 @@ class K6514Panel(InstrumentPanel):
 
         self.senseRangeSpinBox = QtWidgets.QDoubleSpinBox()
         self.senseRangeSpinBox.setSuffix(" uA")
-        self.senseRangeSpinBox.setDecimals(3)
+        self.senseRangeSpinBox.setDecimals(6)
         self.senseRangeSpinBox.setSingleStep(1)
-        self.senseRangeSpinBox.setMinimum(ureg("2.1e-11 A").to("uA").m)
-        self.senseRangeSpinBox.setMaximum(ureg("2.1e-2 A").to("uA").m)
+        self.senseRangeSpinBox.setMinimum(ureg("1 pA").to("uA").m)
+        self.senseRangeSpinBox.setMaximum(ureg("2 A").to("uA").m)
 
         rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
         rangeLayout.addWidget(self.autoRangeCheckBox)
@@ -588,9 +588,9 @@ class K6517BPanel(InstrumentPanel):
 
         self.senseRangeSpinBox = QtWidgets.QDoubleSpinBox()
         self.senseRangeSpinBox.setSuffix(" uA")
-        self.senseRangeSpinBox.setDecimals(3)
+        self.senseRangeSpinBox.setDecimals(6)
         self.senseRangeSpinBox.setSingleStep(1)
-        self.senseRangeSpinBox.setMinimum(ureg("2.1e-11 A").to("uA").m)
+        self.senseRangeSpinBox.setMinimum(ureg("1 pA").to("uA").m)
         self.senseRangeSpinBox.setMaximum(ureg("21e-3 A").to("uA").m)
 
         rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
