@@ -1048,6 +1048,8 @@ class CVPlotsController(QtCore.QObject):
         self.cvReadingQueue.clear()
         self.cvPlotWidget.clear()
         self.cvPlotWidget.reset()
+        self.cv2PlotWidget.clear()
+        self.cv2PlotWidget.reset()
 
     def toggleSmuSeries(self, state):
         ...
