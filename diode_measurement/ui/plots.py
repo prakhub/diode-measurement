@@ -443,7 +443,7 @@ class CV2PlotWidget(PlotWidget):
         self.chart().addSeries(self.lcrSeries)
 
         self.cAxis = QtChart.QValueAxis()
-        self.cAxis.setTitleText("Capacitance [1/pF^2]")
+        self.cAxis.setTitleText("Capacitance [1/F^2]")
         self.cAxis.setLabelFormat("%g")
         self.cAxis.setRange(0, 1 / 200**2)
         self.cAxis.setTickCount(9)

@@ -29,7 +29,7 @@ class K2470(SourceMeter):
         filter_mode = options.get("filter.mode", "MOV")
         self.set_sense_current_average_tcontrol(filter_mode)
 
-        filter_count = options.get("filter.count", 1)
+        filter_count = options.get("filter.count", 10)
         self.set_sense_current_average_count(filter_count)
 
         filter_enable = options.get("filter.enable", False)
