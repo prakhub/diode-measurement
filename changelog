@@ -6,8 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.15.4] - 2022-11-02
+## [0.15.4] - 2022-11-03
 ### Fixed
+- Filter count of 1 not supported by some instruments (#67).
 - CV plot not cleared before new measurement (#70).
 
 ## [0.15.3] - 2022-10-24

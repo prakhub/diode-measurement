@@ -29,7 +29,7 @@ class K2657A(SourceMeter):
         filter_mode = options.get("filter.mode", "REPEAT_AVG")
         self.set_measure_filter_type(filter_mode)
 
-        filter_count = options.get("filter.count", 1)
+        filter_count = options.get("filter.count", 10)
         self.set_measure_filter_count(filter_count)
 
         filter_enable = options.get("filter.enable", False)
