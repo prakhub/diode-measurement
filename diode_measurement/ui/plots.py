@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Any, Dict
 
 from PyQt5 import QtChart, QtCore, QtWidgets
@@ -244,7 +245,7 @@ class IVPlotWidget(PlotWidget):
         else:
             minimum = 0
             maximum = 200e-9
-        # HACK limit axis range to 1 pF minimum
+        # HACK limit axis range to 1 pA minimum
         minimum, maximum = limitRange(minimum, maximum, 2e-12)
         self.iAxis.setRange(minimum, maximum)
         self.iAxis.applyNiceNumbers()
@@ -328,7 +329,6 @@ class ItPlotWidget(PlotWidget):
             minimum = self.tLimits.minimum()
             maximum = self.tLimits.maximum()
         else:
-            import time
             t = time.time()
             minimum = t - 60
             maximum = t
@@ -343,7 +343,7 @@ class ItPlotWidget(PlotWidget):
         else:
             minimum = 0
             maximum = 200e-9
-        # HACK limit axis range to 1 pF minimum
+        # HACK limit axis range to 1 pA minimum
         minimum, maximum = limitRange(minimum, maximum, 2e-12)
         self.iAxis.setRange(minimum, maximum)
         self.iAxis.applyNiceNumbers()

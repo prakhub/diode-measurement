@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.5] - 2022-12-20
+### Fixed
+- Added LCR AC amplitude/frequency to header (#72).
+- Added mypy checks to tox configuration.
+
 ## [0.15.4] - 2022-11-03
 ### Fixed
 - Filter count of 1 not supported by some instruments (#67).
@@ -185,7 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.4...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.5...HEAD
+[0.15.5]: https://github.com/hephy-dd/diode-measurement/compare/0.15.4...0.15.5
 [0.15.4]: https://github.com/hephy-dd/diode-measurement/compare/0.15.3...0.15.4
 [0.15.3]: https://github.com/hephy-dd/diode-measurement/compare/0.15.2...0.15.3
 [0.15.2]: https://github.com/hephy-dd/diode-measurement/compare/0.15.1...0.15.2
