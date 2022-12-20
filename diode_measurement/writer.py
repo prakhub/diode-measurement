@@ -49,7 +49,21 @@ class Writer:
         self.write_tag("voltage_step[V]", safe_format(data.get("voltage_step"), "+.3E"))
         self.write_tag("waiting_time[s]", safe_format(data.get("waiting_time"), "+.3E"))
         self.write_tag("current_compliance[A]", safe_format(data.get("current_compliance"), "+.3E"))
+        self.write_meta_lcr(data)
         self.flush()
+
+    def write_meta_lcr(self, data: dict) -> None:
+        lcr = data.get("lcr", {})
+        if lcr.get("enabled"):
+            lcr_options = lcr.get("options", {})
+            # lcr.options.voltage
+            voltage = lcr_options.get("voltage")
+            if voltage is not None:
+                self.write_tag("lcr_ac_amplitude[V]", safe_format(voltage, "+.3E"))
+            # lcr.options.frequency
+            frequency = lcr_options.get("frequency")
+            if frequency is not None:
+                self.write_tag("lcr_ac_frequency[Hz]", safe_format(frequency, "+.3E"))
 
     def write_iv_row(self, data: dict) -> None:
         if self._current_table != "iv":
