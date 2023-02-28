@@ -8,7 +8,7 @@ from PyQt5 import QtCore
 
 from ..estimate import Estimate
 
-from . import RangeMeasurement
+from . import ReadingType, StateType, EventHandler, RangeMeasurement
 
 __all__ = ["IVMeasurement"]
 
@@ -17,14 +17,12 @@ logger = logging.getLogger(__name__)
 
 class IVMeasurement(RangeMeasurement):
 
-    itChangeVoltageReady = QtCore.pyqtSignal()
-
-    def __init__(self, state: Dict[str, Any]) -> None:
+    def __init__(self, state: StateType) -> None:
         super().__init__(state)
-        self.ivReadingHandlers: List[Callable] = []
-        self.itReadingHandlers: List[Callable] = []
+        self.iv_reading_event: EventHandler = EventHandler()
+        self.it_reading_event: EventHandler = EventHandler()
 
-    def acquireReadingData(self, voltage=None):
+    def acquire_reading_data(self, voltage=None) -> ReadingType:
         smu = self.contexts.get("smu")
         elm = self.contexts.get("elm")
         dmm = self.contexts.get("dmm")
@@ -50,20 +48,19 @@ class IVMeasurement(RangeMeasurement):
             "t_dmm": t_dmm
         }
 
-    def acquireReading(self):
-        reading = self.acquireReadingData()
+    def acquire_reading(self) -> None:
+        reading: ReadingType = self.acquire_reading_data()
         logger.info(reading)
         with self.ivReadingLock:
             self.ivReadingQueue.append(reading)
-        self.update.emit({
+        self.update_event({
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
             "dmm_temperature": reading.get("t_dmm")
         })
-        for handler in self.ivReadingHandlers:
-            handler(reading)
+        self.iv_reading_event(reading)
 
-    def acquireContinuousReading(self):
+    def acquire_continuous_reading(self) -> None:
         t = time.time()
         interval = 1.0
 
@@ -71,18 +68,17 @@ class IVMeasurement(RangeMeasurement):
 
         self.update_progress(0, 0, 0)
 
-        def handle_reading(reading):
+        def handle_reading(reading: ReadingType) -> None:
             """Handle a single reading, update UI and write to files."""
             logger.info(reading)
-            for handler in self.itReadingHandlers:
-                handler(reading)
+            self.it_reading_event(reading)
 
         voltage = self.get_source_voltage()
 
         while not self.stop_requested:
             dt = time.time() - t
 
-            reading = self.acquireReadingData(voltage=voltage)
+            reading: ReadingType = self.acquire_reading_data(voltage=voltage)
             handle_reading(reading)
 
             with self.itReadingLock:
@@ -97,7 +93,7 @@ class IVMeasurement(RangeMeasurement):
 
                 voltage = self.get_source_voltage()
 
-                self.update.emit({
+                self.update_event({
                     "smu_current": reading.get("i_smu"),
                     "elm_current": reading.get("i_elm"),
                     "dmm_temperature": reading.get("t_dmm")

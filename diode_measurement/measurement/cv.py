@@ -8,7 +8,7 @@ from PyQt5 import QtCore
 
 from ..utils import inverse_square
 
-from . import RangeMeasurement
+from . import ReadingType, StateType, EventHandler, RangeMeasurement
 
 __all__ = ["CVMeasurement"]
 
@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 class CVMeasurement(RangeMeasurement):
 
-    def __init__(self, state: Dict[str, Any]) -> None:
+    def __init__(self, state: StateType) -> None:
         super().__init__(state)
-        self.cvReadingHandlers: List[Callable] = []
+        self.cv_reading_event: EventHandler = EventHandler()
 
-    def extendCVReading(self, reading: dict) -> dict:
+    def extend_cv_reading(self, reading: ReadingType) -> ReadingType:
         # Calcualte 1c^2 as c2_lcr
         c_lcr = reading.get("c_lcr", math.nan)
         if math.isfinite(c_lcr) and c_lcr:
@@ -30,7 +30,7 @@ class CVMeasurement(RangeMeasurement):
             reading["c2_lcr"] = math.nan
         return reading
 
-    def acquireReadingData(self):
+    def acquire_reading_data(self) -> ReadingType:
         smu = self.contexts.get("smu")
         lcr = self.contexts.get("lcr")
         dmm = self.contexts.get("dmm")
@@ -55,16 +55,15 @@ class CVMeasurement(RangeMeasurement):
             "t_dmm": t_dmm
         }
 
-    def acquireReading(self):
-        reading = self.acquireReadingData()
-        self.extendCVReading(reading)
+    def acquire_reading(self) -> None:
+        reading: ReadingType = self.acquire_reading_data()
+        self.extend_cv_reading(reading)
         with self.cvReadingLock:
             self.cvReadingQueue.append(reading)
-        self.update.emit({
+        self.update_event({
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
             "lcr_capacity": reading.get("c_lcr"),
             "dmm_temperature": reading.get("t_dmm")
         })
-        for handler in self.cvReadingHandlers:
-            handler(reading)
+        self.cv_reading_event(reading)
