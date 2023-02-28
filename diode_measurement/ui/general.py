@@ -7,6 +7,7 @@ __all__ = ["GeneralWidget"]
 
 class GeneralWidget(QtWidgets.QWidget):
 
+    instrumentsChanged = QtCore.pyqtSignal()
     currentComplianceChanged = QtCore.pyqtSignal(float)
     continueInComplianceChanged = QtCore.pyqtSignal(bool)
     waitingTimeContinuousChanged = QtCore.pyqtSignal(float)
@@ -22,10 +23,19 @@ class GeneralWidget(QtWidgets.QWidget):
         self.measurementComboBox = QtWidgets.QComboBox()
 
         self.smuCheckBox = QtWidgets.QCheckBox("SMU")
+        self.smuCheckBox.stateChanged.connect(self.instrumentsChanged)
+
         self.smu2CheckBox = QtWidgets.QCheckBox("SMU2")
+        self.smu2CheckBox.stateChanged.connect(self.instrumentsChanged)
+
         self.elmCheckBox = QtWidgets.QCheckBox("ELM")
+        self.elmCheckBox.stateChanged.connect(self.instrumentsChanged)
+
         self.lcrCheckBox = QtWidgets.QCheckBox("LCR")
+        self.lcrCheckBox.stateChanged.connect(self.instrumentsChanged)
+
         self.dmmCheckBox = QtWidgets.QCheckBox("DMM")
+        self.dmmCheckBox.stateChanged.connect(self.instrumentsChanged)
 
         self.beginVoltageSpinBox = QtWidgets.QDoubleSpinBox()
         self.beginVoltageSpinBox.setDecimals(3)
@@ -188,6 +198,8 @@ class GeneralWidget(QtWidgets.QWidget):
         layout.setStretch(1, 1)
         layout.setStretch(2, 1)
 
+        self._currentComplianceLocked = False
+
     def setIdleState(self) -> None:
         self.measurementComboBox.setEnabled(True)
         self.instrumentWidget.setEnabled(True)
@@ -198,7 +210,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.waitingTimeSpinBox.setEnabled(True)
         self.biasVoltageSpinBox.setEnabled(True)
         self.changeVoltageButton.setEnabled(False)
-        self.currentComplianceSpinBox.setEnabled(True)
+        self.currentComplianceSpinBox.setEnabled(not self._currentComplianceLocked)
         self.continueInComplianceCheckBox.setEnabled(True)
 
     def setRunningState(self) -> None:
@@ -328,6 +340,10 @@ class GeneralWidget(QtWidgets.QWidget):
     def setCurrentCompliance(self, value):
         unit = self.currentComplianceSpinBox.suffix().strip()
         return self.currentComplianceSpinBox.setValue((value * ureg("A")).to(unit).m)
+
+    def setCurrentComplianceLocked(self, state):
+        self._currentComplianceLocked = state
+        self.currentComplianceSpinBox.setEnabled(not state)
 
     def isContinueInCompliance(self):
         return self.continueInComplianceCheckBox.isChecked()

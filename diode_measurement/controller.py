@@ -49,7 +49,7 @@ from .utils import safe_filename
 from .utils import format_metric
 
 from .cache import Cache
-from .settings import DEFAULTS
+from .settings import DEFAULTS, MODELS
 
 __all__ = ["Controller"]
 
@@ -197,6 +197,10 @@ class Controller(QtCore.QObject):
         self.onMeasurementChanged(0)
 
         self.update.connect(self.onUpdate)
+
+        self.view.generalWidget.instrumentsChanged.connect(self.onInstrumentsChanged)
+
+        self.onInstrumentsChanged()
 
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
         self.view.generalWidget.smu2CheckBox.toggled.connect(self.onToggleSmu2)
@@ -405,6 +409,8 @@ class Controller(QtCore.QObject):
             settings.endGroup()
 
         settings.endGroup()
+
+        self.onInstrumentsChanged()
 
     @handle_exception
     def storeSettings(self):
@@ -703,31 +709,44 @@ class Controller(QtCore.QObject):
         value = spec.get("default_current_compliance", 0.0)
         self.view.generalWidget.setCurrentCompliance(value)
 
-    def onToggleSmu(self, state):
+        self.onInstrumentsChanged()
+
+    def onInstrumentsChanged(self) -> None:
+        self.view.generalWidget.setCurrentComplianceLocked(False)
+        if self.view.generalWidget.isSMUEnabled():
+            ...
+        elif self.view.generalWidget.isELMEnabled():
+            # TODO this is very ugly!
+            role = self.view.findRole("ELM")
+            if role.resourceWidget.model() == "K6517B":
+                self.view.generalWidget.setCurrentComplianceLocked(True)
+                self.view.generalWidget.setCurrentCompliance(1.0e-3) # TODO
+
+    def onToggleSmu(self, state: bool) -> None:
         self.ivPlotsController.toggleSmuSeries(state)
         self.cvPlotsController.toggleSmuSeries(state)
         self.view.smuGroupBox.setEnabled(state)
         self.view.smuGroupBox.setVisible(state)
 
-    def onToggleSmu2(self, state):
+    def onToggleSmu2(self, state: bool) -> None:
         self.ivPlotsController.toggleSmu2Series(state)
         self.cvPlotsController.toggleSmu2Series(state)
         self.view.smu2GroupBox.setEnabled(state)
         self.view.smu2GroupBox.setVisible(state)
 
-    def onToggleElm(self, state):
+    def onToggleElm(self, state: bool) -> None:
         self.ivPlotsController.toggleElmSeries(state)
         self.cvPlotsController.toggleElmSeries(state)
         self.view.elmGroupBox.setEnabled(state)
         self.view.elmGroupBox.setVisible(state)
 
-    def onToggleLcr(self, state):
+    def onToggleLcr(self, state: bool) -> None:
         self.ivPlotsController.toggleLcrSeries(state)
         self.cvPlotsController.toggleLcrSeries(state)
         self.view.lcrGroupBox.setEnabled(state)
         self.view.lcrGroupBox.setVisible(state)
 
-    def onToggleDmm(self, state):
+    def onToggleDmm(self, state: bool) -> None:
         self.view.dmmGroupBox.setEnabled(state)
         self.view.dmmGroupBox.setVisible(state)
 
