@@ -49,7 +49,7 @@ from .utils import safe_filename
 from .utils import format_metric
 
 from .cache import Cache
-from .settings import DEFAULTS, MODELS
+from .settings import DEFAULTS
 
 __all__ = ["Controller"]
 
