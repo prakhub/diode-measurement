@@ -513,7 +513,7 @@ class RangeMeasurement(Measurement):
             estimate.advance()
 
     def rampZero(self):
-        source_voltage = self.state.get("source_voltage", 0.0)
+        source_voltage = self.get_source_voltage()
         self.update.emit({
             "smu_current": None,
             "smu2_current": None,

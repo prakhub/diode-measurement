@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.6] - 2022-12-20
+### Fixed
+- Initial source ramp to zero (#75).
+
 ## [0.15.5] - 2022-12-20
 ### Fixed
 - Added LCR AC amplitude/frequency to header (#72).
@@ -189,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.5...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.6...HEAD
+[0.15.6]: https://github.com/hephy-dd/diode-measurement/compare/0.15.5...0.15.6
 [0.15.5]: https://github.com/hephy-dd/diode-measurement/compare/0.15.4...0.15.5
 [0.15.4]: https://github.com/hephy-dd/diode-measurement/compare/0.15.3...0.15.4
 [0.15.3]: https://github.com/hephy-dd/diode-measurement/compare/0.15.2...0.15.3
