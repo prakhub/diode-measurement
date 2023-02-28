@@ -93,16 +93,16 @@ class MeasurementRunner:
                 writer = Writer(fp)
                 # TODO
                 # Note: using signals executes slots in main thread, should be worker thread
-                measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
+                measurement.started_event.subscribe(lambda state=measurement.state: writer.write_meta(state))
                 if isinstance(measurement, IVMeasurement):
-                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
-                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                    measurement.iv_reading_event.subscribe(lambda reading: writer.write_iv_row(reading))
+                    measurement.it_reading_event.subscribe(lambda reading: writer.write_it_row(reading))
                 if isinstance(measurement, IVBiasMeasurement):
-                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_bias_row(reading))
-                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_bias_row(reading))
+                    measurement.iv_reading_event.subscribe(lambda reading: writer.write_iv_bias_row(reading))
+                    measurement.it_reading_event.subscribe(lambda reading: writer.write_it_bias_row(reading))
                 if isinstance(measurement, CVMeasurement):
-                    measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
-                measurement.finishedHandlers.append(lambda: writer.flush())
+                    measurement.cv_reading_event.subscribe(lambda reading: writer.write_cv_row(reading))
+                measurement.finished_event.subscribe(lambda: writer.flush())
             measurement.run()
 
 
@@ -115,6 +115,7 @@ class Controller(QtCore.QObject):
     finished = QtCore.pyqtSignal()
 
     requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
+    changeVoltageReady = QtCore.pyqtSignal()
 
     def __init__(self, view, parent=None) -> None:
         super().__init__(parent)
@@ -141,6 +142,7 @@ class Controller(QtCore.QObject):
 
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
         self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
+        self.changeVoltageReady.connect(self.changeVoltageController.onChangeVoltageReady)
         self.failed.connect(self.handleException)
 
         # Source meter unit
@@ -767,7 +769,7 @@ class Controller(QtCore.QObject):
         measurement.ivReadingLock = self.ivPlotsController.ivReadingLock
         measurement.itReadingQueue = self.ivPlotsController.itReadingQueue
         measurement.itReadingLock = self.ivPlotsController.itReadingLock
-        measurement.itChangeVoltageReady.connect(lambda: self.changeVoltageController.onChangeVoltageReady())
+        measurement.it_change_voltage_ready_event.subscribe(self.changeVoltageReady.emit)
 
     def connectCVPlots(self, measurement) -> None:
         measurement.cvReadingQueue = self.cvPlotsController.cvReadingQueue
@@ -777,7 +779,7 @@ class Controller(QtCore.QObject):
         measurementType = self.state.get("measurement_type")
         measurement = MEASUREMENTS.get(measurementType)(self.state)
 
-        measurement.update.connect(self.update)
+        measurement.update_event.subscribe(self.update.emit)
 
         if isinstance(measurement, IVMeasurement):
             self.connectIVPlots(measurement)
@@ -788,7 +790,7 @@ class Controller(QtCore.QObject):
 
         # Prepare role drivers
         for role in self.view.roles():
-            measurement.registerInstrument(role.name().lower())
+            measurement.register_instrument(role.name().lower())
 
         measurement.failed.connect(self.handleException)
 

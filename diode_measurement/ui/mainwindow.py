@@ -463,10 +463,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lcrOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
 
     def updateSourceVoltage(self, voltage: float) -> None:
-        self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
+        if self.smuGroupBox.isEnabled():
+            self.updateSMUVoltage(voltage)
+        elif self.elmGroupBox.isEnabled():
+            self.updateELMVoltage(voltage)
+        elif self.lcrGroupBox.isEnabled():
+            self.updateLCRVoltage(voltage)
 
     def updateBiasSourceVoltage(self, voltage: float) -> None:
-        self.smu2VoltageLineEdit.setText(format_metric(voltage, "V"))
+        self.updateSMU2Voltage(voltage)
 
     def updateSourceOutputState(self, state: bool) -> None:
         if self.smuGroupBox.isEnabled():
@@ -480,8 +485,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.smu2GroupBox.isEnabled():
             self.setSMU2OutputState(state)
 
+    def updateSMUVoltage(self, voltage: float) -> None:
+        self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
+
     def updateSMUCurrent(self, current: float) -> None:
         self.smuCurrentLineEdit.setText(format_metric(current, "A"))
+
+    def updateSMU2Voltage(self, voltage: float) -> None:
+        self.smu2VoltageLineEdit.setText(format_metric(voltage, "V"))
 
     def updateSMU2Current(self, current: float) -> None:
         self.smu2CurrentLineEdit.setText(format_metric(current, "A"))
@@ -491,6 +502,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateELMCurrent(self, current: float) -> None:
         self.elmCurrentLineEdit.setText(format_metric(current, "A"))
+
+    def updateLCRVoltage(self, voltage: float) -> None:
+        self.lcrVoltageLineEdit.setText(format_metric(voltage, "V"))
 
     def updateLCRCapacity(self, capacity: float) -> None:
         self.lcrCurrentLineEdit.setText(format_metric(capacity, "F"))
