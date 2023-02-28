@@ -46,25 +46,25 @@ class K6517B(Electrometer):
         self.set_sense_current_nplcycles(nplc)
 
     def get_output_enabled(self) -> bool:
-        return False
+        return bool(int(self._query(":OUTP:STAT?")))
 
     def set_output_enabled(self, enabled: bool) -> None:
-        ...
+        self._write(f":OUTP:STAT {enabled:d}")
 
     def get_voltage_level(self) -> float:
-        return 0
+        return float(self._query(":SOUR:VOLT:LEV?"))
 
     def set_voltage_level(self, level: float) -> None:
-        ...
+        self._write(f":SOUR:VOLT:LEV {level:E}")
 
     def set_voltage_range(self, level: float) -> None:
-        ...
+        self._write(f":SOUR:VOLT:RANG {level:E}")
 
     def set_current_compliance_level(self, level: float) -> None:
-        ...
+        ...  # fixed to 1 mA
 
     def compliance_tripped(self) -> bool:
-        return False
+        return bool(int(self._query(":SOUR:CURR:LIM?")))
 
     def read_current(self, timeout=10.0, interval=0.250):
         # Request operation complete
