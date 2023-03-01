@@ -93,16 +93,16 @@ class MeasurementRunner:
                 writer = Writer(fp)
                 # TODO
                 # Note: using signals executes slots in main thread, should be worker thread
-                measurement.startedHandlers.append(lambda state=measurement.state: writer.write_meta(state))
+                measurement.started_event.subscribe(lambda state=measurement.state: writer.write_meta(state))
                 if isinstance(measurement, IVMeasurement):
-                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_row(reading))
-                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_row(reading))
+                    measurement.iv_reading_event.subscribe(lambda reading: writer.write_iv_row(reading))
+                    measurement.it_reading_event.subscribe(lambda reading: writer.write_it_row(reading))
                 if isinstance(measurement, IVBiasMeasurement):
-                    measurement.ivReadingHandlers.append(lambda reading: writer.write_iv_bias_row(reading))
-                    measurement.itReadingHandlers.append(lambda reading: writer.write_it_bias_row(reading))
+                    measurement.iv_reading_event.subscribe(lambda reading: writer.write_iv_bias_row(reading))
+                    measurement.it_reading_event.subscribe(lambda reading: writer.write_it_bias_row(reading))
                 if isinstance(measurement, CVMeasurement):
-                    measurement.cvReadingHandlers.append(lambda reading: writer.write_cv_row(reading))
-                measurement.finishedHandlers.append(lambda: writer.flush())
+                    measurement.cv_reading_event.subscribe(lambda reading: writer.write_cv_row(reading))
+                measurement.finished_event.subscribe(lambda: writer.flush())
             measurement.run()
 
 
@@ -115,6 +115,7 @@ class Controller(QtCore.QObject):
     finished = QtCore.pyqtSignal()
 
     requestChangeVoltage = QtCore.pyqtSignal(float, float, float)
+    changeVoltageReady = QtCore.pyqtSignal()
 
     def __init__(self, view, parent=None) -> None:
         super().__init__(parent)
@@ -132,7 +133,7 @@ class Controller(QtCore.QObject):
             <p>IV/CV measurements for silicon sensors.</p>
             <p>Version {__version__}</p>
             <p>This software is licensed under the GNU General Public License Version 3.</p>
-            <p>Copyright &copy; 2021-2022 <a href=\"https://hephy.at\">HEPHY.at</a></p>
+            <p>Copyright &copy; 2021-2023 <a href=\"https://hephy.at\">HEPHY</a></p>
         """)
 
         # Controller
@@ -141,6 +142,7 @@ class Controller(QtCore.QObject):
 
         self.changeVoltageController = ChangeVoltageController(self.view, self.state, self)
         self.requestChangeVoltage.connect(self.changeVoltageController.onRequestChangeVoltage)
+        self.changeVoltageReady.connect(self.changeVoltageController.onChangeVoltageReady)
         self.failed.connect(self.handleException)
 
         # Source meter unit
@@ -161,6 +163,7 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("ELM")
         role.addInstrumentPanel(K6514Panel())
         role.addInstrumentPanel(K6517BPanel())
+        role.resourceWidget.modelChanged.connect(self.onInstrumentsChanged)  # HACK
 
         # LCR meter
         role = self.view.addRole("LCR")
@@ -195,6 +198,10 @@ class Controller(QtCore.QObject):
         self.onMeasurementChanged(0)
 
         self.update.connect(self.onUpdate)
+
+        self.view.generalWidget.instrumentsChanged.connect(self.onInstrumentsChanged)
+
+        self.onInstrumentsChanged()
 
         self.view.generalWidget.smuCheckBox.toggled.connect(self.onToggleSmu)
         self.view.generalWidget.smu2CheckBox.toggled.connect(self.onToggleSmu2)
@@ -403,6 +410,8 @@ class Controller(QtCore.QObject):
             settings.endGroup()
 
         settings.endGroup()
+
+        self.onInstrumentsChanged()
 
     @handle_exception
     def storeSettings(self):
@@ -701,31 +710,44 @@ class Controller(QtCore.QObject):
         value = spec.get("default_current_compliance", 0.0)
         self.view.generalWidget.setCurrentCompliance(value)
 
-    def onToggleSmu(self, state):
+        self.onInstrumentsChanged()
+
+    def onInstrumentsChanged(self) -> None:
+        self.view.generalWidget.setCurrentComplianceLocked(False)
+        if self.view.generalWidget.isSMUEnabled():
+            ...
+        elif self.view.generalWidget.isELMEnabled():
+            # TODO this is very ugly!
+            role = self.view.findRole("ELM")
+            if role.resourceWidget.model() == "K6517B":  # HACK
+                self.view.generalWidget.setCurrentComplianceLocked(True)
+                self.view.generalWidget.setCurrentCompliance(1.0e-3) # TODO
+
+    def onToggleSmu(self, state: bool) -> None:
         self.ivPlotsController.toggleSmuSeries(state)
         self.cvPlotsController.toggleSmuSeries(state)
         self.view.smuGroupBox.setEnabled(state)
         self.view.smuGroupBox.setVisible(state)
 
-    def onToggleSmu2(self, state):
+    def onToggleSmu2(self, state: bool) -> None:
         self.ivPlotsController.toggleSmu2Series(state)
         self.cvPlotsController.toggleSmu2Series(state)
         self.view.smu2GroupBox.setEnabled(state)
         self.view.smu2GroupBox.setVisible(state)
 
-    def onToggleElm(self, state):
+    def onToggleElm(self, state: bool) -> None:
         self.ivPlotsController.toggleElmSeries(state)
         self.cvPlotsController.toggleElmSeries(state)
         self.view.elmGroupBox.setEnabled(state)
         self.view.elmGroupBox.setVisible(state)
 
-    def onToggleLcr(self, state):
+    def onToggleLcr(self, state: bool) -> None:
         self.ivPlotsController.toggleLcrSeries(state)
         self.cvPlotsController.toggleLcrSeries(state)
         self.view.lcrGroupBox.setEnabled(state)
         self.view.lcrGroupBox.setVisible(state)
 
-    def onToggleDmm(self, state):
+    def onToggleDmm(self, state: bool) -> None:
         self.view.dmmGroupBox.setEnabled(state)
         self.view.dmmGroupBox.setVisible(state)
 
@@ -767,7 +789,7 @@ class Controller(QtCore.QObject):
         measurement.ivReadingLock = self.ivPlotsController.ivReadingLock
         measurement.itReadingQueue = self.ivPlotsController.itReadingQueue
         measurement.itReadingLock = self.ivPlotsController.itReadingLock
-        measurement.itChangeVoltageReady.connect(lambda: self.changeVoltageController.onChangeVoltageReady())
+        measurement.it_change_voltage_ready_event.subscribe(self.changeVoltageReady.emit)
 
     def connectCVPlots(self, measurement) -> None:
         measurement.cvReadingQueue = self.cvPlotsController.cvReadingQueue
@@ -777,7 +799,7 @@ class Controller(QtCore.QObject):
         measurementType = self.state.get("measurement_type")
         measurement = MEASUREMENTS.get(measurementType)(self.state)
 
-        measurement.update.connect(self.update)
+        measurement.update_event.subscribe(self.update.emit)
 
         if isinstance(measurement, IVMeasurement):
             self.connectIVPlots(measurement)
@@ -788,7 +810,7 @@ class Controller(QtCore.QObject):
 
         # Prepare role drivers
         for role in self.view.roles():
-            measurement.registerInstrument(role.name().lower())
+            measurement.register_instrument(role.name().lower())
 
         measurement.failed.connect(self.handleException)
 

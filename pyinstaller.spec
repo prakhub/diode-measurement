@@ -5,7 +5,7 @@ import diode_measurement
 
 version = diode_measurement.__version__
 filename = f"diode-measurement-{version}.exe"
-console = True
+console = False
 block_cipher = None
 
 package_root = os.path.join(os.path.dirname(diode_measurement.__file__))
@@ -25,7 +25,7 @@ create_versionfile(
     company_name="HEPHY",
     file_description="IV/CV measurements for silicon sensors",
     internal_name="Diode Measurement",
-    legal_copyright="Copyright 2021-2022 HEPHY. All rights reserved.",
+    legal_copyright="Copyright 2021-2023 HEPHY. All rights reserved.",
     original_filename=filename,
     product_name="Diode Measurement"
 )

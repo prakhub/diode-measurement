@@ -56,3 +56,27 @@ class TestDriverK6517b:
         res.buffer = ["1"]
         assert d.set_zero_check_enabled(True) is None
         assert res.buffer == [":SYST:ZCH 1", "*OPC?"]
+
+        res.buffer = ["1"]
+        assert d.set_output_enabled(True) is None
+        assert res.buffer == [":OUTP:STAT 1", "*OPC?"]
+
+        res.buffer = ["1"]
+        assert d.get_output_enabled() is True
+        assert res.buffer == [":OUTP:STAT?"]
+
+        res.buffer = ["1"]
+        assert d.set_voltage_level(4.2e-3) is None
+        assert res.buffer == [":SOUR:VOLT:LEV 4.200000E-03", "*OPC?"]
+
+        res.buffer = ["4.200000E-03"]
+        assert d.get_voltage_level() == 4.2e-3
+        assert res.buffer == [":SOUR:VOLT:LEV?"]
+
+        res.buffer = ["1"]
+        assert d.set_voltage_range(4.2e-3) is None
+        assert res.buffer == [":SOUR:VOLT:RANG 4.200000E-03", "*OPC?"]
+
+        res.buffer = ["0"]
+        assert d.compliance_tripped() is False
+        assert res.buffer == [":SOUR:CURR:LIM?"]

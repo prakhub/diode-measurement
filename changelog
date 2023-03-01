@@ -6,7 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.15.6] - 2022-12-20
+## [0.16.0] - 2023-03-01
+### Added
+- Electrometer K6517B as voltage source (#74).
+- Meter Connect option for K6517B electrometer (#77).
+
+## [0.15.6] - 2023-02-28
 ### Fixed
 - Initial source ramp to zero (#75).
 
@@ -193,7 +198,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.15.6...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.16.0...HEAD
+[0.16.0]: https://github.com/hephy-dd/diode-measurement/compare/0.15.6...0.16.0
 [0.15.6]: https://github.com/hephy-dd/diode-measurement/compare/0.15.5...0.15.6
 [0.15.5]: https://github.com/hephy-dd/diode-measurement/compare/0.15.4...0.15.5
 [0.15.4]: https://github.com/hephy-dd/diode-measurement/compare/0.15.3...0.15.4

@@ -33,6 +33,9 @@ class K6517B(Electrometer):
         sense_auto_range = options.get("sense.auto_range", True)
         self.set_sense_current_range_auto(sense_auto_range)
 
+        source_meter_connect = options.get("source.meter_connect", False)
+        self.set_source_voltage_mconnect(source_meter_connect)
+
         filter_mode = options.get("filter.mode", "MOV")
         self.set_sense_current_average_tcontrol(filter_mode)
 
@@ -46,25 +49,25 @@ class K6517B(Electrometer):
         self.set_sense_current_nplcycles(nplc)
 
     def get_output_enabled(self) -> bool:
-        return False
+        return bool(int(self._query(":OUTP:STAT?")))
 
     def set_output_enabled(self, enabled: bool) -> None:
-        ...
+        self._write(f":OUTP:STAT {enabled:d}")
 
     def get_voltage_level(self) -> float:
-        return 0
+        return float(self._query(":SOUR:VOLT:LEV?"))
 
     def set_voltage_level(self, level: float) -> None:
-        ...
+        self._write(f":SOUR:VOLT:LEV {level:E}")
 
     def set_voltage_range(self, level: float) -> None:
-        ...
+        self._write(f":SOUR:VOLT:RANG {level:E}")
 
     def set_current_compliance_level(self, level: float) -> None:
-        ...
+        ...  # fixed to 1 mA
 
     def compliance_tripped(self) -> bool:
-        return False
+        return bool(int(self._query(":SOUR:CURR:LIM?")))
 
     def read_current(self, timeout=10.0, interval=0.250):
         # Request operation complete
@@ -109,6 +112,9 @@ class K6517B(Electrometer):
 
     def set_sense_current_nplcycles(self, nplc: float) -> None:
         self._write(f":SENS:CURR:NPLC {nplc:E}")
+
+    def set_source_voltage_mconnect(self, enabled: bool) -> None:
+        self._write(f":SOUR:VOLT:MCON {enabled:d}")
 
     def set_zero_check_enabled(self, enabled: bool) -> None:
         self._write(f":SYST:ZCH {enabled:d}")
