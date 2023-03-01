@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.16.0] - 2022-02-28
+## [0.16.0] - 2023-03-01
 ### Added
 - Electrometer K6517B as voltage source (#74).
 - Meter Connect option for K6517B electrometer (#77).
