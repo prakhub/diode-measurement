@@ -163,6 +163,7 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("ELM")
         role.addInstrumentPanel(K6514Panel())
         role.addInstrumentPanel(K6517BPanel())
+        role.resourceWidget.modelChanged.connect(self.onInstrumentsChanged)  # HACK
 
         # LCR meter
         role = self.view.addRole("LCR")
@@ -718,7 +719,7 @@ class Controller(QtCore.QObject):
         elif self.view.generalWidget.isELMEnabled():
             # TODO this is very ugly!
             role = self.view.findRole("ELM")
-            if role.resourceWidget.model() == "K6517B":
+            if role.resourceWidget.model() == "K6517B":  # HACK
                 self.view.generalWidget.setCurrentComplianceLocked(True)
                 self.view.generalWidget.setCurrentCompliance(1.0e-3) # TODO
 

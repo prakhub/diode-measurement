@@ -596,7 +596,18 @@ class K6517BPanel(InstrumentPanel):
         rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
         rangeLayout.addWidget(self.autoRangeCheckBox)
         rangeLayout.addWidget(self.senseRangeSpinBox)
-        rangeLayout.addStretch()
+
+        # Source
+
+        self.sourceGroupBox = QtWidgets.QGroupBox()
+        self.sourceGroupBox.setTitle("Source")
+
+        self.meterConnectCheckBox = QtWidgets.QCheckBox("Meter Connect")
+        self.meterConnectCheckBox.setStatusTip("Enable or disable V-source LO to ammeter LO connection.")
+
+        sourceLayout = QtWidgets.QVBoxLayout(self.sourceGroupBox)
+        sourceLayout.addWidget(self.meterConnectCheckBox)
+        sourceLayout.addStretch()
 
         # Filter
 
@@ -647,6 +658,7 @@ class K6517BPanel(InstrumentPanel):
 
         leftLayout = QtWidgets.QVBoxLayout()
         leftLayout.addWidget(self.rangeGroupBox)
+        leftLayout.addWidget(self.sourceGroupBox)
 
         rightLayout = QtWidgets.QVBoxLayout()
         rightLayout.addWidget(self.filterGroupBox)
@@ -663,6 +675,7 @@ class K6517BPanel(InstrumentPanel):
 
         self.bindParameter("sense.range", MethodParameter(self.senseRange, self.setSenseRange))
         self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
+        self.bindParameter("source.meter_connect", WidgetParameter(self.meterConnectCheckBox))
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
@@ -681,6 +694,7 @@ class K6517BPanel(InstrumentPanel):
     def restoreDefaults(self) -> None:
         self.autoRangeCheckBox.setChecked(True)
         self.senseRangeSpinBox.setValue(ureg("2.1e-4 A").to("uA").m)
+        self.meterConnectCheckBox.setChecked(False)
         self.filterEnableCheckBox.setChecked(False)
         self.filterCountSpinBox.setValue(10)
         self.filterModeComboBox.setCurrentIndex(0)
@@ -689,6 +703,7 @@ class K6517BPanel(InstrumentPanel):
     def setLocked(self, state: bool) -> None:
         self.autoRangeCheckBox.setEnabled(not state)
         self.senseRangeSpinBox.setEnabled(not state)
+        self.meterConnectCheckBox.setEnabled(not state)
         self.filterEnableCheckBox.setEnabled(not state)
         self.filterCountSpinBox.setEnabled(not state)
         self.filterModeComboBox.setEnabled(not state)
