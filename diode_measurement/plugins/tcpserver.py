@@ -74,6 +74,8 @@ class RPCHandler:
                 rpc_params["compliance"] = compliance
             if waiting_time_continuous is not None:
                 rpc_params["waiting_time_continuous"] = waiting_time_continuous
+            if device_settings is not None:
+                rpc_params["device_settings"] = device_settings
             self.controller.rpc_params.update(rpc_params)
             self.controller.started.emit()
 
