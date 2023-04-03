@@ -52,7 +52,8 @@ class RPCHandler:
                  begin_voltage: float = None, end_voltage: float = None,
                  step_voltage: float = None, waiting_time: float = None,
                  compliance: float = None,
-                 waiting_time_continuous: float = None) -> None:
+                 waiting_time_continuous: float = None,
+                 device_settings: Dict[str, Dict[str, Union[None, int, float, str]]] = None) -> None:
         with self.controller.rpc_params:
             rpc_params: Dict[str, Union[None, int, float, str]] = {}
             if reset is not None:
