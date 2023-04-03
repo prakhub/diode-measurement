@@ -840,19 +840,13 @@ class Controller(QtCore.QObject):
                 if "waiting_time_continuous" in rpc_params:
                     self.view.generalWidget.setWaitingTimeContinuous(rpc_params.get("waiting_time_continuous"))
                 if "device_settings" in rpc_params:
-                    for device_name in rpc_params.get("device_settings").keys():
-                        # get role from device name
-                        if device_name in ['K237', 'K2657A', 'K2410', 'K2470']:
-                            role_to_find = 'SMU'.lower()
-                        if device_name in ['K595', 'A4284A', 'E4980A']:
-                            role_to_find = 'LCR'.lower()
-                        
-                        for role in self.view.roles():
-                            if role.name().lower() == role_to_find:
-                                panel = role.findInstrumentPanel(device_name)
-                        if not panel:
-                            raise RuntimeError(f"Could not find panel for {device_name}")
-                        panel.setConfig(rpc_params.get("device_settings")[device_name])
+                    role_names = [role.name() for role in self.view.roles()]
+                    for name in rpc_params.get("device_settings").keys():
+                        if name not in role_names:
+                            raise RuntimeError(f"No such intrument role: {name!r}")             
+                        role = self.view.roles()[role_names.index(name)]
+                        panel = role.findInstrumentPanel(role.model())
+                        panel.setConfig(rpc_params.get("device_settings", {}).get(role.name(), {}))  # will raise error if parameter not valid
                 self.rpc_params.clear()
             logger.debug("handle RPC params... done.")
 
