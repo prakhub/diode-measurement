@@ -33,7 +33,7 @@ class CVMeasurement(RangeMeasurement):
         lcr = self.instruments.get("lcr")
         dmm = self.instruments.get("dmm")
         voltage = self.get_source_voltage()
-        c_lcr = lcr.read_capacity() if lcr else math.nan
+        c_lcr, r_lcr = lcr.read_impedance() if lcr else (math.nan, math.nan)
         i_smu = smu.read_current() if smu else math.nan
         t_dmm = dmm.read_temperature() if dmm else math.nan
         return {
@@ -41,6 +41,7 @@ class CVMeasurement(RangeMeasurement):
             "voltage": voltage,
             "i_smu": i_smu,
             "c_lcr": c_lcr,
+            "r_lcr": r_lcr,
             "t_dmm": t_dmm
         }
 

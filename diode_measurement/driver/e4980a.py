@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 
 from .driver import LCRMeter, handle_exception
 
@@ -82,10 +83,14 @@ class E4980A(LCRMeter):
     def read_current(self):
         return 0
 
-    def read_capacity(self) -> float:
-        return self._fetch()
+    def read_impedance(self) -> Tuple[float, float]:
+        result = self._fetch().split(",")
+        try:
+            return float(result[0]), float(result[1])
+        except Exception as exc:
+            raise RuntimeError(f"Failed to parse impedance reading: {result!r}") from exc
 
-    def _fetch(self, timeout=10.0, interval=0.250) -> float:
+    def _fetch(self, timeout=10.0, interval=0.250) -> str:
         # Request operation complete
         self._write("*CLS")
         self._write_nowait("*OPC")
@@ -97,8 +102,7 @@ class E4980A(LCRMeter):
             # Read event status
             if int(self._query("*ESR?")) & 0x1:
                 try:
-                    result = self._query(":FETC?")
-                    return float(result.split(",")[0])
+                    return self._query(":FETC?")
                 except Exception as exc:
                     raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
             time.sleep(interval)

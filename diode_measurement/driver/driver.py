@@ -1,6 +1,7 @@
 import logging
 import time
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class Electrometer(SourceMeter):
 class LCRMeter(SourceMeter):
 
     @abstractmethod
-    def read_capacity(self) -> float:
+    def read_impedance(self) -> Tuple[float, float]:
         ...
 
 
