@@ -1,10 +1,9 @@
 import logging
+import math
 import time
 import threading
 
 from typing import Any, Callable, Dict, List
-
-from PyQt5 import QtCore
 
 from ..estimate import Estimate
 
@@ -23,23 +22,14 @@ class IVMeasurement(RangeMeasurement):
         self.it_reading_event: EventHandler = EventHandler()
 
     def acquire_reading_data(self, voltage=None) -> ReadingType:
-        smu = self.contexts.get("smu")
-        elm = self.contexts.get("elm")
-        dmm = self.contexts.get("dmm")
+        smu = self.instruments.get("smu")
+        elm = self.instruments.get("elm")
+        dmm = self.instruments.get("dmm")
         if voltage is None:
             voltage = self.get_source_voltage()
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float("NaN")
-        if elm:
-            i_elm = elm.read_current()
-        else:
-            i_elm = float("NaN")
-        if dmm:
-            t_dmm = dmm.read_temperature()
-        else:
-            t_dmm = float("NaN")
+        i_smu = smu.read_current() if smu else math.nan
+        i_elm = elm.read_current() if elm else math.nan
+        t_dmm = dmm.read_temperature() if dmm else math.nan
         return {
             "timestamp": time.time(),
             "voltage": voltage,

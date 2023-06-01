@@ -4,8 +4,6 @@ import time
 
 from typing import Any, Callable, Dict, List
 
-from PyQt5 import QtCore
-
 from ..resource import Resource, AutoReconnectResource
 from ..driver import driver_factory
 
@@ -33,23 +31,20 @@ class EventHandler:
             handler(*args, **kwargs)
 
 
-class Measurement(QtCore.QObject):
-
-    started = QtCore.pyqtSignal()
-    finished = QtCore.pyqtSignal()
-    failed = QtCore.pyqtSignal(object)
+class Measurement:
 
     def __init__(self, state: StateType) -> None:
         super().__init__()
         self.state: StateType = state
-        self.contexts: Dict = {}
+        self.instruments: Dict = {}
         self._instruments: Dict = {}
         self.started_event: EventHandler = EventHandler()
         self.finished_event: EventHandler = EventHandler()
+        self.failed_event: EventHandler = EventHandler()
         self.update_event: EventHandler = EventHandler()
 
     def register_instrument(self, name: str) -> None:
-        role = self.state.get(name, {})
+        role = self.state.get("roles", {}).get(name, {})
         if not role.get("enabled"):
             return None
         model = role.get("model")
@@ -100,18 +95,17 @@ class Measurement(QtCore.QObject):
         try:
             logger.debug("run measurement...")
             self.update_rpc_state("configure")
-            self.started.emit()
             logger.debug("handle started callbacks...")
             self.started_event()
             logger.debug("handle started callbacks... done.")
-            self.contexts.clear()
+            self.instruments.clear()
             with contextlib.ExitStack() as stack:
                 logger.debug("creating instrument contexts...")
                 for key, value in self._instruments.items():
                     cls, resource = value
                     logger.debug("creating instrument context %s: %s...", key, cls.__name__)
                     context = cls(stack.enter_context(resource))
-                    self.contexts[key] = context
+                    self.instruments[key] = context
                 logger.debug("creating instrument contexts... done.")
                 try:
                     logger.debug("initialize...")
@@ -122,7 +116,7 @@ class Measurement(QtCore.QObject):
                     logger.debug("measure... done.")
                 except Exception as exc:
                     logger.exception(exc)
-                    self.failed.emit(exc)
+                    self.failed_event(exc)
                 finally:
                     logger.debug("finalize...")
                     self.update_rpc_state("stopping")
@@ -130,13 +124,12 @@ class Measurement(QtCore.QObject):
                     logger.debug("finalize... done.")
         except Exception as exc:
             logger.exception(exc)
-            self.failed.emit(exc)
+            self.failed_event(exc)
         finally:
             logger.debug("handle finished callbacks...")
             self.finished_event()
             logger.debug("handle finished callbacks... done.")
-            self.contexts.clear()
-            self.finished.emit()
+            self.instruments.clear()
             self.update_rpc_state("idle")
             logger.debug("run measurement... done.")
 
@@ -300,24 +293,24 @@ class RangeMeasurement(Measurement):
         self.update_progress(0, estimate.count, estimate.passed)
 
     def initialize(self) -> None:
-        source: str = self.state.get("source")
-        if source in self.contexts:
-            self.source_instrument = self.contexts.get(source)
+        source: str = self.state.get("source_role")
+        if source in self.instruments:
+            self.source_instrument = self.instruments.get(source)
         else:
             raise RuntimeError("No source instrument set")
 
         # Bias
 
         self.bias_source_instrument = None
-        if self.state.get("measurement_type") in ["iv_bias"]:
-            bias_source: str = self.state.get("bias_source")
-            if bias_source in self.contexts:
-                self.bias_source_instrument = self.contexts.get(bias_source)
+        if self.state.get("measurement_type") in ["iv_bias"]:  # TODO
+            bias_source: str = self.state.get("bias_source_role")
+            if bias_source in self.instruments:
+                self.bias_source_instrument = self.instruments.get(bias_source)
             else:
                 raise RuntimeError("No bias source instrument set")
 
         logger.debug("querying context identities...")
-        for key, context in self.contexts.items():
+        for key, context in self.instruments.items():
             logger.debug("reading %s identity...", key.upper())
             identity: str = context.identity()
             logger.debug("reading %s identity... done.", key.upper())
@@ -347,21 +340,21 @@ class RangeMeasurement(Measurement):
 
         # Reset (optional)
         if self.state.get("reset"):
-            for key, context in self.contexts.items():
+            for key, context in self.instruments.items():
                 logger.info("Reset %s...", key.upper())
                 context.reset()
                 logger.info("Reset %s... done.", key.upper())
 
         # Clear state
-        for key, context in self.contexts.items():
+        for key, context in self.instruments.items():
             logger.info("Clear %s...", key.upper())
             context.clear()
             logger.info("Clear %s... done.", key.upper())
 
         # Configure
-        for key, context in self.contexts.items():
+        for key, context in self.instruments.items():
             logger.info("Configure %s...", key.upper())
-            options = self.state.get(key, {}).get("options", {})
+            options = self.state.get("roles", {}).get(key, {}).get("options", {})
             for name, value in options.items():
                 logger.info("%s: %r" , name, value)
             context.configure(options)
@@ -386,7 +379,7 @@ class RangeMeasurement(Measurement):
         # Enable output
         self.set_source_output_state(True)
 
-        elm = self.contexts.get("elm")
+        elm = self.instruments.get("elm")
         if elm is not None:
             elm.set_zero_check_enabled(False)
             logger.info("ELM zero check: off")
@@ -448,7 +441,7 @@ class RangeMeasurement(Measurement):
 
     def finalize(self) -> None:
         try:
-            elm = self.contexts.get("elm")
+            elm = self.instruments.get("elm")
             if elm is not None:
                 elm.set_zero_check_enabled(True)
                 logger.info("ELM zero check: on")

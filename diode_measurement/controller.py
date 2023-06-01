@@ -280,11 +280,13 @@ class Controller(QtCore.QObject):
         state["continue_in_compliance"] = self.view.generalWidget.isContinueInCompliance()
         state["waiting_time_continuous"] = self.view.generalWidget.waitingTimeContinuous()
 
+        roles: Dict[str, Any] = state.setdefault("roles", {})
+
         for role in self.view.roles():
             key = role.name().lower()
             resource = role.resourceWidget.resourceName()
             resource_name, visa_library = get_resource(resource)
-            config = state.setdefault(key, {})
+            config = roles.setdefault(key, {})
             config.update({
                 "resource_name": resource_name,
                 "visa_library": visa_library,
@@ -295,20 +297,20 @@ class Controller(QtCore.QObject):
             config.update({"options": role.currentConfig()})
 
         if self.view.generalWidget.isSMUEnabled():
-            state["source"] = "smu"
+            state["source_role"] = "smu"
         elif self.view.generalWidget.isELMEnabled():
-            state["source"] = "elm"
+            state["source_role"] = "elm"
         elif self.view.generalWidget.isLCREnabled():
-            state["source"] = "lcr"
+            state["source_role"] = "lcr"
 
         if self.view.generalWidget.isSMU2Enabled():
-            state["bias_source"] = "smu2"
+            state["bias_source_role"] = "smu2"
 
-        state.get("smu").update({"enabled": self.view.generalWidget.isSMUEnabled()})
-        state.get("smu2").update({"enabled": self.view.generalWidget.isSMU2Enabled()})
-        state.get("elm").update({"enabled": self.view.generalWidget.isELMEnabled()})
-        state.get("lcr").update({"enabled": self.view.generalWidget.isLCREnabled()})
-        state.get("dmm").update({"enabled": self.view.generalWidget.isDMMEnabled()})
+        roles.setdefault("smu", {}).update({"enabled": self.view.generalWidget.isSMUEnabled()})
+        roles.setdefault("smu2", {}).update({"enabled": self.view.generalWidget.isSMU2Enabled()})
+        roles.setdefault("elm", {}).update({"enabled": self.view.generalWidget.isELMEnabled()})
+        roles.setdefault("lcr", {}).update({"enabled": self.view.generalWidget.isLCREnabled()})
+        roles.setdefault("dmm", {}).update({"enabled": self.view.generalWidget.isDMMEnabled()})
 
         for key, value in state.items():
             logger.info("> %s: %s", key, value)
@@ -812,7 +814,7 @@ class Controller(QtCore.QObject):
         for role in self.view.roles():
             measurement.register_instrument(role.name().lower())
 
-        measurement.failed.connect(self.handleException)
+        measurement.failed_event.subscribe(self.failed.emit)
 
         return measurement
 
@@ -846,7 +848,7 @@ class Controller(QtCore.QObject):
             state = self.prepareState()
             logger.debug("preparing state... done.")
 
-            if not state.get("source"):
+            if not state.get("source_role"):
                 raise RuntimeError("No source instrument selected.")
 
             # Update state

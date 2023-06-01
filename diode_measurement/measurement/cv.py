@@ -4,8 +4,6 @@ import time
 
 from typing import Any, Callable, Dict, List
 
-from PyQt5 import QtCore
-
 from ..utils import inverse_square
 
 from . import ReadingType, StateType, EventHandler, RangeMeasurement
@@ -31,22 +29,13 @@ class CVMeasurement(RangeMeasurement):
         return reading
 
     def acquire_reading_data(self) -> ReadingType:
-        smu = self.contexts.get("smu")
-        lcr = self.contexts.get("lcr")
-        dmm = self.contexts.get("dmm")
+        smu = self.instruments.get("smu")
+        lcr = self.instruments.get("lcr")
+        dmm = self.instruments.get("dmm")
         voltage = self.get_source_voltage()
-        if lcr:
-            c_lcr = lcr.read_capacity()
-        else:
-            c_lcr = float("NaN")
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float("NaN")
-        if dmm:
-            t_dmm = dmm.read_temperature()
-        else:
-            t_dmm = float("NaN")
+        c_lcr = lcr.read_capacity() if lcr else math.nan
+        i_smu = smu.read_current() if smu else math.nan
+        t_dmm = dmm.read_temperature() if dmm else math.nan
         return {
             "timestamp": time.time(),
             "voltage": voltage,
