@@ -1,4 +1,6 @@
+import math
 import time
+from typing import Tuple
 
 from .driver import LCRMeter, handle_exception
 
@@ -69,10 +71,10 @@ class K595(LCRMeter):
         self._write("G1X")
         return float(self._query("X").split(",")[0])
 
-    def read_capacity(self) -> float:
+    def read_impedance(self) -> Tuple[float, float]:
         self._write("F0X")
         self._write("G1X")
-        return float(self._query("X").split(",")[0])
+        return float(self._query("X").split(",")[0]), math.nan
 
     @handle_exception
     def _write(self, message):

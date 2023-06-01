@@ -1,10 +1,9 @@
 import logging
+import math
 import time
 import threading
 
 from typing import Any, Callable, Dict, List
-
-from PyQt5 import QtCore
 
 from ..estimate import Estimate
 
@@ -20,31 +19,18 @@ class IVBiasMeasurement(RangeMeasurement):
     def __init__(self, state: StateType) -> None:
         super().__init__(state)
         self.iv_reading_event: EventHandler = EventHandler()
-        self.it_reading_event: EventHandler = EventHandler()
 
     def acquire_reading_data(self, voltage=None) -> ReadingType:
-        smu = self.contexts.get("smu")
-        smu2 = self.contexts.get("smu2")
-        elm = self.contexts.get("elm")
-        dmm = self.contexts.get("dmm")
+        smu = self.instruments.get("smu")
+        smu2 = self.instruments.get("smu2")
+        elm = self.instruments.get("elm")
+        dmm = self.instruments.get("dmm")
         if voltage is None:
             voltage = self.get_source_voltage()
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float("NaN")
-        if smu2:
-            i_smu2 = smu2.read_current()
-        else:
-            i_smu2 = float("NaN")
-        if elm:
-            i_elm = elm.read_current()
-        else:
-            i_elm = float("NaN")
-        if dmm:
-            t_dmm = dmm.read_temperature()
-        else:
-            t_dmm = float("NaN")
+        i_smu = smu.read_current() if smu else math.nan
+        i_smu2 = smu2.read_current() if smu2 else math.nan
+        i_elm = elm.read_current() if elm else math.nan
+        t_dmm = dmm.read_temperature() if dmm else math.nan
         return {
             "timestamp": time.time(),
             "voltage": voltage,
@@ -57,8 +43,10 @@ class IVBiasMeasurement(RangeMeasurement):
     def acquire_reading(self) -> None:
         reading: ReadingType = self.acquire_reading_data()
         logger.info(reading)
-        with self.ivReadingLock:
-            self.ivReadingQueue.append(reading)
+        # TODO
+        if hasattr(self, "ivReadingLock") and hasattr(self, "ivReadingQueue"):
+            with self.ivReadingLock:
+                self.ivReadingQueue.append(reading)
         self.update_event({
             "smu_current": reading.get("i_smu"),
             "smu2_current": reading.get("i_smu2"),
@@ -88,8 +76,10 @@ class IVBiasMeasurement(RangeMeasurement):
             reading: ReadingType = self.acquire_reading_data(voltage=voltage)
             handle_reading(reading)
 
-            with self.itReadingLock:
-                self.itReadingQueue.append(reading)
+            # TODO
+            if hasattr(self, "itReadingLock") and hasattr(self, "itReadingQueue"):
+                with self.itReadingLock:
+                    self.itReadingQueue.append(reading)
 
             # Limit some actions for fast measurements
             if dt > interval:

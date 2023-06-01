@@ -154,6 +154,7 @@ class Writer:
                 "i_smu[A]",
                 "c_lcr[F]",
                 "c2_lcr[1/F^2]",
+                "r_lcr[Ohm]",
                 "temperature[degC]"
             ])
         self.write_table_row([
@@ -162,6 +163,7 @@ class Writer:
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("c_lcr"), "+.3E"),
             safe_format(data.get("c2_lcr"), "+.3E"),
+            safe_format(data.get("r_lcr"), "+.3E"),
             safe_format(data.get("t_dmm"), "+.3E")
         ])
         self.flush()

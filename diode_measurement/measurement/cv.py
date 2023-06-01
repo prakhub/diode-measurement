@@ -4,8 +4,6 @@ import time
 
 from typing import Any, Callable, Dict, List
 
-from PyQt5 import QtCore
-
 from ..utils import inverse_square
 
 from . import ReadingType, StateType, EventHandler, RangeMeasurement
@@ -31,35 +29,28 @@ class CVMeasurement(RangeMeasurement):
         return reading
 
     def acquire_reading_data(self) -> ReadingType:
-        smu = self.contexts.get("smu")
-        lcr = self.contexts.get("lcr")
-        dmm = self.contexts.get("dmm")
+        smu = self.instruments.get("smu")
+        lcr = self.instruments.get("lcr")
+        dmm = self.instruments.get("dmm")
         voltage = self.get_source_voltage()
-        if lcr:
-            c_lcr = lcr.read_capacity()
-        else:
-            c_lcr = float("NaN")
-        if smu:
-            i_smu = smu.read_current()
-        else:
-            i_smu = float("NaN")
-        if dmm:
-            t_dmm = dmm.read_temperature()
-        else:
-            t_dmm = float("NaN")
+        c_lcr, r_lcr = lcr.read_impedance() if lcr else (math.nan, math.nan)
+        i_smu = smu.read_current() if smu else math.nan
+        t_dmm = dmm.read_temperature() if dmm else math.nan
         return {
             "timestamp": time.time(),
             "voltage": voltage,
             "i_smu": i_smu,
             "c_lcr": c_lcr,
+            "r_lcr": r_lcr,
             "t_dmm": t_dmm
         }
 
     def acquire_reading(self) -> None:
         reading: ReadingType = self.acquire_reading_data()
         self.extend_cv_reading(reading)
-        with self.cvReadingLock:
-            self.cvReadingQueue.append(reading)
+        if hasattr(self, "cvReadingLock") and hasattr(self, "cvReadingQueue"):
+            with self.cvReadingLock:
+                self.cvReadingQueue.append(reading)
         self.update_event({
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
