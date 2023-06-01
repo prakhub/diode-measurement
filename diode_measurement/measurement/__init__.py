@@ -138,6 +138,7 @@ class RangeMeasurement(Measurement):
 
     def __init__(self, state: StateType) -> None:
         super().__init__(state)
+        self.it_reading_event: EventHandler = EventHandler()
         self.it_change_voltage_ready_event: EventHandler = EventHandler()
 
     @property
@@ -495,6 +496,9 @@ class RangeMeasurement(Measurement):
     def acquire_reading(self) -> None:
         ...
 
+    def acquire_reading_data(self) -> ReadingType:
+        return {}
+
     def acquire_continuous_reading(self) -> None:
         ...
 
@@ -619,8 +623,10 @@ class RangeMeasurement(Measurement):
             reading = self.acquire_reading_data()
             logger.info(reading)
 
-            with self.itReadingLock:
-                self.itReadingQueue.append(reading)
+            # TODO
+            if hasattr(self, "itReadingLock") and hasattr(self, "itReadingQueue"):
+                with self.itReadingLock:
+                    self.itReadingQueue.append(reading)
 
             self.it_reading_event(reading)
 

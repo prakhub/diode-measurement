@@ -19,7 +19,6 @@ class IVMeasurement(RangeMeasurement):
     def __init__(self, state: StateType) -> None:
         super().__init__(state)
         self.iv_reading_event: EventHandler = EventHandler()
-        self.it_reading_event: EventHandler = EventHandler()
 
     def acquire_reading_data(self, voltage=None) -> ReadingType:
         smu = self.instruments.get("smu")
@@ -41,8 +40,12 @@ class IVMeasurement(RangeMeasurement):
     def acquire_reading(self) -> None:
         reading: ReadingType = self.acquire_reading_data()
         logger.info(reading)
-        with self.ivReadingLock:
-            self.ivReadingQueue.append(reading)
+
+        # TODO
+        if hasattr(self, "ivReadingLock") and hasattr(self, "ivReadingQueue"):
+            with self.ivReadingLock:
+                self.ivReadingQueue.append(reading)
+
         self.update_event({
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
@@ -71,8 +74,10 @@ class IVMeasurement(RangeMeasurement):
             reading: ReadingType = self.acquire_reading_data(voltage=voltage)
             handle_reading(reading)
 
-            with self.itReadingLock:
-                self.itReadingQueue.append(reading)
+            # TODO
+            if hasattr(self, "itReadingLock") and hasattr(self, "itReadingQueue"):
+                with self.itReadingLock:
+                    self.itReadingQueue.append(reading)
 
             # Limit some actions for fast measurements
             if dt > interval:
