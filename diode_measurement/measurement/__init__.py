@@ -385,6 +385,11 @@ class RangeMeasurement(Measurement):
             elm.set_zero_check_enabled(False)
             logger.info("ELM zero check: off")
 
+        elm2 = self.instruments.get("elm2")
+        if elm2 is not None:
+            elm2.set_zero_check_enabled(False)
+            logger.info("ELM2 zero check: off")
+
         self.ramp_to_begin()
 
         # Wait after output enable/ramp
@@ -447,6 +452,11 @@ class RangeMeasurement(Measurement):
                 elm.set_zero_check_enabled(True)
                 logger.info("ELM zero check: on")
 
+            elm2 = self.instruments.get("elm2")
+            if elm2 is not None:
+                elm2.set_zero_check_enabled(True)
+                logger.info("ELM2 zero check: on")
+
             self.ramp_to_zero()
 
             if self.bias_source_instrument:
@@ -489,6 +499,7 @@ class RangeMeasurement(Measurement):
                 "smu_current": None,
                 "smu2_current": None,
                 "elm_current": None,
+                "elm2_current": None,
                 "lcr_capacity": None,
                 "dmm_temperature": None
             })
@@ -531,6 +542,7 @@ class RangeMeasurement(Measurement):
             "smu_current": None,
             "smu2_current": None,
             "elm_current": None,
+            "elm2_current": None,
             "lcr_capacity": None,
             "dmm_temperature": None
         })
@@ -583,6 +595,7 @@ class RangeMeasurement(Measurement):
             "smu_current": None,
             "smu2_current": None,
             "elm_current": None,
+            "elm2_current": None,
             "lcr_capacity": None,
             "dmm_temperature": None
         })
@@ -633,7 +646,8 @@ class RangeMeasurement(Measurement):
             self.update_event({
                 "smu_current": reading.get("i_smu"),
                 "smu2_current": reading.get("i_smu2"),
-                "elm_current": reading.get("i_elm")
+                "elm_current": reading.get("i_elm"),
+                "elm2_current": reading.get("i_elm2"),
             })
 
             self.check_current_compliance()

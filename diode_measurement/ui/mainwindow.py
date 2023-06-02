@@ -128,6 +128,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.elmGroupBox = QtWidgets.QGroupBox()
         self.elmGroupBox.setTitle("ELM Status")
 
+        self.elm2GroupBox = QtWidgets.QGroupBox()
+        self.elm2GroupBox.setTitle("ELM2 Status")
+
         self.lcrGroupBox = QtWidgets.QGroupBox()
         self.lcrGroupBox.setTitle("LCR Status")
 
@@ -169,6 +172,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.elmOutputStateLineEdit = QtWidgets.QLineEdit("---")
         self.elmOutputStateLineEdit.setReadOnly(True)
         self.elmOutputStateLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.elm2VoltageLineEdit = QtWidgets.QLineEdit("---")
+        self.elm2VoltageLineEdit.setReadOnly(True)
+        self.elm2VoltageLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.elm2CurrentLineEdit = QtWidgets.QLineEdit("---")
+        self.elm2CurrentLineEdit.setReadOnly(True)
+        self.elm2CurrentLineEdit.setAlignment(QtCore.Qt.AlignRight)
+
+        self.elm2OutputStateLineEdit = QtWidgets.QLineEdit("---")
+        self.elm2OutputStateLineEdit.setReadOnly(True)
+        self.elm2OutputStateLineEdit.setAlignment(QtCore.Qt.AlignRight)
 
         self.lcrVoltageLineEdit = QtWidgets.QLineEdit("---")
         self.lcrVoltageLineEdit.setReadOnly(True)
@@ -276,6 +291,23 @@ class MainWindow(QtWidgets.QMainWindow):
         elmGroupBox.setStretch(1, 3)
         elmGroupBox.setStretch(2, 1)
 
+        elm2GroupBox = QtWidgets.QHBoxLayout(self.elm2GroupBox)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
+        vboxLayout.addWidget(self.elm2VoltageLineEdit)
+        elm2GroupBox.addLayout(vboxLayout)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Current"))
+        vboxLayout.addWidget(self.elm2CurrentLineEdit)
+        elm2GroupBox.addLayout(vboxLayout)
+        vboxLayout = QtWidgets.QVBoxLayout()
+        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
+        vboxLayout.addWidget(self.elm2OutputStateLineEdit)
+        elm2GroupBox.addLayout(vboxLayout)
+        elm2GroupBox.setStretch(0, 3)
+        elm2GroupBox.setStretch(1, 3)
+        elm2GroupBox.setStretch(2, 1)
+
         lcrGroupBox = QtWidgets.QHBoxLayout(self.lcrGroupBox)
         vboxLayout = QtWidgets.QVBoxLayout()
         vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
@@ -309,6 +341,7 @@ class MainWindow(QtWidgets.QMainWindow):
         vboxLayout.addWidget(self.smuGroupBox)
         vboxLayout.addWidget(self.smu2GroupBox)
         vboxLayout.addWidget(self.elmGroupBox)
+        vboxLayout.addWidget(self.elm2GroupBox)
         vboxLayout.addWidget(self.lcrGroupBox)
         vboxLayout.addWidget(self.dmmGroupBox)
         vboxLayout.addStretch()
@@ -351,6 +384,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.elmVoltageLineEdit.setText("---")
         self.elmCurrentLineEdit.setText("---")
         self.setELMOutputState(None)
+        self.elm2VoltageLineEdit.setText("---")
+        self.elm2CurrentLineEdit.setText("---")
+        self.setELM2OutputState(None)
         self.lcrVoltageLineEdit.setText("---")
         self.lcrCurrentLineEdit.setText("---")
         self.setLCROutputState(None)
@@ -458,6 +494,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.elmOutputStateLineEdit.setText(format_switch(state))
         self.elmOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
 
+    def setELM2OutputState(self, state) -> None:
+        self.elm2OutputStateLineEdit.setText(format_switch(state))
+        self.elm2OutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+
     def setLCROutputState(self, state) -> None:
         self.lcrOutputStateLineEdit.setText(format_switch(state))
         self.lcrOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
@@ -467,6 +507,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.updateSMUVoltage(voltage)
         elif self.elmGroupBox.isEnabled():
             self.updateELMVoltage(voltage)
+        elif self.elm2GroupBox.isEnabled():
+            self.updateELM2Voltage(voltage)
         elif self.lcrGroupBox.isEnabled():
             self.updateLCRVoltage(voltage)
 
@@ -502,6 +544,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateELMCurrent(self, current: float) -> None:
         self.elmCurrentLineEdit.setText(format_metric(current, "A"))
+
+    def updateELM2Voltage(self, voltage: float) -> None:
+        self.elm2VoltageLineEdit.setText(format_metric(voltage, "V"))
+
+    def updateELM2Current(self, current: float) -> None:
+        self.elm2CurrentLineEdit.setText(format_metric(current, "A"))
 
     def updateLCRVoltage(self, voltage: float) -> None:
         self.lcrVoltageLineEdit.setText(format_metric(voltage, "V"))
