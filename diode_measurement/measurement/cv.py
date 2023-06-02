@@ -48,6 +48,7 @@ class CVMeasurement(RangeMeasurement):
     def acquire_reading(self) -> None:
         reading: ReadingType = self.acquire_reading_data()
         self.extend_cv_reading(reading)
+        # TODO
         if hasattr(self, "cvReadingLock") and hasattr(self, "cvReadingQueue"):
             with self.cvReadingLock:
                 self.cvReadingQueue.append(reading)

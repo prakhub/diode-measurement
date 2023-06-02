@@ -53,7 +53,7 @@ class Writer:
         self.flush()
 
     def write_meta_lcr(self, data: dict) -> None:
-        lcr = data.get("lcr", {})
+        lcr = data.get("roles", {}).get("lcr", {})
         if lcr.get("enabled"):
             lcr_options = lcr.get("options", {})
             # lcr.options.voltage
