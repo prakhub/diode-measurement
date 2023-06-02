@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2023-06-01
+### Fixed
+- Missing LCR amplitude/frequency values in output file (#87).
+
 ## [0.17.0] - 2023-06-01
 ### Added
 - Acquire and store Cp + Rp in CV measurements (#85).
