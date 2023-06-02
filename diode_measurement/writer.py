@@ -73,14 +73,16 @@ class Writer:
                 "voltage[V]",
                 "i_smu[A]",
                 "i_elm[A]",
-                "temperature[degC]"
+                "i_elm2[A]",
+                "temperature[degC]",
             ])
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(data.get("i_elm2"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E"),
         ])
         self.flush()
 
@@ -93,7 +95,8 @@ class Writer:
                 "i_smu[A]",
                 "i_smu2[A]",
                 "i_elm[A]",
-                "temperature[degC]"
+                "i_elm2[A]",
+                "temperature[degC]",
             ])
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
@@ -101,7 +104,8 @@ class Writer:
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(data.get("i_elm2"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E"),
         ])
         self.flush()
 
@@ -113,14 +117,16 @@ class Writer:
                 "voltage[V]",
                 "i_smu[A]",
                 "i_elm[A]",
-                "temperature[degC]"
+                "i_elm2[A]",
+                "temperature[degC]",
             ])
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(data.get("i_elm2"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E"),
         ])
         self.flush()
 
@@ -133,6 +139,7 @@ class Writer:
                 "i_smu[A]",
                 "i_smu2[A]",
                 "i_elm[A]",
+                "i_elm2[A]",
                 "temperature[degC]"
             ])
         self.write_table_row([
@@ -141,7 +148,8 @@ class Writer:
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(data.get("i_elm2"), "+.3E"),
+            safe_format(data.get("t_dmm"), "+.3E"),
         ])
         self.flush()
 

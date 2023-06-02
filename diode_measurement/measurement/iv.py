@@ -23,18 +23,21 @@ class IVMeasurement(RangeMeasurement):
     def acquire_reading_data(self, voltage=None) -> ReadingType:
         smu = self.instruments.get("smu")
         elm = self.instruments.get("elm")
+        elm2 = self.instruments.get("elm2")
         dmm = self.instruments.get("dmm")
         if voltage is None:
             voltage = self.get_source_voltage()
         i_smu = smu.read_current() if smu else math.nan
         i_elm = elm.read_current() if elm else math.nan
+        i_elm2 = elm2.read_current() if elm2 else math.nan
         t_dmm = dmm.read_temperature() if dmm else math.nan
         return {
             "timestamp": time.time(),
             "voltage": voltage,
             "i_smu": i_smu,
             "i_elm": i_elm,
-            "t_dmm": t_dmm
+            "i_elm2": i_elm2,
+            "t_dmm": t_dmm,
         }
 
     def acquire_reading(self) -> None:
@@ -49,7 +52,8 @@ class IVMeasurement(RangeMeasurement):
         self.update_event({
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
-            "dmm_temperature": reading.get("t_dmm")
+            "elm2_current": reading.get("i_elm2"),
+            "dmm_temperature": reading.get("t_dmm"),
         })
         self.iv_reading_event(reading)
 
@@ -91,6 +95,7 @@ class IVMeasurement(RangeMeasurement):
                 self.update_event({
                     "smu_current": reading.get("i_smu"),
                     "elm_current": reading.get("i_elm"),
+                    "elm2_current": reading.get("i_elm2"),
                     "dmm_temperature": reading.get("t_dmm")
                 })
 

@@ -200,11 +200,18 @@ class IVPlotWidget(PlotWidget):
         self.elmSeries.setPointsVisible(True)
         self.chart().addSeries(self.elmSeries)
 
+        self.elm2Series = QtChart.QLineSeries()
+        self.elm2Series.setName("ELM2")
+        self.elm2Series.setColor(QtCore.Qt.darkBlue)
+        self.elm2Series.setPointsVisible(True)
+        self.chart().addSeries(self.elm2Series)
+
         self.iAxis = QtChart.QValueAxis()
         self.chart().addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
         self.smu2Series.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
+        self.elm2Series.attachAxis(self.iAxis)
 
         self.iDynamicAxis = DynamicValueAxis(self.iAxis, "A")
         self.iDynamicAxis.setTitleText("Current")
@@ -220,6 +227,7 @@ class IVPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.vAxis)
         self.smu2Series.attachAxis(self.vAxis)
         self.elmSeries.attachAxis(self.vAxis)
+        self.elm2Series.attachAxis(self.vAxis)
 
         self.iLimits = LimitsAggregator(self)
         self.vLimits = LimitsAggregator(self)
@@ -227,6 +235,7 @@ class IVPlotWidget(PlotWidget):
         self.series["smu"] = self.smuSeries
         self.series["smu2"] = self.smu2Series
         self.series["elm"] = self.elmSeries
+        self.series["elm2"] = self.elm2Series
 
     def fitVAxis(self) -> None:
         self.vAxis.setReverse(self.isReverse())
@@ -296,12 +305,19 @@ class ItPlotWidget(PlotWidget):
         self.elmSeries.setPointsVisible(True)
         self.chart().addSeries(self.elmSeries)
 
+        self.elm2Series = QtChart.QLineSeries()
+        self.elm2Series.setName("ELM2")
+        self.elm2Series.setColor(QtCore.Qt.darkBlue)
+        self.elm2Series.setPointsVisible(True)
+        self.chart().addSeries(self.elm2Series)
+
         self.iAxis = QtChart.QValueAxis()
         self.iAxis.hide()
         self.chart().addAxis(self.iAxis, QtCore.Qt.AlignLeft)
         self.smuSeries.attachAxis(self.iAxis)
         self.smu2Series.attachAxis(self.iAxis)
         self.elmSeries.attachAxis(self.iAxis)
+        self.elm2Series.attachAxis(self.iAxis)
 
         self.iDynamicAxis = DynamicValueAxis(self.iAxis, "A")
         self.iDynamicAxis.setTitleText("Current")
@@ -316,6 +332,7 @@ class ItPlotWidget(PlotWidget):
         self.smuSeries.attachAxis(self.tAxis)
         self.smu2Series.attachAxis(self.tAxis)
         self.elmSeries.attachAxis(self.tAxis)
+        self.elm2Series.attachAxis(self.tAxis)
 
         self.iLimits = LimitsAggregator(self)
         self.tLimits = LimitsAggregator(self)
@@ -323,6 +340,7 @@ class ItPlotWidget(PlotWidget):
         self.series["smu"] = self.smuSeries
         self.series["smu2"] = self.smu2Series
         self.series["elm"] = self.elmSeries
+        self.series["elm2"] = self.elm2Series
 
     def fitTAxis(self) -> None:
         if self.tLimits.isValid():

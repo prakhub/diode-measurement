@@ -31,6 +31,9 @@ class GeneralWidget(QtWidgets.QWidget):
         self.elmCheckBox = QtWidgets.QCheckBox("ELM")
         self.elmCheckBox.stateChanged.connect(self.instrumentsChanged)
 
+        self.elm2CheckBox = QtWidgets.QCheckBox("ELM2")
+        self.elm2CheckBox.stateChanged.connect(self.instrumentsChanged)
+
         self.lcrCheckBox = QtWidgets.QCheckBox("LCR")
         self.lcrCheckBox.stateChanged.connect(self.instrumentsChanged)
 
@@ -135,6 +138,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.instrumentLayout.addWidget(self.smuCheckBox)
         self.instrumentLayout.addWidget(self.smu2CheckBox)
         self.instrumentLayout.addWidget(self.elmCheckBox)
+        self.instrumentLayout.addWidget(self.elm2CheckBox)
         self.instrumentLayout.addWidget(self.lcrCheckBox)
         self.instrumentLayout.addWidget(self.dmmCheckBox)
         self.instrumentLayout.addStretch()
@@ -251,6 +255,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setELMEnabled(self, enabled):
         return self.elmCheckBox.setChecked(enabled)
+
+    def isELM2Enabled(self):
+        return self.elm2CheckBox.isChecked()
+
+    def setELM2Enabled(self, enabled):
+        return self.elm2CheckBox.setChecked(enabled)
 
     def isLCREnabled(self):
         return self.lcrCheckBox.isChecked()
