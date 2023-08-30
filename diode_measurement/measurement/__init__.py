@@ -132,7 +132,7 @@ class Measurement:
 
 class RangeMeasurement(Measurement):
 
-    def __init__(self, state: StateType) -> None:
+    def __init__(self, state: State) -> None:
         super().__init__(state)
         self.it_reading_event: EventHandler = EventHandler()
         self.it_change_voltage_ready_event: EventHandler = EventHandler()
