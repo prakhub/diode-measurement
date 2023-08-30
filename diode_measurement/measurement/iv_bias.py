@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List
 
 from ..estimate import Estimate
 
-from . import ReadingType, StateType, EventHandler, RangeMeasurement
+from . import ReadingType, State, EventHandler, RangeMeasurement
 
 __all__ = ["IVBiasMeasurement"]
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class IVBiasMeasurement(RangeMeasurement):
 
-    def __init__(self, state: StateType) -> None:
+    def __init__(self, state: State) -> None:
         super().__init__(state)
         self.iv_reading_event: EventHandler = EventHandler()
 
@@ -74,7 +74,7 @@ class IVBiasMeasurement(RangeMeasurement):
 
         voltage = self.get_source_voltage()
 
-        while not self.stop_requested:
+        while not self.state.stop_requested:
             dt: float = time.time() - t
 
             reading: ReadingType = self.acquire_reading_data(voltage=voltage)
@@ -108,7 +108,7 @@ class IVBiasMeasurement(RangeMeasurement):
 
                 t = time.time()
 
-            if self.stop_requested:
+            if self.state.stop_requested:
                 break
 
             self.apply_waiting_time_continuous(estimate)

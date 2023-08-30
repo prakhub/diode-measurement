@@ -50,6 +50,7 @@ from .utils import format_metric
 
 from .cache import Cache
 from .settings import DEFAULTS
+from .state import State
 
 __all__ = ["Controller"]
 
@@ -93,7 +94,7 @@ class MeasurementRunner:
                 writer = Writer(fp)
                 # TODO
                 # Note: using signals executes slots in main thread, should be worker thread
-                measurement.started_event.subscribe(lambda state=measurement.state: writer.write_meta(state))
+                measurement.started_event.subscribe(lambda state=dict(measurement.state): writer.write_meta(state))
                 if isinstance(measurement, IVMeasurement):
                     measurement.iv_reading_event.subscribe(lambda reading: writer.write_iv_row(reading))
                     measurement.it_reading_event.subscribe(lambda reading: writer.write_it_row(reading))
@@ -123,7 +124,7 @@ class Controller(QtCore.QObject):
 
         self.abortRequested = threading.Event()
         self.measurementThread: Optional[threading.Thread] = None
-        self.state: Dict[str, Any] = {}
+        self.state: State = State()
         self.cache: Cache = Cache()
         self.rpc_params: Cache = Cache()
 
@@ -820,8 +821,8 @@ class Controller(QtCore.QObject):
 
     def createFilename(self):
         path = self.view.generalWidget.outputDir()
-        sample = self.state.get("sample")
-        timestamp = datetime.fromtimestamp(self.state.get("timestamp", 0)).strftime("%Y-%m-%dT%H-%M-%S")
+        sample = self.state.sample
+        timestamp = datetime.fromtimestamp(self.state.timestamp).strftime("%Y-%m-%dT%H-%M-%S")
         filename = safe_filename(f"{sample}-{timestamp}.txt")
         return os.path.join(path, filename)
 
@@ -837,7 +838,7 @@ class Controller(QtCore.QObject):
         measurement.cvReadingLock = self.cvPlotsController.cvReadingLock
 
     def createMeasurement(self):
-        measurementType = self.state.get("measurement_type")
+        measurementType = self.state.measurement_type
         measurement = MEASUREMENTS.get(measurementType)(self.state)
 
         measurement.update_event.subscribe(self.update.emit)
@@ -1210,8 +1211,9 @@ class ChangeVoltageController(QtCore.QObject):
         self.view.prepareChangeVoltage.connect(self.onPrepareChangeVoltage)
 
     def sourceVoltage(self):
-        if self.state.get("source_voltage") is not None:
-            return self.state.get("source_voltage")
+        source_voltage = self.state.source_voltage
+        if source_voltage is not None:
+            return source_voltage
         return self.view.generalWidget.endVoltage()
 
     def onPrepareChangeVoltage(self) -> None:
