@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 2023-08-30
+### Fixed
+- Broken change voltage function (#91).
+
 ## [0.18.0] - 2023-06-02
 ### Added
 - Add optional ELM2 instrument (#89).
@@ -214,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.18.0...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.18.1...HEAD
+[0.18.1]: https://github.com/hephy-dd/diode-measurement/compare/0.18.0...0.18.1
 [0.18.0]: https://github.com/hephy-dd/diode-measurement/compare/0.17.1...0.18.0
 [0.17.1]: https://github.com/hephy-dd/diode-measurement/compare/0.17.0...0.17.1
 [0.17.0]: https://github.com/hephy-dd/diode-measurement/compare/0.16.1...0.17.0
