@@ -261,7 +261,7 @@ class RangeMeasurement(Measurement):
     def apply_change_voltage(self):
         params = self.state.get("change_voltage_continuous")
         if params is not None:
-            del self.state.state["change_voltage_continuous"]  # TODO
+            del self.state["change_voltage_continuous"]  # TODO
             self.update_rpc_state("ramping")
             self.ramp_to_continuous(params.get("end_voltage"), params.get("step_voltage"), params.get("waiting_time"))
             if not self.stop_requested:  # hack
