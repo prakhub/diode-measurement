@@ -27,8 +27,14 @@ class K6517B(Electrometer):
         self.set_format_elements(["READ"])
         self.set_sense_function("CURR")
 
-        sense_range = options.get("sense.range", 21e-3)
+        sense_range = options.get("sense.range", 20e-3)
         self.set_sense_current_range(sense_range)
+
+        sense_auto_range_lower_limit = options.get("sense.auto_range.lower_limit", 2e-12)
+        self.set_sense_current_range_auto_lower_limit(sense_auto_range_lower_limit)
+
+        sense_auto_range_upper_limit = options.get("sense.auto_range.upper_limit", 20e-3)
+        self.set_sense_current_range_auto_upper_limit(sense_auto_range_upper_limit)
 
         sense_auto_range = options.get("sense.auto_range", True)
         self.set_sense_current_range_auto(sense_auto_range)
@@ -100,6 +106,12 @@ class K6517B(Electrometer):
 
     def set_sense_current_range_auto(self, enabled: bool) -> None:
         self._write(f":SENS:CURR:RANG:AUTO {enabled:d}")
+
+    def set_sense_current_range_auto_lower_limit(self, limit: float) -> None:
+        self._write(f":SENS:CURR:RANG:AUTO:LLIM {limit:E}")
+
+    def set_sense_current_range_auto_upper_limit(self, limit: float) -> None:
+        self._write(f":SENS:CURR:RANG:AUTO:ULIM {limit:E}")
 
     def set_sense_current_average_tcontrol(self, tcontrol: str) -> None:
         self._write(f":SENS:CURR:AVER:TCON {tcontrol}")
