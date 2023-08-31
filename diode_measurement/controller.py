@@ -218,6 +218,7 @@ class Controller(QtCore.QObject):
 
         self.onToggleSmu2(False)
         self.onToggleElm(False)
+        self.onToggleElm2(False)
         self.onToggleLcr(False)
         self.onToggleDmm(False)
 
@@ -1046,7 +1047,7 @@ class IVPlotsController(QtCore.QObject):
             self.parent().onToggleSmu(True)
             self.parent().onToggleSmu2(bool(len(smu2Points)))
             self.parent().onToggleElm(bool(len(elmPoints)))
-            self.parent().onToggleElm(bool(len(elm2Points)))
+            self.parent().onToggleElm2(bool(len(elm2Points)))
         widget.fit()
 
     def onFlushItReadings(self) -> None:
