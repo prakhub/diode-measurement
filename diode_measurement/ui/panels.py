@@ -314,16 +314,26 @@ class K2470Panel(InstrumentPanel):
 
         # Route Terminals
 
-        self.routeTerminalsGroupBox = QtWidgets.QGroupBox()
-        self.routeTerminalsGroupBox.setTitle("Route Terminals")
-
         self.routeTerminalsComboBox = QtWidgets.QComboBox()
         self.routeTerminalsComboBox.addItem("Front", "FRON")
         self.routeTerminalsComboBox.addItem("Rear", "REAR")
 
+        self.routeTerminalsGroupBox = QtWidgets.QGroupBox()
+        self.routeTerminalsGroupBox.setTitle("Route Terminals")
+
         routeTerminalsLayout = QtWidgets.QVBoxLayout(self.routeTerminalsGroupBox)
         routeTerminalsLayout.addWidget(self.routeTerminalsComboBox)
-        routeTerminalsLayout.addStretch()
+
+        # System
+
+        self.systemGroupBox = QtWidgets.QGroupBox()
+        self.systemGroupBox.setTitle("System")
+
+        self.breakdownProtectionCheckBox = QtWidgets.QCheckBox("Breakdown Protection")
+
+        systemLayout = QtWidgets.QVBoxLayout(self.systemGroupBox)
+        systemLayout.addWidget(self.breakdownProtectionCheckBox)
+        systemLayout.addStretch()
 
         # Layout
 
@@ -333,6 +343,7 @@ class K2470Panel(InstrumentPanel):
         rightLayout = QtWidgets.QVBoxLayout()
         rightLayout.addWidget(self.integrationTimeGroupBox)
         rightLayout.addWidget(self.routeTerminalsGroupBox)
+        rightLayout.addWidget(self.systemGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -346,6 +357,7 @@ class K2470Panel(InstrumentPanel):
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
         self.bindParameter("route.terminals", WidgetParameter(self.routeTerminalsComboBox))
+        self.bindParameter("system.breakdown.protection", WidgetParameter(self.breakdownProtectionCheckBox))
 
         self.restoreDefaults()
 
@@ -355,6 +367,7 @@ class K2470Panel(InstrumentPanel):
         self.filterModeComboBox.setCurrentIndex(0)
         self.nplcSpinBox.setValue(1.0)
         self.routeTerminalsComboBox.setCurrentIndex(0)
+        self.breakdownProtectionCheckBox.setChecked(False)
 
     def setLocked(self, state: bool) -> None:
         self.filterEnableCheckBox.setEnabled(not state)
@@ -362,6 +375,7 @@ class K2470Panel(InstrumentPanel):
         self.filterModeComboBox.setEnabled(not state)
         self.nplcSpinBox.setEnabled(not state)
         self.routeTerminalsComboBox.setEnabled(not state)
+        self.breakdownProtectionCheckBox.setEnabled(not state)
 
 
 class K2657APanel(InstrumentPanel):
