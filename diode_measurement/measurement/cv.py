@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, List
 
 from ..utils import inverse_square
 
-from . import ReadingType, StateType, EventHandler, RangeMeasurement
+from . import ReadingType, State, EventHandler, RangeMeasurement
 
 __all__ = ["CVMeasurement"]
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class CVMeasurement(RangeMeasurement):
 
-    def __init__(self, state: StateType) -> None:
+    def __init__(self, state: State) -> None:
         super().__init__(state)
         self.cv_reading_event: EventHandler = EventHandler()
 

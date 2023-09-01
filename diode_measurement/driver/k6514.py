@@ -30,6 +30,12 @@ class K6514(Electrometer):
         sense_range = options.get("sense.range", 200e-6)
         self.set_sense_current_range(sense_range)
 
+        sense_auto_range_lower_limit = options.get("sense.auto_range.lower_limit", 2e-12)
+        self.set_sense_current_range_auto_lower_limit(sense_auto_range_lower_limit)
+
+        sense_auto_range_upper_limit = options.get("sense.auto_range.upper_limit", 20e-3)
+        self.set_sense_current_range_auto_upper_limit(sense_auto_range_upper_limit)
+
         sense_auto_range = options.get("sense.auto_range", True)
         self.set_sense_current_range_auto(sense_auto_range)
 
@@ -69,9 +75,9 @@ class K6514(Electrometer):
     def read_current(self, timeout=10.0, interval=0.250):
         # Request operation complete
         self._write("*CLS")
-        self.resource.write("*OPC")
+        self._write_nowait("*OPC")
         # Initiate measurement
-        self.resource.write(":INIT")
+        self._write_nowait(":INIT")
         threshold = time.time() + timeout
         interval = min(timeout, interval)
         while time.time() < threshold:
@@ -97,6 +103,12 @@ class K6514(Electrometer):
 
     def set_sense_current_range_auto(self, enabled: bool) -> None:
         self._write(f":SENS:CURR:RANG:AUTO {enabled:d}")
+
+    def set_sense_current_range_auto_lower_limit(self, limit: float) -> None:
+        self._write(f":SENS:CURR:RANG:AUTO:LLIM {limit:E}")
+
+    def set_sense_current_range_auto_upper_limit(self, limit: float) -> None:
+        self._write(f":SENS:CURR:RANG:AUTO:ULIM {limit:E}")
 
     def set_sense_average_tcontrol(self, tcontrol: str) -> None:
         self._write(f":SENS:AVER:TCON {tcontrol}")

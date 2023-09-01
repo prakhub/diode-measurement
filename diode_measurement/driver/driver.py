@@ -89,6 +89,10 @@ class Electrometer(SourceMeter):
     def set_zero_check_enabled(self, enabled: bool) -> None:
         ...
 
+    @abstractmethod
+    def read_current(self) -> float:
+        ...
+
 
 class LCRMeter(SourceMeter):
 

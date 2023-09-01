@@ -3,6 +3,7 @@ from typing import Any, Dict
 from PyQt5 import QtWidgets
 
 from ..utils import ureg
+from .metric import MetricWidget
 
 __all__ = [
     "K237Panel",
@@ -37,6 +38,8 @@ class WidgetParameter:
             return widget.value()
         elif isinstance(widget, QtWidgets.QComboBox):
             return widget.currentData()
+        elif isinstance(widget, MetricWidget):
+            return widget.value()
         raise TypeError(f"Invalid widget type: {repr(widget)}")
 
     def setValue(self, value: Any) -> None:
@@ -52,6 +55,8 @@ class WidgetParameter:
         elif isinstance(widget, QtWidgets.QComboBox):
             index = widget.findData(value)
             widget.setCurrentIndex(index)
+        elif isinstance(widget, MetricWidget):
+            widget.setValue(value)
         else:
             raise TypeError(f"Invalid widget type: {repr(widget)}")
 
@@ -314,16 +319,26 @@ class K2470Panel(InstrumentPanel):
 
         # Route Terminals
 
-        self.routeTerminalsGroupBox = QtWidgets.QGroupBox()
-        self.routeTerminalsGroupBox.setTitle("Route Terminals")
-
         self.routeTerminalsComboBox = QtWidgets.QComboBox()
         self.routeTerminalsComboBox.addItem("Front", "FRON")
         self.routeTerminalsComboBox.addItem("Rear", "REAR")
 
+        self.routeTerminalsGroupBox = QtWidgets.QGroupBox()
+        self.routeTerminalsGroupBox.setTitle("Route Terminals")
+
         routeTerminalsLayout = QtWidgets.QVBoxLayout(self.routeTerminalsGroupBox)
         routeTerminalsLayout.addWidget(self.routeTerminalsComboBox)
-        routeTerminalsLayout.addStretch()
+
+        # System
+
+        self.systemGroupBox = QtWidgets.QGroupBox()
+        self.systemGroupBox.setTitle("System")
+
+        self.breakdownProtectionCheckBox = QtWidgets.QCheckBox("Breakdown Protection")
+
+        systemLayout = QtWidgets.QVBoxLayout(self.systemGroupBox)
+        systemLayout.addWidget(self.breakdownProtectionCheckBox)
+        systemLayout.addStretch()
 
         # Layout
 
@@ -333,6 +348,7 @@ class K2470Panel(InstrumentPanel):
         rightLayout = QtWidgets.QVBoxLayout()
         rightLayout.addWidget(self.integrationTimeGroupBox)
         rightLayout.addWidget(self.routeTerminalsGroupBox)
+        rightLayout.addWidget(self.systemGroupBox)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -346,6 +362,7 @@ class K2470Panel(InstrumentPanel):
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
         self.bindParameter("route.terminals", WidgetParameter(self.routeTerminalsComboBox))
+        self.bindParameter("system.breakdown.protection", WidgetParameter(self.breakdownProtectionCheckBox))
 
         self.restoreDefaults()
 
@@ -355,6 +372,7 @@ class K2470Panel(InstrumentPanel):
         self.filterModeComboBox.setCurrentIndex(0)
         self.nplcSpinBox.setValue(1.0)
         self.routeTerminalsComboBox.setCurrentIndex(0)
+        self.breakdownProtectionCheckBox.setChecked(False)
 
     def setLocked(self, state: bool) -> None:
         self.filterEnableCheckBox.setEnabled(not state)
@@ -362,6 +380,7 @@ class K2470Panel(InstrumentPanel):
         self.filterModeComboBox.setEnabled(not state)
         self.nplcSpinBox.setEnabled(not state)
         self.routeTerminalsComboBox.setEnabled(not state)
+        self.breakdownProtectionCheckBox.setEnabled(not state)
 
 
 class K2657APanel(InstrumentPanel):
@@ -462,18 +481,38 @@ class K6514Panel(InstrumentPanel):
         self.rangeGroupBox = QtWidgets.QGroupBox()
         self.rangeGroupBox.setTitle("Sense Range")
 
-        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+        self.senseRangeMetric = MetricWidget()
+        self.senseRangeMetric.setDecimals(3)
+        self.senseRangeMetric.setRange(0, 999)  # TODO
+        self.senseRangeMetric.setUnit("A")
+        self.senseRangeMetric.setPrefixes("munp")
 
-        self.senseRangeSpinBox = QtWidgets.QDoubleSpinBox()
-        self.senseRangeSpinBox.setSuffix(" uA")
-        self.senseRangeSpinBox.setDecimals(6)
-        self.senseRangeSpinBox.setSingleStep(1)
-        self.senseRangeSpinBox.setMinimum(ureg("1 pA").to("uA").m)
-        self.senseRangeSpinBox.setMaximum(ureg("2 A").to("uA").m)
+        self.autoRangeLLimitLabel = QtWidgets.QLabel("Lower Limit")
+
+        self.autoRangeLLimitMetric = MetricWidget()
+        self.autoRangeLLimitMetric.setDecimals(3)
+        self.autoRangeLLimitMetric.setRange(0, 999)  # TODO
+        self.autoRangeLLimitMetric.setUnit("A")
+        self.autoRangeLLimitMetric.setPrefixes("munp")
+
+        self.autoRangeULimitLabel = QtWidgets.QLabel("Upper Limit")
+
+        self.autoRangeULimitMetric = MetricWidget()
+        self.autoRangeULimitMetric.setDecimals(3)
+        self.autoRangeULimitMetric.setRange(0, 999)  # TODO
+        self.autoRangeULimitMetric.setUnit("A")
+        self.autoRangeULimitMetric.setPrefixes("munp")
+
+        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+        self.autoRangeCheckBox.toggled.connect(self.updateState)
 
         rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
+        rangeLayout.addWidget(self.senseRangeMetric)
         rangeLayout.addWidget(self.autoRangeCheckBox)
-        rangeLayout.addWidget(self.senseRangeSpinBox)
+        rangeLayout.addWidget(self.autoRangeLLimitLabel)
+        rangeLayout.addWidget(self.autoRangeLLimitMetric)
+        rangeLayout.addWidget(self.autoRangeULimitLabel)
+        rangeLayout.addWidget(self.autoRangeULimitMetric)
         rangeLayout.addStretch()
 
         # Filter
@@ -540,8 +579,10 @@ class K6514Panel(InstrumentPanel):
 
         # Parameters
 
-        self.bindParameter("sense.range", MethodParameter(self.senseRange, self.setSenseRange))
+        self.bindParameter("sense.range", WidgetParameter(self.senseRangeMetric))
         self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
+        self.bindParameter("sense.auto_range.lower_limit", WidgetParameter(self.autoRangeLLimitMetric))
+        self.bindParameter("sense.auto_range.upper_limit", WidgetParameter(self.autoRangeULimitMetric))
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
@@ -549,29 +590,35 @@ class K6514Panel(InstrumentPanel):
 
         self.restoreDefaults()
 
-    def senseRange(self) -> float:
-        value = self.senseRangeSpinBox.value()
-        return (value * ureg("uA")).to("A").m
-
-    def setSenseRange(self, value: float) -> None:
-        value = (value * ureg("A")).to("uA").m
-        self.senseRangeSpinBox.setValue(value)
-
     def restoreDefaults(self) -> None:
+        self.senseRangeMetric.setValue(200e-6)
         self.autoRangeCheckBox.setChecked(True)
-        self.senseRangeSpinBox.setValue(ureg("2.1e-4 A").to("uA").m)
+        self.autoRangeLLimitMetric.setValue(2e-12)
+        self.autoRangeULimitMetric.setValue(20e-3)
         self.filterEnableCheckBox.setChecked(False)
         self.filterCountSpinBox.setValue(10)
         self.filterModeComboBox.setCurrentIndex(0)
         self.nplcSpinBox.setValue(5.0)
+        self.updateState(self.autoRangeCheckBox.isChecked())
 
     def setLocked(self, state: bool) -> None:
+        self.senseRangeMetric.setEnabled(not state)
         self.autoRangeCheckBox.setEnabled(not state)
-        self.senseRangeSpinBox.setEnabled(not state)
+        self.autoRangeLLimitMetric.setEnabled(not state)
+        self.autoRangeULimitMetric.setEnabled(not state)
         self.filterEnableCheckBox.setEnabled(not state)
         self.filterCountSpinBox.setEnabled(not state)
         self.filterModeComboBox.setEnabled(not state)
         self.nplcSpinBox.setEnabled(not state)
+        self.updateState(self.autoRangeCheckBox.isChecked())
+
+    def updateState(self, checked) -> None:
+        enabled = self.autoRangeCheckBox.isEnabled()
+        self.senseRangeMetric.setEnabled(enabled and not checked)
+        self.autoRangeLLimitLabel.setEnabled(enabled and checked)
+        self.autoRangeLLimitMetric.setEnabled(enabled and checked)
+        self.autoRangeULimitLabel.setEnabled(enabled and checked)
+        self.autoRangeULimitMetric.setEnabled(enabled and checked)
 
 
 class K6517BPanel(InstrumentPanel):
@@ -584,18 +631,38 @@ class K6517BPanel(InstrumentPanel):
         self.rangeGroupBox = QtWidgets.QGroupBox()
         self.rangeGroupBox.setTitle("Sense Range")
 
-        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+        self.senseRangeMetric = MetricWidget()
+        self.senseRangeMetric.setDecimals(3)
+        self.senseRangeMetric.setRange(0, 999)  # TODO
+        self.senseRangeMetric.setUnit("A")
+        self.senseRangeMetric.setPrefixes("munp")
 
-        self.senseRangeSpinBox = QtWidgets.QDoubleSpinBox()
-        self.senseRangeSpinBox.setSuffix(" uA")
-        self.senseRangeSpinBox.setDecimals(6)
-        self.senseRangeSpinBox.setSingleStep(1)
-        self.senseRangeSpinBox.setMinimum(ureg("1 pA").to("uA").m)
-        self.senseRangeSpinBox.setMaximum(ureg("21e-3 A").to("uA").m)
+        self.autoRangeLLimitLabel = QtWidgets.QLabel("Lower Limit")
+
+        self.autoRangeLLimitMetric = MetricWidget()
+        self.autoRangeLLimitMetric.setDecimals(3)
+        self.autoRangeLLimitMetric.setRange(0, 999)  # TODO
+        self.autoRangeLLimitMetric.setUnit("A")
+        self.autoRangeLLimitMetric.setPrefixes("munp")
+
+        self.autoRangeULimitLabel = QtWidgets.QLabel("Upper Limit")
+
+        self.autoRangeULimitMetric = MetricWidget()
+        self.autoRangeULimitMetric.setDecimals(3)
+        self.autoRangeULimitMetric.setRange(0, 999)  # TODO
+        self.autoRangeULimitMetric.setUnit("A")
+        self.autoRangeULimitMetric.setPrefixes("munp")
+
+        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+        self.autoRangeCheckBox.toggled.connect(self.updateState)
 
         rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
+        rangeLayout.addWidget(self.senseRangeMetric)
         rangeLayout.addWidget(self.autoRangeCheckBox)
-        rangeLayout.addWidget(self.senseRangeSpinBox)
+        rangeLayout.addWidget(self.autoRangeLLimitLabel)
+        rangeLayout.addWidget(self.autoRangeLLimitMetric)
+        rangeLayout.addWidget(self.autoRangeULimitLabel)
+        rangeLayout.addWidget(self.autoRangeULimitMetric)
 
         # Source
 
@@ -673,8 +740,10 @@ class K6517BPanel(InstrumentPanel):
 
         # Parameters
 
-        self.bindParameter("sense.range", MethodParameter(self.senseRange, self.setSenseRange))
+        self.bindParameter("sense.range", WidgetParameter(self.senseRangeMetric))
         self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
+        self.bindParameter("sense.auto_range.lower_limit", WidgetParameter(self.autoRangeLLimitMetric))
+        self.bindParameter("sense.auto_range.upper_limit", WidgetParameter(self.autoRangeULimitMetric))
         self.bindParameter("source.meter_connect", WidgetParameter(self.meterConnectCheckBox))
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
@@ -683,17 +752,11 @@ class K6517BPanel(InstrumentPanel):
 
         self.restoreDefaults()
 
-    def senseRange(self) -> float:
-        value = self.senseRangeSpinBox.value()
-        return (value * ureg("uA")).to("A").m
-
-    def setSenseRange(self, value: float) -> None:
-        value = (value * ureg("A")).to("uA").m
-        self.senseRangeSpinBox.setValue(value)
-
     def restoreDefaults(self) -> None:
+        self.senseRangeMetric.setValue(20e-3)
         self.autoRangeCheckBox.setChecked(True)
-        self.senseRangeSpinBox.setValue(ureg("2.1e-4 A").to("uA").m)
+        self.autoRangeLLimitMetric.setValue(2e-12)
+        self.autoRangeULimitMetric.setValue(20e-3)
         self.meterConnectCheckBox.setChecked(False)
         self.filterEnableCheckBox.setChecked(False)
         self.filterCountSpinBox.setValue(10)
@@ -701,13 +764,24 @@ class K6517BPanel(InstrumentPanel):
         self.nplcSpinBox.setValue(1.0)
 
     def setLocked(self, state: bool) -> None:
+        self.senseRangeMetric.setEnabled(not state)
         self.autoRangeCheckBox.setEnabled(not state)
-        self.senseRangeSpinBox.setEnabled(not state)
+        self.autoRangeLLimitMetric.setEnabled(not state)
+        self.autoRangeULimitMetric.setEnabled(not state)
         self.meterConnectCheckBox.setEnabled(not state)
         self.filterEnableCheckBox.setEnabled(not state)
         self.filterCountSpinBox.setEnabled(not state)
         self.filterModeComboBox.setEnabled(not state)
         self.nplcSpinBox.setEnabled(not state)
+        self.updateState(self.autoRangeCheckBox.isChecked())
+
+    def updateState(self, checked) -> None:
+        enabled = self.autoRangeCheckBox.isEnabled()
+        self.senseRangeMetric.setEnabled(enabled and not checked)
+        self.autoRangeLLimitLabel.setEnabled(enabled and checked)
+        self.autoRangeLLimitMetric.setEnabled(enabled and checked)
+        self.autoRangeULimitLabel.setEnabled(enabled and checked)
+        self.autoRangeULimitMetric.setEnabled(enabled and checked)
 
 
 class A4284APanel(InstrumentPanel):
