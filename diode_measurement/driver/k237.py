@@ -1,5 +1,6 @@
 import time
 import logging
+from typing import Tuple
 
 from .driver import SourceMeter, handle_exception
 
@@ -58,8 +59,8 @@ class K237(SourceMeter):
         return 0, "No Error"
 
     def configure(self, options: dict) -> None:
-        self._write("F0,0X")
-        self._write("B0,0,0X")
+        self._write("F0,0X")  # function VOLT
+        self._write("B0,0,0X")  # bias to auto
         filter_mode = options.get("filter.mode", 0)
         self._write(f"P{filter_mode:d}X")
 
@@ -88,9 +89,14 @@ class K237(SourceMeter):
         self._write("G1,0,0X")
         return self._query("X")[0:2] == "OS"
 
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         self._write("G4,2,0X")
         return float(self._query("X"))
+
+    def measure_iv(self) -> Tuple[float, float]:
+        i = self.measure_i()
+        v = self.get_voltage_level()  # not possible in function VOLT
+        return i, v
 
     @handle_exception
     def _write(self, message):

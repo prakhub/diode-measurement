@@ -80,10 +80,13 @@ class E4980A(LCRMeter):
     def compliance_tripped(self) -> bool:
         return self._query(":SENS:CURR:PROT:TRIP?") == "1"
 
-    def read_current(self):
+    def measure_i(self):
         return 0
 
-    def read_impedance(self) -> Tuple[float, float]:
+    def measure_iv(self):
+        return 0, 0
+
+    def measure_impedance(self) -> Tuple[float, float]:
         result = self._fetch().split(",")
         try:
             return float(result[0]), float(result[1])

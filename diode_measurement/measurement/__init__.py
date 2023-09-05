@@ -456,8 +456,8 @@ class RangeMeasurement(Measurement):
 
             # HACK: wait until capacitors discared before output disable
             def read_source_voltage():
-                if hasattr(self.source_instrument, "read_voltage"):
-                    return self.source_instrument.read_voltage()
+                if hasattr(self.source_instrument, "measure_v"):
+                    return self.source_instrument.measure_v()
                 logger.warning("Source instrument does not provide voltage readings.")
                 return 0.
 
@@ -488,7 +488,9 @@ class RangeMeasurement(Measurement):
             self.update_event({
                 "source_voltage": None,
                 "bias_source_voltage": None,
+                "smu_voltage": None,
                 "smu_current": None,
+                "smu2_voltage": None,
                 "smu2_current": None,
                 "elm_current": None,
                 "elm2_current": None,
@@ -530,7 +532,9 @@ class RangeMeasurement(Measurement):
     def ramp_to_zero(self) -> None:
         source_voltage = self.get_source_voltage()
         self.update_event({
+            "smu_voltage": None,
             "smu_current": None,
+            "smu2_voltage": None,
             "smu2_current": None,
             "elm_current": None,
             "elm2_current": None,
@@ -583,7 +587,9 @@ class RangeMeasurement(Measurement):
         step_voltage: float = 5.0
         waiting_time: float = 0.250
         self.update_event({
+            "smu_voltage": None,
             "smu_current": None,
+            "smu2_voltage": None,
             "smu2_current": None,
             "elm_current": None,
             "elm2_current": None,
@@ -635,7 +641,9 @@ class RangeMeasurement(Measurement):
             self.it_reading_event(reading)
 
             self.update_event({
+                "smu_voltage": reading.get("v_smu"),
                 "smu_current": reading.get("i_smu"),
+                "smu2_voltage": reading.get("v_smu2"),
                 "smu2_current": reading.get("i_smu2"),
                 "elm_current": reading.get("i_elm"),
                 "elm2_current": reading.get("i_elm2"),

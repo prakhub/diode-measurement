@@ -66,12 +66,15 @@ class K595(LCRMeter):
         self._write("G1X")
         return self._query("X")[0] == "O"
 
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         self._write("F1X")
         self._write("G1X")
         return float(self._query("X").split(",")[0])
 
-    def read_impedance(self) -> Tuple[float, float]:
+    def measure_iv(self) -> Tuple[float, float]:
+        return self.measure_i(), float("nan")  # TODO
+
+    def measure_impedance(self) -> Tuple[float, float]:
         self._write("F0X")
         self._write("G1X")
         return float(self._query("X").split(",")[0]), math.nan

@@ -33,12 +33,13 @@ class CVMeasurement(RangeMeasurement):
         lcr = self.instruments.get("lcr")
         dmm = self.instruments.get("dmm")
         voltage = self.get_source_voltage()
-        c_lcr, r_lcr = lcr.read_impedance() if lcr else (math.nan, math.nan)
-        i_smu = smu.read_current() if smu else math.nan
-        t_dmm = dmm.read_temperature() if dmm else math.nan
+        c_lcr, r_lcr = lcr.measure_impedance() if lcr else (math.nan, math.nan)
+        i_smu, v_smu = smu.measure_iv() if smu else (math.nan, math.nan)
+        t_dmm = dmm.measure_temperature() if dmm else math.nan
         return {
             "timestamp": time.time(),
             "voltage": voltage,
+            "v_smu": v_smu,
             "i_smu": i_smu,
             "c_lcr": c_lcr,
             "r_lcr": r_lcr,
@@ -53,6 +54,7 @@ class CVMeasurement(RangeMeasurement):
             with self.cvReadingLock:
                 self.cvReadingQueue.append(reading)
         self.update_event({
+            "smu_voltage": reading.get("v_smu"),
             "smu_current": reading.get("i_smu"),
             "elm_current": reading.get("i_elm"),
             "lcr_capacity": reading.get("c_lcr"),

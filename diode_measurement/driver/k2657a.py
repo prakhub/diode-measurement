@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .driver import SourceMeter, handle_exception
 
 __all__ = ["K2657A"]
@@ -60,11 +62,16 @@ class K2657A(SourceMeter):
     def compliance_tripped(self) -> bool:
         return self._print("smua.source.compliance").lower() == "true"
 
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         return float(self._print("smua.measure.i()"))
 
-    def read_voltage(self) -> float:
+    def measure_v(self) -> float:
         return float(self._print("smua.measure.v()"))
+
+    def measure_iv(self) -> tuple[float, float]:
+        i = self.measure_i()  # TODO print(smua.measure.iv())
+        v = self.measure_v()
+        return i, v
 
     def set_beeper_enable(self, enabled: bool) -> None:
         value = {True: "ON", False: "OFF"}[enabled]

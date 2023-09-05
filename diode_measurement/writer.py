@@ -71,6 +71,7 @@ class Writer:
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
+                "v_smu[V]"
                 "i_smu[A]",
                 "i_elm[A]",
                 "i_elm2[A]",
@@ -79,6 +80,7 @@ class Writer:
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("v_smu"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
             safe_format(data.get("i_elm2"), "+.3E"),
@@ -92,7 +94,9 @@ class Writer:
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
+                "v_smu[V]",
                 "i_smu[A]",
+                "v_smu2[V]",
                 "i_smu2[A]",
                 "i_elm[A]",
                 "i_elm2[A]",
@@ -101,7 +105,9 @@ class Writer:
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("v_smu"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("v_smu2"), "+.3E"),
             safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
             safe_format(data.get("i_elm2"), "+.3E"),
@@ -115,6 +121,7 @@ class Writer:
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
+                "v_smu[V]",
                 "i_smu[A]",
                 "i_elm[A]",
                 "i_elm2[A]",
@@ -123,6 +130,7 @@ class Writer:
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("v_smu"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
             safe_format(data.get("i_elm2"), "+.3E"),
@@ -136,7 +144,9 @@ class Writer:
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
+                "v_smu[V]",
                 "i_smu[A]",
+                "v_smu2[V]",
                 "i_smu2[A]",
                 "i_elm[A]",
                 "i_elm2[A]",
@@ -145,7 +155,9 @@ class Writer:
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("v_smu"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
+            safe_format(data.get("v_smu2"), "+.3E"),
             safe_format(data.get("i_smu2"), "+.3E"),
             safe_format(data.get("i_elm"), "+.3E"),
             safe_format(data.get("i_elm2"), "+.3E"),
@@ -159,6 +171,7 @@ class Writer:
             self.write_table_header([
                 "timestamp[s]",
                 "voltage[V]",
+                "v_smu[V]",
                 "i_smu[A]",
                 "c_lcr[F]",
                 "c2_lcr[1/F^2]",
@@ -168,6 +181,7 @@ class Writer:
         self.write_table_row([
             safe_format(data.get("timestamp"), ".6f"),
             safe_format(data.get("voltage"), "+.3E"),
+            safe_format(data.get("v_smu"), "+.3E"),
             safe_format(data.get("i_smu"), "+.3E"),
             safe_format(data.get("c_lcr"), "+.3E"),
             safe_format(data.get("c2_lcr"), "+.3E"),

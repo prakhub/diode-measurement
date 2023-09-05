@@ -263,7 +263,9 @@ class Controller(QtCore.QObject):
             snapshot["measurement_type"] = self.cache.get("measurement_type")
             snapshot["sample"] = self.cache.get("sample")
             snapshot["source_voltage"] = self.cache.get("source_voltage")
+            snapshot["smu_voltage"] = self.cache.get("smu_voltage")
             snapshot["smu_current"] = self.cache.get("smu_current")
+            snapshot["smu2_voltage"] = self.cache.get("smu2_voltage")
             snapshot["smu2_current"] = self.cache.get("smu2_current")
             snapshot["elm_current"] = self.cache.get("elm_current")
             snapshot["elm2_current"] = self.cache.get("elm2_current")
@@ -614,9 +616,15 @@ class Controller(QtCore.QObject):
         if "bias_source_voltage" in data:
             self.view.updateBiasSourceVoltage(data.get("bias_source_voltage"))
             cache.update({"bias_source_voltage": data.get("bias_source_voltage")})
+        if "smu_voltage" in data:
+            self.view.updateSMUVoltage(data.get("smu_voltage"))
+            cache.update({"smu_voltage": data.get("smu_voltage")})
         if "smu_current" in data:
             self.view.updateSMUCurrent(data.get("smu_current"))
             cache.update({"smu_current": data.get("smu_current")})
+        if "smu2_voltage" in data:
+            self.view.updateSMU2Voltage(data.get("smu2_voltage"))
+            cache.update({"smu2_voltage": data.get("smu2_voltage")})
         if "smu2_current" in data:
             self.view.updateSMU2Current(data.get("smu2_current"))
             cache.update({"smu2_current": data.get("smu2_current")})

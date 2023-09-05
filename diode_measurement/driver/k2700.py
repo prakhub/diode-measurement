@@ -23,7 +23,7 @@ class K2700(DMM):
     def configure(self, options: dict) -> None:
         ...
 
-    def read_temperature(self) -> float:
+    def measure_temperature(self) -> float:
         self._write(":FORM:ELEM READ")  # select reading as return value
         return float(self._query(":FETC?"))
 

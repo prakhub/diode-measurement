@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .driver import SourceMeter, handle_exception
 
 __all__ = ["K2400"]
@@ -31,8 +33,9 @@ class K2400(SourceMeter):
 
         self.set_source_function("VOLT")
 
-        self._write(":FORM:ELEM CURR")  # return only current for read/fetch
-        self._format_element = "CURR"
+        self._write(":SENS:FUNC:CONC ON")  # enable concurrent measurements
+        self._write(":SENS:FUNC:ON 'VOLT','CURR'")
+        self._write(":FORM:ELEM VOLT,CURR")
 
         filter_mode = options.get("filter.mode", "MOV")
         self.set_sense_average_tcontrol(filter_mode)
@@ -68,17 +71,20 @@ class K2400(SourceMeter):
     def compliance_tripped(self) -> bool:
         return self._query(":SENS:CURR:PROT:TRIP?") == "1"
 
-    def read_current(self) -> float:
-        if self._format_element != "CURR":
-            self._write(":FORM:ELEM CURR")
-            self._format_element = "CURR"
-        return float(self._query(":READ?").split(",")[0])
+    def measure_i(self) -> float:
+        i, _ = self.measure_iv()
+        return i
 
-    def read_voltage(self) -> float:
-        if self._format_element != "VOLT":
-            self._write(":FORM:ELEM VOLT")
-            self._format_element = "VOLT"
-        return float(self._query(":READ?").split(",")[0])
+    def measure_v(self) -> float:
+        _, v = self.measure_iv()
+        return v
+
+    def measure_iv(self) -> Tuple[float, float]:
+        if self._format_element != "VOLT,CURR":
+            self._write(":FORM:ELEM VOLT,CURR")
+            self._format_element = "VOLT,CURR"
+        v, i = self._query(":READ?").split(",")[:2]
+        return float(i), float(v)
 
     def set_system_beeper_state(self, state: bool) -> None:
         self._write(f":SYST:BEEP:STAT {state:d}")

@@ -1,5 +1,5 @@
 import time
-from typing import List
+from typing import List, Tuple
 
 from .driver import Electrometer, handle_exception
 
@@ -75,7 +75,7 @@ class K6517B(Electrometer):
     def compliance_tripped(self) -> bool:
         return bool(int(self._query(":SOUR:CURR:LIM?")))
 
-    def read_current(self, timeout=10.0, interval=0.250):
+    def measure_i(self, timeout=10.0, interval=0.250):
         # Request operation complete
         self._write("*CLS")
         self._write_nowait("*OPC")
@@ -93,6 +93,9 @@ class K6517B(Electrometer):
                     raise RuntimeError(f"Failed to fetch ELM reading: {exc}") from exc
             time.sleep(interval)
         raise RuntimeError(f"Electrometer reading timeout, exceeded {timeout:G} s")
+
+    def measure_iv(self) -> Tuple[float, float]:
+        i = self.measure_i(), float("nan")  # TODO
 
     def set_format_elements(self, elements: List[str]) -> None:
         value = ",".join(elements)

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2023-09-05
+### Added
+- Additional voltage readings for all SMUs (#96).
+
 ## [0.19.0] - 2023-09-01
 ### Added
 - Sense autorange limits for Keithley 6514 and 6517B (#81).
@@ -228,7 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.19.0...HEAD
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.20.0...HEAD
+[0.20.0]: https://github.com/hephy-dd/diode-measurement/compare/0.19.0...0.20.0
 [0.19.0]: https://github.com/hephy-dd/diode-measurement/compare/0.18.2...0.19.0
 [0.18.2]: https://github.com/hephy-dd/diode-measurement/compare/0.18.1...0.18.2
 [0.18.1]: https://github.com/hephy-dd/diode-measurement/compare/0.18.0...0.18.1

@@ -103,17 +103,17 @@ voltage_step[V]: +1.000E+00
 waiting_time[s]: +1.000E-01
 current_compliance[A]: +1.000E-06
 
-timestamp[s]	voltage[V]	i_smu[A]	i_elm[A]	i_elm2[A]	temperature[degC]
-1629455368.29	+5.000E+00	+4.261E-08	+3.740E-08	+NAN	+NAN
-1629455369.71	+4.000E+00	+7.708E-08	+9.495E-08	+NAN	+NAN
-1629455370.49	+3.000E+00	+3.460E-08	+6.264E-08	+NAN	+NAN
-...          	...       	...       	...       	...
+timestamp[s]	voltage[V]	v_smu[V]	i_smu[A]	i_elm[A]	i_elm2[A]	temperature[degC]
+1629455368.29	+5.000E+00	+5.038E+00	+4.261E-08	+3.740E-08	+NAN	+NAN
+1629455369.71	+4.000E+00	+4.065E+00	+7.708E-08	+9.495E-08	+NAN	+NAN
+1629455370.49	+3.000E+00	+3.007E+00	+3.460E-08	+6.264E-08	+NAN	+NAN
+...          	...       	...       	...       	...       	...       	...
 
-timestamp[s]	voltage[V]	i_smu[A]	i_elm[A]	i_elm2[A]	temperature[degC]
-1629455385.69	+3.000E+00	+3.996E-04	+7.137E-08	+NAN	+NAN
-1629455387.65	+3.000E+00	+7.353E-04	+3.079E-08	+NAN	+NAN
-1629455389.56	+3.000E+00	+9.081E-04	+1.266E-08	+NAN	+NAN
-...          	...       	...       	...       	...
+timestamp[s]	voltage[V]	v_smu[V]	i_smu[A]	i_elm[A]	i_elm2[A]	temperature[degC]
+1629455385.69	+3.000E+00	+3.046E+00	+3.996E-04	+7.137E-08	+NAN	+NAN
+1629455387.65	+3.000E+00	+3.034E+00	+7.353E-04	+3.079E-08	+NAN	+NAN
+1629455389.56	+3.000E+00	+3.021E+00	+9.081E-04	+1.266E-08	+NAN	+NAN
+...          	...       	...       	...       	...       	...       	...
 ```
 
 ### IV Bias
@@ -133,17 +133,17 @@ voltage_step[V]: +1.000E+00
 waiting_time[s]: +1.000E-01
 current_compliance[A]: +1.000E-06
 
-timestamp[s]	voltage[V]	i_smu[A]	i_smu2[A]	i_elm[A]	i_elm2[A]	temperature[degC]
-1629455368.29	+5.000E+00	+4.261E-08	+3.723E-08	+3.740E-08	+NAN	+NAN
-1629455369.71	+4.000E+00	+7.708E-08	+6.513E-08	+9.495E-08	+NAN	+NAN
-1629455370.49	+3.000E+00	+3.460E-08	+2.410E-08	+6.264E-08	+NAN	+NAN
-...          	...       	...       	...       	...       	...
+timestamp[s]	voltage[V]	v_smu[V]	i_smu[A]	v_smu2[V]	i_smu2[A]	i_elm[A]	i_elm2[A]	temperature[degC]
+1629455368.29	+5.000E+00	+5.038E+00	+4.261E-08	+1.063E+01	+3.723E-08	+3.740E-08	+NAN	+NAN
+1629455369.71	+4.000E+00	+4.065E+00	+7.708E-08	+1.051E+01	+6.513E-08	+9.495E-08	+NAN	+NAN
+1629455370.49	+3.000E+00	+3.007E+00	+3.460E-08	+1.058E+01	+2.410E-08	+6.264E-08	+NAN	+NAN
+...          	...       	...       	...       	...       	...       	...       	...       	...
 
-timestamp[s]	voltage[V]	i_smu[A]	i_smu2[A]	i_elm[A]	i_elm2[A]	temperature[degC]
-1629455385.69	+3.000E+00	+3.996E-08	+2.657E-08	+7.137E-08	+NAN	+NAN
-1629455387.65	+3.000E+00	+7.353E-08	+6.154E-08	+3.079E-08	+NAN	+NAN
-1629455389.56	+3.000E+00	+9.081E-08	+8.426E-08	+1.266E-08	+NAN	+NAN
-...          	...       	...       	...       	...       	...
+timestamp[s]	voltage[V]	v_smu[V]	i_smu[A]	v_smu2[V]	i_smu2[A]	i_elm[A]	i_elm2[A]	temperature[degC]
+1629455385.69	+3.000E+00	+3.046E+00	+3.996E-08	+1.063E+01	+2.657E-08	+7.137E-08	+NAN	+NAN
+1629455387.65	+3.000E+00	+3.034E+00	+7.353E-08	+1.063E+01	+6.154E-08	+3.079E-08	+NAN	+NAN
+1629455389.56	+3.000E+00	+3.021E+00	+9.081E-08	+1.063E+01	+8.426E-08	+1.266E-08	+NAN	+NAN
+...          	...       	...       	...       	...       	...       	...       	...       	...
 ```
 
 ### CV
@@ -162,10 +162,10 @@ voltage_step[V]: +1.000E+00
 waiting_time[s]: +1.000E-01
 current_compliance[A]: +1.000E-08
 
-timestamp[s]	voltage[V]	i_smu[A]	c_lcr[F]	c2_lcr[F]	r_lcr[Ohm]	temperature[degC]
-1629455368.29	+5.000E+00	+4.261E-08	+3.740E-05	7.149E+08	3.459932E-01	+NAN
-1629455369.71	+4.000E+00	+7.708E-08	+9.495E-05	1.109E+08	3.015286E-01	+NAN
-1629455370.49	+3.000E+00	+3.460E-08	+6.264E-05	2.549E+08	2.482018E-01	+NAN
+timestamp[s]	voltage[V]	v_smu[V]	i_smu[A]	c_lcr[F]	c2_lcr[F]	r_lcr[Ohm]	temperature[degC]
+1629455368.29	+5.000E+00	+5.065E+00	+4.261E-08	+3.740E-05	7.149E+08	3.459932E-01	+NAN
+1629455369.71	+4.000E+00	+4.037E+00	+7.708E-08	+9.495E-05	1.109E+08	3.015286E-01	+NAN
+1629455370.49	+3.000E+00	+3.043E+00	+3.460E-08	+6.264E-05	2.549E+08	2.482018E-01	+NAN
 ...          	...       	...       	...       	...      	...      	...
 ```
 
@@ -191,7 +191,16 @@ Optional parameters are `continuous` (Boolean), `reset` (Boolean),
 user interface before starting the measurement.
 
 ```json
-{"jsonrpc": "2.0", "method": "start", "params": {"reset": true, "end_voltage": -100.0, "step_voltage": 10.0, "waiting_time": 1.0}}
+{
+  "jsonrpc": "2.0",
+  "method": "start",
+  "params": {
+    "reset": true,
+    "end_voltage": -100.0,
+    "step_voltage": 10.0,
+    "waiting_time": 1.0
+  }
+}
 ```
 
 #### Stop
@@ -212,7 +221,15 @@ Optional parameters with default values are `step_voltage` (default is `1.0`
 Volt) and `waiting_time` (default is `1.0` seconds).
 
 ```json
-{"jsonrpc": "2.0", "method": "change_voltage", "params": {"end_voltage": 100.0, "step_voltage": 10.0, "waiting_time": 0.25}}
+{
+  "jsonrpc": "2.0",
+  "method": "change_voltage",
+  "params": {
+    "end_voltage": 100.0,
+    "step_voltage": 10.0,
+    "waiting_time": 0.25
+  }
+}
 ```
 
 #### State
@@ -226,7 +243,24 @@ Request an application state snapshot.
 This will return application state parameters.
 
 ```json
-{"jsonrpc": "2.0", "result": {"state": "ramping", "measurement_type": "iv", "sample": "VPX1", "source_voltage": 24.0, "smu_current": 0.0025, "smu2_current": 0.0018, "elm_current": 0.0021, "elm2_current": null, "lcr_capacity": null, "temperature": 24.031}, "id": 0}
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "state": "ramping",
+    "measurement_type": "iv",
+    "sample": "VPX1",
+    "source_voltage": 24.0,
+    "smu_voltage": 24.026,
+    "smu_current": 0.0025,
+    "smu2_voltage": null,
+    "smu2_current": null,
+    "elm_current": 0.0021,
+    "elm2_current": null,
+    "lcr_capacity": null,
+    "temperature": 24.031
+  },
+  "id": 0
+}
 ```
 
 ### States

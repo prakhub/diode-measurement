@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .driver import SourceMeter, handle_exception
 
 __all__ = ["K2470"]
@@ -63,11 +65,16 @@ class K2470(SourceMeter):
     def compliance_tripped(self) -> bool:
         return self._query(":SOUR:VOLT:ILIM:LEV:TRIP?") == "1"
 
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         return float(self._query(":MEAS:CURR?"))
 
-    def read_voltage(self) -> float:
+    def measure_v(self) -> float:
         return float(self._query(":MEAS:VOLT?"))
+
+    def measure_iv(self) -> Tuple[float, float]:
+        i = self.measure_i()  # no concurrent measurements possible?
+        v = self.measure_v()
+        return i, v
 
     def set_route_terminals(self, terminal: str) -> None:
         self._write(f":ROUT:TERM {terminal}")
