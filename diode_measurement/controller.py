@@ -63,16 +63,6 @@ MEASUREMENTS = {
 }
 
 
-def handle_exception(method):
-    def handle_exception(self, *args, **kwargs):
-        try:
-            return method(self, *args, **kwargs)
-        except Exception as exc:
-            logger.exception(exc)
-            self.handleException(exc)
-    return handle_exception
-
-
 class MeasurementRunner:
 
     def __init__(self, measurement: Measurement) -> None:
@@ -334,7 +324,6 @@ class Controller(QtCore.QObject):
         self.stateMachine.stop()
         self.abortRequested.set()
 
-    @handle_exception
     def loadSettings(self):
         settings = QtCore.QSettings()
 
@@ -431,7 +420,6 @@ class Controller(QtCore.QObject):
 
         self.onInstrumentsChanged()
 
-    @handle_exception
     def storeSettings(self):
         settings = QtCore.QSettings()
 
@@ -520,7 +508,6 @@ class Controller(QtCore.QObject):
 
         settings.endGroup()
 
-    @handle_exception
     def onImportFile(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.view,

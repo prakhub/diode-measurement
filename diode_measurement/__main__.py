@@ -1,11 +1,14 @@
 import argparse
 import logging
 import signal
+import sys
+import traceback
 
 from PyQt5 import QtWidgets
 
 from . import __version__
 from .application import Application
+from .ui.widgets import showException
 
 __all__ = ["main"]
 
@@ -32,12 +35,25 @@ def configure_logger(debug=False):
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
+def exception_hook(exc_type, exc_value, exc_traceback):
+    """
+    Function to catch unhandled Python exceptions
+    """
+    tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    logging.exception(tb)
+
+    showException(exc_value)
+
+
 def main():
     args = parse_args()
 
     configure_logger(args.debug)
 
     app = Application()
+
+    # install custom exception hook
+    sys.excepthook = exception_hook
 
     # Register interupt signal handler
     def signal_handler(signum, frame):

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.20.0] - 2023-09-05
 ### Added
 - Additional voltage readings for all SMUs (#96).
+- Exception hook to catch unhandled exceptions (#98).
 
 ## [0.19.0] - 2023-09-01
 ### Added
