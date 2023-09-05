@@ -14,27 +14,27 @@ from PyQt5 import QtCore, QtWidgets
 from . import __version__
 
 # Source meter units
-from .ui.panels import K237Panel
-from .ui.panels import K2410Panel
-from .ui.panels import K2470Panel
-from .ui.panels import K2657APanel
+from .view.panels import K237Panel
+from .view.panels import K2410Panel
+from .view.panels import K2470Panel
+from .view.panels import K2657APanel
 
 # Electrometers
-from .ui.panels import K6514Panel
-from .ui.panels import K6517BPanel
+from .view.panels import K6514Panel
+from .view.panels import K6517BPanel
 
 # LCR meters
-from .ui.panels import K595Panel
-from .ui.panels import E4980APanel
-from .ui.panels import A4284APanel
+from .view.panels import K595Panel
+from .view.panels import E4980APanel
+from .view.panels import A4284APanel
 
 # DMM
-from .ui.panels import K2700Panel
+from .view.panels import K2700Panel
 
-from .ui.widgets import showException
-from .ui.dialogs import ChangeVoltageDialog
+from .view.widgets import showException
+from .view.dialogs import ChangeVoltageDialog
 
-from .ui.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
+from .view.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
 
 from .measurement import Measurement
 from .measurement.iv import IVMeasurement

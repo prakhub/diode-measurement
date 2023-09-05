@@ -8,7 +8,7 @@ from PyQt5 import QtWidgets
 
 from . import __version__
 from .application import Application
-from .ui.widgets import showException
+from .view.widgets import showException
 
 __all__ = ["main"]
 

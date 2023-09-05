@@ -6,7 +6,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from . import __version__
 from .controller import Controller
-from .ui.mainwindow import MainWindow
+from .view.mainwindow import MainWindow
 from .plugins import PluginRegistry
 from .plugins.tcpserver import TCPServerPlugin
 from .plugins.screenshot import ScreenshotPlugin
