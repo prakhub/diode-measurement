@@ -68,7 +68,7 @@ class K2657A(SourceMeter):
     def measure_v(self) -> float:
         return float(self._print("smua.measure.v()"))
 
-    def measure_iv(self) -> tuple[float, float]:
+    def measure_iv(self) -> Tuple[float, float]:
         i = self.measure_i()  # TODO print(smua.measure.iv())
         v = self.measure_v()
         return i, v

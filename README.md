@@ -2,6 +2,10 @@
 
 IV/CV measurements for silicon sensors.
 
+## Run
+
+On Windows download a pre-built executable from the release section and run it.
+
 ## Install
 
 Install using pip in a virtual environment.
@@ -9,8 +13,6 @@ Install using pip in a virtual environment.
 ```bash
 pip install git+https://github.com/hephy-dd/diode-measurement.git@{version}
 ```
-
-On Windows download a pre-built executable from the release section and run it.
 
 ## Build Executable
 
