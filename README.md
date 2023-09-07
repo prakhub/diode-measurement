@@ -59,6 +59,10 @@ DMM (Temperature)
 
 - Keithley K2700
 
+Switching Matrix
+
+- HEPHY BrandBox (HV Switch)
+
 ## Setup
 
 To interface instruments using a GPIB interface the NI-VISA drivers need to be

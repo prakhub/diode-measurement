@@ -110,3 +110,22 @@ class DMM(Driver):
     @abstractmethod
     def measure_temperature(self) -> float:
         ...
+
+
+class SwitchingMatrix(Driver):
+
+    @abstractmethod
+    def close_channels(self, channels: list) -> None:
+        ...
+
+    @abstractmethod
+    def open_channels(self, channels: list) -> None:
+        ...
+
+    @abstractmethod
+    def open_all_channels(self) -> None:
+        ...
+
+    @abstractmethod
+    def closed_channels(self) -> list:
+        ...

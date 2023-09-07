@@ -40,6 +40,9 @@ class GeneralWidget(QtWidgets.QWidget):
         self.dmmCheckBox = QtWidgets.QCheckBox("DMM")
         self.dmmCheckBox.stateChanged.connect(self.instrumentsChanged)
 
+        self.switchCheckBox = QtWidgets.QCheckBox("Switch")
+        self.switchCheckBox.stateChanged.connect(self.instrumentsChanged)
+
         self.beginVoltageSpinBox = QtWidgets.QDoubleSpinBox()
         self.beginVoltageSpinBox.setDecimals(3)
         self.beginVoltageSpinBox.setRange(-3030.0, +3030.0)
@@ -141,6 +144,7 @@ class GeneralWidget(QtWidgets.QWidget):
         self.instrumentLayout.addWidget(self.elm2CheckBox)
         self.instrumentLayout.addWidget(self.lcrCheckBox)
         self.instrumentLayout.addWidget(self.dmmCheckBox)
+        self.instrumentLayout.addWidget(self.switchCheckBox)
         self.instrumentLayout.addStretch()
         self.instrumentLayout.setContentsMargins(0, 0, 0, 0)
 
@@ -273,6 +277,12 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def setDMMEnabled(self, enabled):
         return self.dmmCheckBox.setChecked(enabled)
+
+    def isSwitchEnabled(self):
+        return self.switchCheckBox.isChecked()
+
+    def setSwitchEnabled(self, enabled):
+        return self.switchCheckBox.setChecked(enabled)
 
     def isOutputEnabled(self):
         return self.outputGroupBox.isChecked()

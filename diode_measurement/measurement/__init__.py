@@ -331,6 +331,9 @@ class RangeMeasurement(Measurement):
             else:
                 self.set_bias_source_voltage(0.0)
 
+        # Switch
+        self.initialize_switch()
+
         # Reset (optional)
         if self.state.is_reset:
             for key, context in self.instruments.items():
@@ -372,6 +375,17 @@ class RangeMeasurement(Measurement):
         # Enable output
         self.set_source_output_state(True)
 
+        self.initialize_elms()
+
+        self.ramp_to_begin()
+
+        # Wait after output enable/ramp
+        waiting_time_settle: float = 1.0
+        logger.debug("apply settle time...")
+        time.sleep(waiting_time_settle)
+        logger.debug("apply settle time... done.")
+
+    def initialize_elms(self) -> None:
         elm = self.instruments.get("elm")
         if elm is not None:
             elm.set_zero_check_enabled(False)
@@ -382,13 +396,11 @@ class RangeMeasurement(Measurement):
             elm2.set_zero_check_enabled(False)
             logger.info("ELM2 zero check: off")
 
-        self.ramp_to_begin()
-
-        # Wait after output enable/ramp
-        waiting_time_settle: float = 1.0
-        logger.debug("apply settle time...")
-        time.sleep(waiting_time_settle)
-        logger.debug("apply settle time... done.")
+    def initialize_switch(self) -> None:
+        switch = self.instruments.get("switch")
+        if switch is not None:
+            switch.open_all_channels()
+            logger.info("Switch: opened ALL channels")
 
     def measure(self) -> None:
         ramp: LinearRange = LinearRange(
@@ -439,50 +451,21 @@ class RangeMeasurement(Measurement):
 
     def finalize(self) -> None:
         try:
-            elm = self.instruments.get("elm")
-            if elm is not None:
-                elm.set_zero_check_enabled(True)
-                logger.info("ELM zero check: on")
-
-            elm2 = self.instruments.get("elm2")
-            if elm2 is not None:
-                elm2.set_zero_check_enabled(True)
-                logger.info("ELM2 zero check: on")
+            self.finalize_elms()
 
             self.ramp_to_zero()
 
             if self.bias_source_instrument:
                 self.ramp_bias_to_zero()
 
-            # HACK: wait until capacitors discared before output disable
-            def read_source_voltage():
-                if hasattr(self.source_instrument, "measure_v"):
-                    return self.source_instrument.measure_v()
-                logger.warning("Source instrument does not provide voltage readings.")
-                return 0.
-
-            threshold: float = 0.5  # Volt
-
-            self.update_message("Waiting for voltage settled...")
-            self.update_progress(0, 0, 0)
-
-            t = time.time()
-
-            while abs(read_source_voltage()) > threshold:
-                time.sleep(1.0)
-
-                dt = time.time() - t
-                if dt > 60.0:
-                    raise RuntimeError(f"Timeout while waiting for voltage to settle < {threshold} V, source output still enabled.")
-
-            self.update_message("")
-
-            # HACK: end
+            self.assure_discharge()
 
             self.set_source_output_state(False)
 
             if self.bias_source_instrument:
                 self.set_bias_source_output_state(False)
+
+            self.finalize_switch()
 
         finally:
             self.update_event({
@@ -497,6 +480,47 @@ class RangeMeasurement(Measurement):
                 "lcr_capacity": None,
                 "dmm_temperature": None
             })
+
+    def finalize_elms(self) -> None:
+        elm = self.instruments.get("elm")
+        if elm is not None:
+            elm.set_zero_check_enabled(True)
+            logger.info("ELM zero check: on")
+
+        elm2 = self.instruments.get("elm2")
+        if elm2 is not None:
+            elm2.set_zero_check_enabled(True)
+            logger.info("ELM2 zero check: on")
+
+    def finalize_switch(self) -> None:
+        switch = self.instruments.get("switch")
+        if switch:
+            switch.open_all_channels()
+            logger.info("Switch: opened ALL channels")
+
+    def assure_discharge(self) -> None:
+        # wait until capacitors discared before output disable
+        def read_source_voltage():
+            if hasattr(self.source_instrument, "measure_v"):
+                return self.source_instrument.measure_v()
+            logger.warning("Source instrument does not provide voltage readings.")
+            return 0.
+
+        threshold: float = 0.5  # Volt
+
+        self.update_message("Waiting for voltage settled...")
+        self.update_progress(0, 0, 0)
+
+        t = time.time()
+
+        while abs(read_source_voltage()) > threshold:
+            time.sleep(1.0)
+
+            dt = time.time() - t
+            if dt > 60.0:
+                raise RuntimeError(f"Timeout while waiting for voltage to settle < {threshold} V, source output still enabled.")
+
+        self.update_message("")
 
     def acquire_reading(self) -> None:
         ...
@@ -582,7 +606,7 @@ class RangeMeasurement(Measurement):
         logging.info("Ramp bias source to %g V... done.", ramp.end)
 
     def ramp_bias_to_zero(self) -> None:
-        bias_source_voltage: float = self.state.bias_source_voltage
+        bias_source_voltage: float = self.get_bias_source_voltage()
         end_voltage: float = 0.0
         step_voltage: float = 5.0
         waiting_time: float = 0.250

@@ -31,6 +31,9 @@ from .view.panels import A4284APanel
 # DMM
 from .view.panels import K2700Panel
 
+# Switches
+from .view.panels import BrandBoxPanel
+
 from .view.widgets import showException
 from .view.dialogs import ChangeVoltageDialog
 
@@ -172,6 +175,10 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("DMM")
         role.addInstrumentPanel(K2700Panel())
 
+        # Switch
+        role = self.view.addRole("Switch")
+        role.addInstrumentPanel(BrandBoxPanel())
+
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
         self.view.startAction.triggered.connect(self.started)
@@ -206,12 +213,14 @@ class Controller(QtCore.QObject):
         self.view.generalWidget.elm2CheckBox.toggled.connect(self.onToggleElm2)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
         self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
+        self.view.generalWidget.switchCheckBox.toggled.connect(self.onToggleSwitch)
 
         self.onToggleSmu2(False)
         self.onToggleElm(False)
         self.onToggleElm2(False)
         self.onToggleLcr(False)
         self.onToggleDmm(False)
+        self.onToggleSwitch(False)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
@@ -314,6 +323,7 @@ class Controller(QtCore.QObject):
         roles.setdefault("elm2", {}).update({"enabled": self.view.generalWidget.isELM2Enabled()})
         roles.setdefault("lcr", {}).update({"enabled": self.view.generalWidget.isLCREnabled()})
         roles.setdefault("dmm", {}).update({"enabled": self.view.generalWidget.isDMMEnabled()})
+        roles.setdefault("switch", {}).update({"enabled": self.view.generalWidget.isSwitchEnabled()})
 
         for key, value in state.items():
             logger.info("> %s: %s", key, value)
@@ -367,6 +377,9 @@ class Controller(QtCore.QObject):
 
         enabled = settings.value("dmm/enabled", False, bool)
         self.view.generalWidget.setDMMEnabled(enabled)
+
+        enabled = settings.value("switch/enabled", False, bool)
+        self.view.generalWidget.setSwitchEnabled(enabled)
 
         enabled = settings.value("outputEnabled", False, bool)
         self.view.generalWidget.setOutputEnabled(enabled)
@@ -457,6 +470,9 @@ class Controller(QtCore.QObject):
 
         enabled = self.view.generalWidget.isDMMEnabled()
         settings.setValue("dmm/enabled", enabled)
+
+        enabled = self.view.generalWidget.isSwitchEnabled()
+        settings.setValue("switch/enabled", enabled)
 
         enabled = self.view.generalWidget.isOutputEnabled()
         settings.setValue("outputEnabled", enabled)
@@ -788,6 +804,9 @@ class Controller(QtCore.QObject):
     def onToggleDmm(self, state: bool) -> None:
         self.view.dmmGroupBox.setEnabled(state)
         self.view.dmmGroupBox.setVisible(state)
+
+    def onToggleSwitch(self, state: bool) -> None:
+        ...
 
     def onOutputEditingFinished(self):
         if not self.view.generalWidget.outputLineEdit.text().strip():
