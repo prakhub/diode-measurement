@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Support for HEPHY BandBox HV Switch (#66).
 - Additional voltage readings for all SMUs (#96).
+- Interlock check for K2470 (#97).
 - Exception hook to catch unhandled exceptions (#98).
 
 ### Changed

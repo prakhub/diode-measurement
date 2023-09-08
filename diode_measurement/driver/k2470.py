@@ -98,6 +98,10 @@ class K2470(SourceMeter):
         value = "ON" if state else "OFF"  # 0 and 1 not supported?
         self._write(f":SYST:BRE:PROT {value}")
 
+    def is_interlock(self) -> bool:
+        """Return status of the interlock."""
+        return bool(int(self._query(":OUTP:INT:TRIP?")))
+
     @handle_exception
     def _write(self, message):
         self.resource.write(message)

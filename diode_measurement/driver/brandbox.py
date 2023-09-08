@@ -39,7 +39,7 @@ class BrandBox(SwitchingMatrix):
 
     def reset(self) -> None:
         self._error_queue.clear()
-        self._write("*RST")
+        ...  # prevent reset
 
     def clear(self) -> None:
         self._error_queue.clear()

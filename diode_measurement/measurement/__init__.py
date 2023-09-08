@@ -41,6 +41,7 @@ class Measurement:
         self.started_event: EventHandler = EventHandler()
         self.finished_event: EventHandler = EventHandler()
         self.failed_event: EventHandler = EventHandler()
+        self.warning_event: EventHandler = EventHandler()
         self.update_event: EventHandler = EventHandler()
 
     def register_instrument(self, name: str) -> None:
@@ -361,6 +362,20 @@ class RangeMeasurement(Measurement):
         self.current_compliance = self.state.current_compliance
         self.set_source_compliance(self.current_compliance)
         self.check_error_state(self.source_instrument)
+
+        # source interlock
+        if self.source_instrument:
+            if hasattr(self.source_instrument, "is_interlock"):
+                if not self.source_instrument.is_interlock():
+                    name = type(self.source_instrument).__name__
+                    raise RuntimeError(f"{name}: not interlocked!")
+
+        # bais source interlock
+        if self.bias_source_instrument:
+            if hasattr(self.bias_source_instrument, "is_interlock"):
+                if not self.bias_source_instrument.is_interlock():
+                    name = type(self.bias_source_instrument).__name__
+                    raise RuntimeError(f"{name}: not interlocked!")
 
         self.bias_current_compliance = self.state.current_compliance
         if self.bias_source_instrument:

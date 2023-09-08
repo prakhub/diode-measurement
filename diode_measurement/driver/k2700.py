@@ -9,7 +9,7 @@ class K2700(DMM):
         return self._query("*IDN?")
 
     def reset(self) -> None:
-        pass  # prevent reset
+        ...  # prevent reset
 
     def clear(self) -> None:
         self._write("*CLS")
