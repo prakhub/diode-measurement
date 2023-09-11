@@ -138,6 +138,14 @@ class RangeMeasurement(Measurement):
         self.it_reading_event: EventHandler = EventHandler()
         self.it_change_voltage_ready_event: EventHandler = EventHandler()
 
+    # Interlock check
+
+    def check_interlock(self, instrument) -> None:
+        if hasattr(instrument, "is_interlock"):
+            if not instrument.is_interlock():
+                name = type(instrument).__name__
+                raise RuntimeError(f"{name}: instrument not interlocked!")
+
     # Source
 
     def get_source_output_state(self) -> bool:
@@ -337,25 +345,25 @@ class RangeMeasurement(Measurement):
 
         # Reset (optional)
         if self.state.is_reset:
-            for key, context in self.instruments.items():
+            for key, instrument in self.instruments.items():
                 logger.info("Reset %s...", key.upper())
-                context.reset()
+                instrument.reset()
                 logger.info("Reset %s... done.", key.upper())
 
         # Clear state
-        for key, context in self.instruments.items():
+        for key, instrument in self.instruments.items():
             logger.info("Clear %s...", key.upper())
-            context.clear()
+            instrument.clear()
             logger.info("Clear %s... done.", key.upper())
 
         # Configure
-        for key, context in self.instruments.items():
+        for key, instrument in self.instruments.items():
             logger.info("Configure %s...", key.upper())
             options = self.state.find_role(key).get("options", {})
             for name, value in options.items():
                 logger.info("%s: %r" , name, value)
-            context.configure(options)
-            self.check_error_state(context)
+            instrument.configure(options)
+            self.check_error_state(instrument)
             logger.info("Configure %s... done.", key.upper())
 
         # Compliance
@@ -363,19 +371,9 @@ class RangeMeasurement(Measurement):
         self.set_source_compliance(self.current_compliance)
         self.check_error_state(self.source_instrument)
 
-        # source interlock
-        if self.source_instrument:
-            if hasattr(self.source_instrument, "is_interlock"):
-                if not self.source_instrument.is_interlock():
-                    name = type(self.source_instrument).__name__
-                    raise RuntimeError(f"{name}: not interlocked!")
-
-        # bais source interlock
-        if self.bias_source_instrument:
-            if hasattr(self.bias_source_instrument, "is_interlock"):
-                if not self.bias_source_instrument.is_interlock():
-                    name = type(self.bias_source_instrument).__name__
-                    raise RuntimeError(f"{name}: not interlocked!")
+        # check interlock (optional)
+        for instrument in self.instruments.values():
+            self.check_interlock(instrument)
 
         self.bias_current_compliance = self.state.current_compliance
         if self.bias_source_instrument:
@@ -394,11 +392,7 @@ class RangeMeasurement(Measurement):
 
         self.ramp_to_begin()
 
-        # Wait after output enable/ramp
-        waiting_time_settle: float = 1.0
-        logger.debug("apply settle time...")
-        time.sleep(waiting_time_settle)
-        logger.debug("apply settle time... done.")
+        self.apply_settle_waiting_time()
 
     def initialize_elms(self) -> None:
         elm = self.instruments.get("elm")
@@ -416,6 +410,13 @@ class RangeMeasurement(Measurement):
         if switch is not None:
             switch.open_all_channels()
             logger.info("Switch: opened ALL channels")
+
+    def apply_settle_waiting_time(self) -> None:
+        """Wait after output enable/ramp"""
+        waiting_time_settle: float = self.state.get("settle_waiting_time", 1.0)
+        logger.debug("apply settle time...")
+        time.sleep(waiting_time_settle)
+        logger.debug("apply settle time... done.")
 
     def measure(self) -> None:
         ramp: LinearRange = LinearRange(
