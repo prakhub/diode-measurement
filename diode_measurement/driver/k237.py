@@ -79,8 +79,8 @@ class K237(SourceMeter):
         self._write(f"B{level:.3E},,X")
 
     def set_voltage_range(self, level: float) -> None:
-        voltage_range = self._voltage_range(level)
-        self._write(f"B,{voltage_range:d},X")
+        index = self._voltage_range(level)
+        self._write(f"B,{index:d},X")
 
     def set_current_compliance_level(self, level: float) -> None:
         self._write(f"L{level:.3E},0X")
