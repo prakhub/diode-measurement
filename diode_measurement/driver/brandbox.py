@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Optional
 
 from .driver import SwitchingMatrix, handle_exception
 
-__all__ = ["K2400"]
+__all__ = ["BrandBox"]
 
 ERROR_MESSAGES: Dict[int, str] = {
     99: "Invalid command"
@@ -45,10 +45,10 @@ class BrandBox(SwitchingMatrix):
         self._error_queue.clear()
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code = 0
         if self._error_queue:
-            code, self._error_queue.pop(0)
+            code = self._error_queue.pop(0)
         return code, ERROR_MESSAGES.get(code, "No Error")
 
     def configure(self, options: dict) -> None:

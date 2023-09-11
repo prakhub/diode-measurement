@@ -72,7 +72,7 @@ class Measurement:
         self._instruments[name] = cls, resource
 
     def check_error_state(self, context) -> None:
-        code, message = context.error_state()
+        code, message = context.next_error()
         if code:
             raise RuntimeError(f"Instrument Error: {code}: {message}")
 

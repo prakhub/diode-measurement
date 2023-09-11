@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .driver import DMM, handle_exception
 
 __all__ = ["K2700"]
@@ -14,7 +16,7 @@ class K2700(DMM):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code, message = self._query(":SYST:ERR?").split(",")
         code = int(code)
         message = message.strip().strip('"')

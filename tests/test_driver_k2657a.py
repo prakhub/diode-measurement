@@ -22,7 +22,7 @@ class TestDriverK2657A:
         assert res.buffer == ["status.reset()", "*OPC?"]
 
         res.buffer = ["0\tno error\t123\t0"]
-        assert d.error_state() == (0, "no error")
+        assert d.next_error() == (0, "no error")
         assert res.buffer == ["print(errorqueue.next())"]
 
         res.buffer = ["1"]

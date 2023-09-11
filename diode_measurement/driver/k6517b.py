@@ -17,7 +17,7 @@ class K6517B(Electrometer):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code, message = self._query(":SYST:ERR?").split(",")
         code = int(code)
         message = message.strip().strip('"')

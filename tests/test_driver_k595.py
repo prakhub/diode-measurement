@@ -22,13 +22,13 @@ class TestDriverK595:
         assert res.buffer == []
 
         res.buffer = ["59500000000000000000000000000"]
-        assert d.error_state() == (0, "No Error")
+        assert d.next_error() == (0, "No Error")
         assert res.buffer == ["U1X"]
 
         res.buffer = ["59510000000000000000000000000"]
-        assert d.error_state() == (100, "IDDC")
+        assert d.next_error() == (100, "IDDC")
         assert res.buffer == ["U1X"]
 
         res.buffer = ["59501000000000000000000000000"]
-        assert d.error_state() == (101, "IDDCO")
+        assert d.next_error() == (101, "IDDCO")
         assert res.buffer == ["U1X"]

@@ -40,7 +40,7 @@ class Driver(ABC):
         ...
 
     @abstractmethod
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         ...
 
     @abstractmethod

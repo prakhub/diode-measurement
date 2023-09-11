@@ -22,7 +22,7 @@ class TestDriverK2470:
         assert res.buffer == ["*CLS", "*OPC?"]
 
         res.buffer = ["0,\"no error;;\""]
-        assert d.error_state() == (0, "no error;;")
+        assert d.next_error() == (0, "no error;;")
         assert res.buffer == [":SYST:ERR?"]
 
         res.buffer = ["1"]

@@ -51,7 +51,7 @@ class K237(SourceMeter):
     def clear(self) -> None:
         self.resource.clear()
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         result = self._query("U1X").strip()[3:]
         for index, value in enumerate(result):
             if value == "1":

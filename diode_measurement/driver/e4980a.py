@@ -17,7 +17,7 @@ class E4980A(LCRMeter):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code, message = self._query(":SYST:ERR?").split(",")
         code = int(code)
         message = message.strip().strip('"')
@@ -80,11 +80,11 @@ class E4980A(LCRMeter):
     def compliance_tripped(self) -> bool:
         return self._query(":SENS:CURR:PROT:TRIP?") == "1"
 
-    def measure_i(self):
-        return 0
+    def measure_i(self) -> float:
+        return 0.0
 
-    def measure_iv(self):
-        return 0, 0
+    def measure_iv(self) -> Tuple[float, float]:
+        return 0.0, 0.0
 
     def measure_impedance(self) -> Tuple[float, float]:
         result = self._fetch().split(",")
