@@ -1,3 +1,6 @@
+import pytest
+
+
 class FakeResource:
 
     def __init__(self):
@@ -12,3 +15,8 @@ class FakeResource:
 
     def clear(self):
         ...
+
+
+@pytest.fixture
+def res():
+    return FakeResource()

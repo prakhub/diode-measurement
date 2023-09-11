@@ -7,7 +7,9 @@ __all__ = ["K2400"]
 
 class K2400(SourceMeter):
 
-    _format_element = None
+    def __init__(self, resource) -> None:
+        super().__init__(resource)
+        self._format_element = None
 
     def identity(self) -> str:
         return self._query("*IDN?")
@@ -19,10 +21,14 @@ class K2400(SourceMeter):
         self._write("*CLS")
 
     def next_error(self) -> Tuple[int, str]:
-        code, message = self._query(":SYST:ERR?").split(",")
-        code = int(code)
-        message = message.strip().strip('"')
-        return code, message
+        result = self._query(":SYST:ERR?")
+        try:
+            code, message = result.split(",")
+            code = int(code)
+            message = message.strip().strip('"')
+            return code, message
+        except Exception as exc:
+            raise RuntimeError(f"Failed to parse error message: {result!r}") from exc
 
     def configure(self, options: dict) -> None:
         beeper_state = options.get("beeper.state", False)
