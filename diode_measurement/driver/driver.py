@@ -40,7 +40,7 @@ class Driver(ABC):
         ...
 
     @abstractmethod
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         ...
 
     @abstractmethod
@@ -79,7 +79,11 @@ class SourceMeter(Driver):
         ...
 
     @abstractmethod
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
+        ...
+
+    @abstractmethod
+    def measure_iv(self) -> Tuple[float, float]:
         ...
 
 
@@ -90,19 +94,38 @@ class Electrometer(SourceMeter):
         ...
 
     @abstractmethod
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         ...
 
 
 class LCRMeter(SourceMeter):
 
     @abstractmethod
-    def read_impedance(self) -> Tuple[float, float]:
+    def measure_impedance(self) -> Tuple[float, float]:
         ...
 
 
 class DMM(Driver):
 
     @abstractmethod
-    def read_temperature(self) -> float:
+    def measure_temperature(self) -> float:
+        ...
+
+
+class SwitchingMatrix(Driver):
+
+    @abstractmethod
+    def close_channels(self, channels: list) -> None:
+        ...
+
+    @abstractmethod
+    def open_channels(self, channels: list) -> None:
+        ...
+
+    @abstractmethod
+    def open_all_channels(self) -> None:
+        ...
+
+    @abstractmethod
+    def closed_channels(self) -> list:
         ...

@@ -17,7 +17,7 @@ class A4284A(LCRMeter):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code, message = self._query(":SYST:ERR?").split(",")
         code = int(code)
         message = message.strip().strip('"')
@@ -78,33 +78,18 @@ class A4284A(LCRMeter):
     def compliance_tripped(self) -> bool:
         raise RuntimeError("current compliance not supported")
 
-    def read_current(self):
-        return 0
+    def measure_i(self) -> float:
+        return 0.0
 
-    def read_impedance(self) -> Tuple[float, float]:
+    def measure_iv(self) -> Tuple[float, float]:
+        return 0.0, 0.0
+
+    def measure_impedance(self) -> Tuple[float, float]:
         result = self._fetch().split(",")
         try:
             return float(result[0]), float(result[1])
         except Exception as exc:
             raise RuntimeError(f"Failed to parse impedance reading: {result!r}") from exc
-
-    def _fetch(self, timeout=10.0, interval=0.250) -> str:
-        # Request operation complete
-        self._write("*CLS")
-        self._write_nowait("*OPC")
-        # Initiate measurement
-        self._write_nowait(":TRIG:IMM")
-        threshold = time.time() + timeout
-        interval = min(timeout, interval)
-        while time.time() < threshold:
-            # Read event status
-            if int(self._query("*ESR?")) & 0x1:
-                try:
-                    return self._query(":FETC?")
-                except Exception as exc:
-                    raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
-            time.sleep(interval)
-        raise RuntimeError(f"LCR reading timeout, exceeded {timeout:G} s")
 
     def set_function_impedance_type(self, impedance_type: str) -> None:
         self._write(f":FUNC:IMP:TYPE {impedance_type}")
@@ -145,3 +130,21 @@ class A4284A(LCRMeter):
     @handle_exception
     def _query(self, message):
         return self.resource.query(message).strip()
+
+    def _fetch(self, timeout=10.0, interval=0.250) -> str:
+        # Request operation complete
+        self._write("*CLS")
+        self._write_nowait("*OPC")
+        # Initiate measurement
+        self._write_nowait(":TRIG:IMM")
+        threshold = time.time() + timeout
+        interval = min(timeout, interval)
+        while time.time() < threshold:
+            # Read event status
+            if int(self._query("*ESR?")) & 0x1:
+                try:
+                    return self._query(":FETC?")
+                except Exception as exc:
+                    raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
+            time.sleep(interval)
+        raise RuntimeError(f"LCR reading timeout, exceeded {timeout:G} s")

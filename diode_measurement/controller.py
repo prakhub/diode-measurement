@@ -14,27 +14,30 @@ from PyQt5 import QtCore, QtWidgets
 from . import __version__
 
 # Source meter units
-from .ui.panels import K237Panel
-from .ui.panels import K2410Panel
-from .ui.panels import K2470Panel
-from .ui.panels import K2657APanel
+from .view.panels import K237Panel
+from .view.panels import K2410Panel
+from .view.panels import K2470Panel
+from .view.panels import K2657APanel
 
 # Electrometers
-from .ui.panels import K6514Panel
-from .ui.panels import K6517BPanel
+from .view.panels import K6514Panel
+from .view.panels import K6517BPanel
 
 # LCR meters
-from .ui.panels import K595Panel
-from .ui.panels import E4980APanel
-from .ui.panels import A4284APanel
+from .view.panels import K595Panel
+from .view.panels import E4980APanel
+from .view.panels import A4284APanel
 
 # DMM
-from .ui.panels import K2700Panel
+from .view.panels import K2700Panel
 
-from .ui.widgets import showException
-from .ui.dialogs import ChangeVoltageDialog
+# Switches
+from .view.panels import BrandBoxPanel
 
-from .ui.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
+from .view.widgets import showException
+from .view.dialogs import ChangeVoltageDialog
+
+from .view.plots import CV2PlotWidget, CVPlotWidget, ItPlotWidget, IVPlotWidget
 
 from .measurement import Measurement
 from .measurement.iv import IVMeasurement
@@ -61,16 +64,6 @@ MEASUREMENTS = {
     "iv_bias": IVBiasMeasurement,
     "cv": CVMeasurement,
 }
-
-
-def handle_exception(method):
-    def handle_exception(self, *args, **kwargs):
-        try:
-            return method(self, *args, **kwargs)
-        except Exception as exc:
-            logger.exception(exc)
-            self.handleException(exc)
-    return handle_exception
 
 
 class MeasurementRunner:
@@ -182,6 +175,10 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("DMM")
         role.addInstrumentPanel(K2700Panel())
 
+        # Switch
+        role = self.view.addRole("Switch")
+        role.addInstrumentPanel(BrandBoxPanel())
+
         self.view.importAction.triggered.connect(lambda: self.onImportFile())
 
         self.view.startAction.triggered.connect(self.started)
@@ -216,12 +213,14 @@ class Controller(QtCore.QObject):
         self.view.generalWidget.elm2CheckBox.toggled.connect(self.onToggleElm2)
         self.view.generalWidget.lcrCheckBox.toggled.connect(self.onToggleLcr)
         self.view.generalWidget.dmmCheckBox.toggled.connect(self.onToggleDmm)
+        self.view.generalWidget.switchCheckBox.toggled.connect(self.onToggleSwitch)
 
         self.onToggleSmu2(False)
         self.onToggleElm(False)
         self.onToggleElm2(False)
         self.onToggleLcr(False)
         self.onToggleDmm(False)
+        self.onToggleSwitch(False)
 
         self.view.messageLabel.hide()
         self.view.progressBar.hide()
@@ -263,7 +262,9 @@ class Controller(QtCore.QObject):
             snapshot["measurement_type"] = self.cache.get("measurement_type")
             snapshot["sample"] = self.cache.get("sample")
             snapshot["source_voltage"] = self.cache.get("source_voltage")
+            snapshot["smu_voltage"] = self.cache.get("smu_voltage")
             snapshot["smu_current"] = self.cache.get("smu_current")
+            snapshot["smu2_voltage"] = self.cache.get("smu2_voltage")
             snapshot["smu2_current"] = self.cache.get("smu2_current")
             snapshot["elm_current"] = self.cache.get("elm_current")
             snapshot["elm2_current"] = self.cache.get("elm2_current")
@@ -322,6 +323,7 @@ class Controller(QtCore.QObject):
         roles.setdefault("elm2", {}).update({"enabled": self.view.generalWidget.isELM2Enabled()})
         roles.setdefault("lcr", {}).update({"enabled": self.view.generalWidget.isLCREnabled()})
         roles.setdefault("dmm", {}).update({"enabled": self.view.generalWidget.isDMMEnabled()})
+        roles.setdefault("switch", {}).update({"enabled": self.view.generalWidget.isSwitchEnabled()})
 
         for key, value in state.items():
             logger.info("> %s: %s", key, value)
@@ -332,7 +334,6 @@ class Controller(QtCore.QObject):
         self.stateMachine.stop()
         self.abortRequested.set()
 
-    @handle_exception
     def loadSettings(self):
         settings = QtCore.QSettings()
 
@@ -376,6 +377,9 @@ class Controller(QtCore.QObject):
 
         enabled = settings.value("dmm/enabled", False, bool)
         self.view.generalWidget.setDMMEnabled(enabled)
+
+        enabled = settings.value("switch/enabled", False, bool)
+        self.view.generalWidget.setSwitchEnabled(enabled)
 
         enabled = settings.value("outputEnabled", False, bool)
         self.view.generalWidget.setOutputEnabled(enabled)
@@ -429,7 +433,6 @@ class Controller(QtCore.QObject):
 
         self.onInstrumentsChanged()
 
-    @handle_exception
     def storeSettings(self):
         settings = QtCore.QSettings()
 
@@ -467,6 +470,9 @@ class Controller(QtCore.QObject):
 
         enabled = self.view.generalWidget.isDMMEnabled()
         settings.setValue("dmm/enabled", enabled)
+
+        enabled = self.view.generalWidget.isSwitchEnabled()
+        settings.setValue("switch/enabled", enabled)
 
         enabled = self.view.generalWidget.isOutputEnabled()
         settings.setValue("outputEnabled", enabled)
@@ -518,7 +524,6 @@ class Controller(QtCore.QObject):
 
         settings.endGroup()
 
-    @handle_exception
     def onImportFile(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.view,
@@ -614,9 +619,15 @@ class Controller(QtCore.QObject):
         if "bias_source_voltage" in data:
             self.view.updateBiasSourceVoltage(data.get("bias_source_voltage"))
             cache.update({"bias_source_voltage": data.get("bias_source_voltage")})
+        if "smu_voltage" in data:
+            self.view.updateSMUVoltage(data.get("smu_voltage"))
+            cache.update({"smu_voltage": data.get("smu_voltage")})
         if "smu_current" in data:
             self.view.updateSMUCurrent(data.get("smu_current"))
             cache.update({"smu_current": data.get("smu_current")})
+        if "smu2_voltage" in data:
+            self.view.updateSMU2Voltage(data.get("smu2_voltage"))
+            cache.update({"smu2_voltage": data.get("smu2_voltage")})
         if "smu2_current" in data:
             self.view.updateSMU2Current(data.get("smu2_current"))
             cache.update({"smu2_current": data.get("smu2_current")})
@@ -793,6 +804,9 @@ class Controller(QtCore.QObject):
     def onToggleDmm(self, state: bool) -> None:
         self.view.dmmGroupBox.setEnabled(state)
         self.view.dmmGroupBox.setVisible(state)
+
+    def onToggleSwitch(self, state: bool) -> None:
+        ...
 
     def onOutputEditingFinished(self):
         if not self.view.generalWidget.outputLineEdit.text().strip():

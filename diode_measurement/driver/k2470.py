@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .driver import SourceMeter, handle_exception
 
 __all__ = ["K2470"]
@@ -14,7 +16,7 @@ class K2470(SourceMeter):
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code, message = self._query(":SYST:ERR?").split(",")
         code = int(code)
         message = message.strip().strip('"')
@@ -63,11 +65,16 @@ class K2470(SourceMeter):
     def compliance_tripped(self) -> bool:
         return self._query(":SOUR:VOLT:ILIM:LEV:TRIP?") == "1"
 
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         return float(self._query(":MEAS:CURR?"))
 
-    def read_voltage(self) -> float:
+    def measure_v(self) -> float:
         return float(self._query(":MEAS:VOLT?"))
+
+    def measure_iv(self) -> Tuple[float, float]:
+        i = self.measure_i()  # no concurrent measurements possible?
+        v = self.measure_v()
+        return i, v
 
     def set_route_terminals(self, terminal: str) -> None:
         self._write(f":ROUT:TERM {terminal}")
@@ -90,6 +97,10 @@ class K2470(SourceMeter):
     def set_system_breakdown_protection(self, state: bool) -> None:
         value = "ON" if state else "OFF"  # 0 and 1 not supported?
         self._write(f":SYST:BRE:PROT {value}")
+
+    def is_interlock(self) -> bool:
+        """Return status of the interlock."""
+        return bool(int(self._query(":OUTP:INT:TRIP?")))
 
     @handle_exception
     def _write(self, message):

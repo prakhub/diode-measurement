@@ -93,12 +93,12 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self) -> None:
         self.data = self.request.recv(self.buffer_size).strip().decode("utf-8")
-        logger.info("%s wrote: %s", self.client_address[0], self.data)
+        logger.info("TCP %s wrote: %s", self.client_address[0], self.data)
         self.server.messageReady.emit(format(self.data))
         response = self.server.rpcHandler.handle(self.data)
         if response:
             data = response.json.encode("utf-8")
-            logger.info("%s returned: %s", self.client_address[0], response.json)
+            logger.info("TCP %s returned: %s", self.client_address[0], response.json)
             self.server.messageReady.emit(format(response.json))
             self.request.sendall(data)
 

@@ -30,7 +30,7 @@ class K595(LCRMeter):
     def clear(self) -> None:
         self.resource.clear()
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         result = self._query("U1X")[3:]
         for index, value in enumerate(result):
             if value == "1":
@@ -66,12 +66,15 @@ class K595(LCRMeter):
         self._write("G1X")
         return self._query("X")[0] == "O"
 
-    def read_current(self) -> float:
+    def measure_i(self) -> float:
         self._write("F1X")
         self._write("G1X")
         return float(self._query("X").split(",")[0])
 
-    def read_impedance(self) -> Tuple[float, float]:
+    def measure_iv(self) -> Tuple[float, float]:
+        return self.measure_i(), float("nan")  # TODO
+
+    def measure_impedance(self) -> Tuple[float, float]:
         self._write("F0X")
         self._write("G1X")
         return float(self._query("X").split(",")[0]), math.nan

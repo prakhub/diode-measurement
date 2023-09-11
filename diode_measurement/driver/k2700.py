@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .driver import DMM, handle_exception
 
 __all__ = ["K2700"]
@@ -9,12 +11,12 @@ class K2700(DMM):
         return self._query("*IDN?")
 
     def reset(self) -> None:
-        pass  # prevent reset
+        ...  # prevent reset
 
     def clear(self) -> None:
         self._write("*CLS")
 
-    def error_state(self) -> tuple:
+    def next_error(self) -> Tuple[int, str]:
         code, message = self._query(":SYST:ERR?").split(",")
         code = int(code)
         message = message.strip().strip('"')
@@ -23,7 +25,7 @@ class K2700(DMM):
     def configure(self, options: dict) -> None:
         ...
 
-    def read_temperature(self) -> float:
+    def measure_temperature(self) -> float:
         self._write(":FORM:ELEM READ")  # select reading as return value
         return float(self._query(":FETC?"))
 

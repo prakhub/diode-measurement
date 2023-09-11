@@ -16,6 +16,7 @@ __all__ = [
     "K6517BPanel",
     "A4284APanel",
     "E4980APanel",
+    "BrandBoxPanel",
 ]
 
 ConfigType = Dict[str, Any]
@@ -1063,3 +1064,87 @@ class E4980APanel(InstrumentPanel):
         self.lengthComboBox.setEnabled(not state)
         self.openEnabledCheckBox.setEnabled(not state)
         self.shortEnabledCheckBox.setEnabled(not state)
+
+
+class BrandBoxPanel(InstrumentPanel):
+
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
+        super().__init__("BrandBox", parent)
+
+        # Channels
+
+        self.a1CheckBox = QtWidgets.QCheckBox("A1")
+        self.a2CheckBox = QtWidgets.QCheckBox("A2")
+        self.b1CheckBox = QtWidgets.QCheckBox("B1")
+        self.b2CheckBox = QtWidgets.QCheckBox("B2")
+        self.c1CheckBox = QtWidgets.QCheckBox("C1")
+        self.c2CheckBox = QtWidgets.QCheckBox("C2")
+
+        self.channelsGroupBox = QtWidgets.QGroupBox("Channels")
+
+        channelsLayout = QtWidgets.QGridLayout(self.channelsGroupBox)
+        channelsLayout.addWidget(self.a1CheckBox, 0, 0)
+        channelsLayout.addWidget(self.a2CheckBox, 1, 0)
+        channelsLayout.addWidget(self.b1CheckBox, 0, 1)
+        channelsLayout.addWidget(self.b2CheckBox, 1, 1)
+        channelsLayout.addWidget(self.c1CheckBox, 0, 2)
+        channelsLayout.addWidget(self.c2CheckBox, 1, 2)
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.channelsGroupBox)
+        leftLayout.addStretch()
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(leftLayout)
+        layout.addStretch()
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+        # Parameters
+
+        self.bindParameter("channels", MethodParameter(self.closedChannels, self.setClosedChannels))
+
+        self.restoreDefaults()
+
+    def closedChannels(self) -> list:
+        channels = []
+        if self.a1CheckBox.isChecked():
+            channels.append("A1")
+        if self.a2CheckBox.isChecked():
+            channels.append("A2")
+        if self.b1CheckBox.isChecked():
+            channels.append("B1")
+        if self.b2CheckBox.isChecked():
+            channels.append("B2")
+        if self.c1CheckBox.isChecked():
+            channels.append("C1")
+        if self.c2CheckBox.isChecked():
+            channels.append("C2")
+        return channels
+
+    def setClosedChannels(self, channels: list) -> None:
+        self.a1CheckBox.setChecked("A1" in channels)
+        self.a2CheckBox.setChecked("A2" in channels)
+        self.b1CheckBox.setChecked("B1" in channels)
+        self.b2CheckBox.setChecked("B2" in channels)
+        self.c1CheckBox.setChecked("C1" in channels)
+        self.c2CheckBox.setChecked("C2" in channels)
+
+    def restoreDefaults(self) -> None:
+        self.a1CheckBox.setChecked(False)
+        self.a2CheckBox.setChecked(False)
+        self.b1CheckBox.setChecked(False)
+        self.b2CheckBox.setChecked(False)
+        self.c1CheckBox.setChecked(False)
+        self.c2CheckBox.setChecked(False)
+
+    def setLocked(self, state: bool) -> None:
+        self.a1CheckBox.setEnabled(not state)
+        self.a2CheckBox.setEnabled(not state)
+        self.b1CheckBox.setEnabled(not state)
+        self.b2CheckBox.setEnabled(not state)
+        self.c1CheckBox.setEnabled(not state)
+        self.c2CheckBox.setEnabled(not state)
