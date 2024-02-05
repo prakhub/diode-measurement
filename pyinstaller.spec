@@ -25,7 +25,7 @@ create_versionfile(
     company_name="HEPHY",
     file_description="IV/CV measurements for silicon sensors",
     internal_name="Diode Measurement",
-    legal_copyright="Copyright 2021-2023 HEPHY. All rights reserved.",
+    legal_copyright="Copyright 2021-2024 HEPHY. All rights reserved.",
     original_filename=filename,
     product_name="Diode Measurement"
 )
