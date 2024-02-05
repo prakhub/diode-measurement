@@ -548,13 +548,15 @@ class RangeMeasurement(Measurement):
         ...
 
     def ramp_to_begin(self) -> None:
-        # Set voltage range to end voltage
-        self.set_source_voltage_range(self.state.voltage_end)
-
         source_voltage: float = self.state.source_voltage
         voltage_begin: float = self.state.voltage_begin
+        voltage_end: float = self.state.voltage_end
         voltage_step: float = 5.0
         waiting_time: float = 0.250
+
+        # Set voltage range according to highest voltage in ramp.
+        # Including reverse ramps, eg. -100V...+10V -> range is 100V
+        self.set_source_voltage_range(max(abs(voltage_begin), abs(voltage_end)))
 
         ramp: LinearRange = LinearRange(source_voltage, voltage_begin, voltage_step)
         estimate: Estimate = Estimate(len(ramp))
