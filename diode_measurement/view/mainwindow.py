@@ -7,6 +7,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from ..utils import format_metric, format_switch
 from .general import GeneralWidget
 from .logwindow import LogWidget
+from .preferences import PreferencesDialog
 from .role import RoleWidget
 
 __all__ = ["MainWindow"]
@@ -40,6 +41,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.quitAction.setStatusTip("Quit the application")
         self.quitAction.triggered.connect(self.close)
 
+        self.preferencesAction = QtWidgets.QAction("&Preferences...")
+        self.preferencesAction.setStatusTip("Show preferences dialog")
+        self.preferencesAction.triggered.connect(self.showPreferences)
+
         self.startAction = QtWidgets.QAction("&Start")
         self.startAction.setStatusTip("Start a new measurement")
 
@@ -72,6 +77,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fileMenu.addAction(self.importAction)
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.quitAction)
+
+        self.editMenu = self.menuBar().addMenu("&Edit")
+        self.editMenu.addAction(self.preferencesAction)
 
         self.viewMenu = self.menuBar().addMenu("&View")
 
@@ -394,6 +402,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setIdleState(self) -> None:
         self.importAction.setEnabled(True)
+        self.preferencesAction.setEnabled(True)
         self.startAction.setEnabled(True)
         self.stopAction.setEnabled(False)
         self.continuousAction.setEnabled(True)
@@ -417,6 +426,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def setRunningState(self) -> None:
         self.setProperty("locked", True)
         self.importAction.setEnabled(False)
+        self.preferencesAction.setEnabled(False)
         self.startAction.setEnabled(False)
         self.stopAction.setEnabled(True)
         self.continuousAction.setEnabled(False)
@@ -559,6 +569,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateDMMTemperature(self, temperature: float) -> None:
         self.dmmTemperatureLineEdit.setText(format_metric(temperature, "°C"))
+
+    def showPreferences(self) -> None:
+        dialog = PreferencesDialog(self)
+        dialog.readSettings()
+        if dialog.exec() == dialog.Accepted:
+            dialog.writeSettings()
 
     def showContents(self) -> None:
         webbrowser.open(self.property("contentsUrl"))

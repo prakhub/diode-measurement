@@ -16,12 +16,31 @@ def safe_format(value: Any, format_spec: str = None) -> str:
 
 class Writer:
 
-    delimiter = "\t"
+    delimiter: str = "\t"
 
     def __init__(self, fp) -> None:
         self._fp = fp
         self._writer = csv.writer(fp, delimiter=type(self).delimiter)
         self._current_table: Optional[str] = None
+        self._timestamp_offset: float = 0.
+        self.relative_timestamp: bool = False
+        self.timestamp_format: str = ".6f"
+        self.value_format: str = "+.3E"
+
+    def get_timestamp(self, data: dict) -> Optional[float]:
+        """Return absolute or relative timestamp based on configuration."""
+        timestamp = data.get("timestamp")
+        if timestamp is not None:
+            if self.relative_timestamp:
+                timestamp -= self._timestamp_offset
+        return timestamp
+
+    def reset_timestamp_offset(self, data: dict) -> None:
+        """Reset timestamp offset for relative timestamps."""
+        if self.relative_timestamp:
+            self._timestamp_offset = data.get("timestamp", 0.)
+        else:
+            self._timestamp_offset = 0.
 
     def flush(self) -> None:
         self._fp.flush()
@@ -43,12 +62,12 @@ class Writer:
         self.write_tag("sample", data.get("sample"))
         self.write_tag("measurement_type", data.get("measurement_type"))
         if "bias_voltage" in data:
-            self.write_tag("bias_voltage[V]", safe_format(data.get("bias_voltage"), "+.3E"))
-        self.write_tag("voltage_begin[V]", safe_format(data.get("voltage_begin"), "+.3E"))
-        self.write_tag("voltage_end[V]", safe_format(data.get("voltage_end"), "+.3E"))
-        self.write_tag("voltage_step[V]", safe_format(data.get("voltage_step"), "+.3E"))
-        self.write_tag("waiting_time[s]", safe_format(data.get("waiting_time"), "+.3E"))
-        self.write_tag("current_compliance[A]", safe_format(data.get("current_compliance"), "+.3E"))
+            self.write_tag("bias_voltage[V]", safe_format(data.get("bias_voltage"), self.value_format))
+        self.write_tag("voltage_begin[V]", safe_format(data.get("voltage_begin"), self.value_format))
+        self.write_tag("voltage_end[V]", safe_format(data.get("voltage_end"), self.value_format))
+        self.write_tag("voltage_step[V]", safe_format(data.get("voltage_step"), self.value_format))
+        self.write_tag("waiting_time[s]", safe_format(data.get("waiting_time"), self.value_format))
+        self.write_tag("current_compliance[A]", safe_format(data.get("current_compliance"), self.value_format))
         self.write_meta_lcr(data)
         self.flush()
 
@@ -59,11 +78,11 @@ class Writer:
             # lcr.options.voltage
             voltage = lcr_options.get("voltage")
             if voltage is not None:
-                self.write_tag("lcr_ac_amplitude[V]", safe_format(voltage, "+.3E"))
+                self.write_tag("lcr_ac_amplitude[V]", safe_format(voltage, self.value_format))
             # lcr.options.frequency
             frequency = lcr_options.get("frequency")
             if frequency is not None:
-                self.write_tag("lcr_ac_frequency[Hz]", safe_format(frequency, "+.3E"))
+                self.write_tag("lcr_ac_frequency[Hz]", safe_format(frequency, self.value_format))
 
     def write_iv_row(self, data: dict) -> None:
         if self._current_table != "iv":
@@ -77,14 +96,15 @@ class Writer:
                 "i_elm2[A]",
                 "temperature[degC]",
             ])
+            self.reset_timestamp_offset(data)
         self.write_table_row([
-            safe_format(data.get("timestamp"), ".6f"),
-            safe_format(data.get("voltage"), "+.3E"),
-            safe_format(data.get("v_smu"), "+.3E"),
-            safe_format(data.get("i_smu"), "+.3E"),
-            safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("i_elm2"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E"),
+            safe_format(self.get_timestamp(data), self.timestamp_format),
+            safe_format(data.get("voltage"), self.value_format),
+            safe_format(data.get("v_smu"), self.value_format),
+            safe_format(data.get("i_smu"), self.value_format),
+            safe_format(data.get("i_elm"), self.value_format),
+            safe_format(data.get("i_elm2"), self.value_format),
+            safe_format(data.get("t_dmm"), self.value_format),
         ])
         self.flush()
 
@@ -102,16 +122,17 @@ class Writer:
                 "i_elm2[A]",
                 "temperature[degC]",
             ])
+            self.reset_timestamp_offset(data)
         self.write_table_row([
-            safe_format(data.get("timestamp"), ".6f"),
-            safe_format(data.get("voltage"), "+.3E"),
-            safe_format(data.get("v_smu"), "+.3E"),
-            safe_format(data.get("i_smu"), "+.3E"),
-            safe_format(data.get("v_smu2"), "+.3E"),
-            safe_format(data.get("i_smu2"), "+.3E"),
-            safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("i_elm2"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E"),
+            safe_format(self.get_timestamp(data), self.timestamp_format),
+            safe_format(data.get("voltage"), self.value_format),
+            safe_format(data.get("v_smu"), self.value_format),
+            safe_format(data.get("i_smu"), self.value_format),
+            safe_format(data.get("v_smu2"), self.value_format),
+            safe_format(data.get("i_smu2"), self.value_format),
+            safe_format(data.get("i_elm"), self.value_format),
+            safe_format(data.get("i_elm2"), self.value_format),
+            safe_format(data.get("t_dmm"), self.value_format),
         ])
         self.flush()
 
@@ -127,14 +148,15 @@ class Writer:
                 "i_elm2[A]",
                 "temperature[degC]",
             ])
+            self.reset_timestamp_offset(data)
         self.write_table_row([
-            safe_format(data.get("timestamp"), ".6f"),
-            safe_format(data.get("voltage"), "+.3E"),
-            safe_format(data.get("v_smu"), "+.3E"),
-            safe_format(data.get("i_smu"), "+.3E"),
-            safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("i_elm2"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E"),
+            safe_format(self.get_timestamp(data), self.timestamp_format),
+            safe_format(data.get("voltage"), self.value_format),
+            safe_format(data.get("v_smu"), self.value_format),
+            safe_format(data.get("i_smu"), self.value_format),
+            safe_format(data.get("i_elm"), self.value_format),
+            safe_format(data.get("i_elm2"), self.value_format),
+            safe_format(data.get("t_dmm"), self.value_format),
         ])
         self.flush()
 
@@ -152,16 +174,17 @@ class Writer:
                 "i_elm2[A]",
                 "temperature[degC]"
             ])
+            self.reset_timestamp_offset(data)
         self.write_table_row([
-            safe_format(data.get("timestamp"), ".6f"),
-            safe_format(data.get("voltage"), "+.3E"),
-            safe_format(data.get("v_smu"), "+.3E"),
-            safe_format(data.get("i_smu"), "+.3E"),
-            safe_format(data.get("v_smu2"), "+.3E"),
-            safe_format(data.get("i_smu2"), "+.3E"),
-            safe_format(data.get("i_elm"), "+.3E"),
-            safe_format(data.get("i_elm2"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E"),
+            safe_format(self.get_timestamp(data), self.timestamp_format),
+            safe_format(data.get("voltage"), self.value_format),
+            safe_format(data.get("v_smu"), self.value_format),
+            safe_format(data.get("i_smu"), self.value_format),
+            safe_format(data.get("v_smu2"), self.value_format),
+            safe_format(data.get("i_smu2"), self.value_format),
+            safe_format(data.get("i_elm"), self.value_format),
+            safe_format(data.get("i_elm2"), self.value_format),
+            safe_format(data.get("t_dmm"), self.value_format),
         ])
         self.flush()
 
@@ -178,14 +201,15 @@ class Writer:
                 "r_lcr[Ohm]",
                 "temperature[degC]"
             ])
+            self.reset_timestamp_offset(data)
         self.write_table_row([
-            safe_format(data.get("timestamp"), ".6f"),
-            safe_format(data.get("voltage"), "+.3E"),
-            safe_format(data.get("v_smu"), "+.3E"),
-            safe_format(data.get("i_smu"), "+.3E"),
-            safe_format(data.get("c_lcr"), "+.3E"),
-            safe_format(data.get("c2_lcr"), "+.3E"),
-            safe_format(data.get("r_lcr"), "+.3E"),
-            safe_format(data.get("t_dmm"), "+.3E")
+            safe_format(self.get_timestamp(data), self.timestamp_format),
+            safe_format(data.get("voltage"), self.value_format),
+            safe_format(data.get("v_smu"), self.value_format),
+            safe_format(data.get("i_smu"), self.value_format),
+            safe_format(data.get("c_lcr"), self.value_format),
+            safe_format(data.get("c2_lcr"), self.value_format),
+            safe_format(data.get("r_lcr"), self.value_format),
+            safe_format(data.get("t_dmm"), self.value_format)
         ])
         self.flush()
