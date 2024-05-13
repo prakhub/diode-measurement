@@ -67,9 +67,29 @@ MEASUREMENTS = {
 
 
 class MeasurementRunner:
+    """Measurement runner.
 
-    def __init__(self, measurement: Measurement) -> None:
+    Accepted options:
+     - `timestamp_format` set timestamp format of file writer.
+     - `value_format` set value format of file writer.
+    """
+
+    def __init__(self, measurement: Measurement, options: dict = None) -> None:
         self.measurement = measurement
+        self.options: dict = {}
+        if options is not None:
+            self.options.update(options)
+
+    def create_writer(self, fp) -> Writer:
+        writer: Writer = Writer(fp)
+        # Configure writer
+        timestamp_format = self.options.get("timestamp_format")
+        if timestamp_format:
+            writer.timestamp_format = timestamp_format
+        value_format = self.options.get("value_format")
+        if value_format:
+            writer.value_format = value_format
+        return writer
 
     def __call__(self) -> None:
         measurement = self.measurement
@@ -84,7 +104,7 @@ class MeasurementRunner:
                     os.makedirs(path)
 
                 fp = stack.enter_context(open(filename, "w", newline=""))
-                writer = Writer(fp)
+                writer = self.create_writer(fp)
                 # TODO
                 # Note: using signals executes slots in main thread, should be worker thread
                 measurement.started_event.subscribe(lambda state=dict(measurement.state): writer.write_meta(state))
@@ -924,8 +944,19 @@ class Controller(QtCore.QObject):
             # Create and run measurement
             measurement = self.createMeasurement()
 
+            options = {}
+
+            settings = QtCore.QSettings()
+            timestampFormat = settings.value("writer/timestampFormat", ".6f", str)
+            valueFormat = settings.value("writer/valueFormat", "+.3E", str)
+
+            options.update({
+                "timestamp_format": timestampFormat,
+                "value_format": valueFormat,
+            })
+
             self.abortRequested = threading.Event()
-            self.measurementThread = threading.Thread(target=self.runMeasurement, args=[measurement])
+            self.measurementThread = threading.Thread(target=self.runMeasurement, args=[measurement, options])
             self.measurementThread.start()
 
         except Exception as exc:
@@ -934,9 +965,9 @@ class Controller(QtCore.QObject):
             self.aborted.emit()
             self.finished.emit()
 
-    def runMeasurement(self, measurement):
+    def runMeasurement(self, measurement, options):
         try:
-            MeasurementRunner(measurement)()
+            MeasurementRunner(measurement, options)()
         except Exception as exc:
             logger.exception(exc)
             self.failed.emit(exc)
