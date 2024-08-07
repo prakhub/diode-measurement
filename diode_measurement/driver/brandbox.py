@@ -43,7 +43,7 @@ class BrandBox(SwitchingMatrix):
 
     def clear(self) -> None:
         self._error_queue.clear()
-        self._write("*CLS")
+        self._write("*CLS")  # NOTE: closes IV-Mode channels!
 
     def next_error(self) -> Tuple[int, str]:
         code = 0
@@ -52,6 +52,7 @@ class BrandBox(SwitchingMatrix):
         return code, ERROR_MESSAGES.get(code, "No Error")
 
     def configure(self, options: dict) -> None:
+        self.open_all_channels()
         channels = options.get("channels", [])
         self.close_channels(channels)
 
