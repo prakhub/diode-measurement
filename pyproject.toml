@@ -1,3 +1,41 @@
+[project]
+name = "diode-measurement"
+description = "IV/CV measurements for silicon sensors."
+readme = "README.md"
+authors = [{name = "Bernhard Arnold", email = "bernhard.arnold@oeaw.ac.at"}]
+license = {text = "GPLv3"}
+classifiers = [
+    "Framework :: PyQt5",
+    "Programming Language :: Python :: 3"
+]
+requires-python = ">=3.8"
+dependencies = [
+    "PyQt5==5.15.*",
+    "PyQtChart==5.15.*",
+    "PyVISA==1.11.*",
+    "PyVISA-py==0.5.*",
+    "pint==0.19.*",
+    "json-rpc==1.13.*"
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/hephy-dd/diode-measurement/"
+Source = "https://github.com/hephy-dd/diode-measurement/"
+
+[project.scripts]
+diode-measurement = "diode_measurement.__main__:main"
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["diode_measurement"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "diode_measurement.__version__"}
+
+[tool.setuptools.package-data]
+"diode_measurement.assets.icons" = ["*.svg", "*.ico"]

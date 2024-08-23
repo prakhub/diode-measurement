@@ -87,7 +87,7 @@ class AutoReconnectResource(Resource):
                     logger.info("auto reconnect to resource (%d/%d): %s", attempt, self.retry_attempts, repr(self.resource_name))
                     try:
                         self.__exit__()
-                    except:
+                    except Exception:
                         ...
                     time.sleep(self.retry_delay)
                     self.__enter__()
