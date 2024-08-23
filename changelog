@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Using ruff for linting.
+- Using tox for tests in github workflows.
+
+### Removed
+- Obsolete setup.cfg
+
 ## [0.21.1] - 2024-05-13
 ### Fixed
 - Configuration of BrandBox HV switch (#104).
