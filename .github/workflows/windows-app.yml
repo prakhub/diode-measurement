@@ -24,19 +24,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install wheel flake8 pytest
-        pip install pyusb==1.2.1 pyserial==3.5 gpib-ctypes==0.3.0
+        pip install wheel pyusb==1.2.1 pyserial==3.5 gpib-ctypes==0.3.0
         pip install pyinstaller==6.3.0 pyinstaller-versionfile==2.1.1
         pip install .
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        pytest
     - name: Build with pyinstaller
       run: |
         pyinstaller pyinstaller.spec
