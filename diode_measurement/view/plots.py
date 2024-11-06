@@ -254,8 +254,8 @@ class IVPlotWidget(PlotWidget):
         else:
             minimum = 0
             maximum = 200e-9
-        # HACK limit axis range to 1 pA minimum
-        minimum, maximum = limitRange(minimum, maximum, 2e-12)
+        # HACK limit axis range to 1 fA minimum
+        minimum, maximum = limitRange(minimum, maximum, 2e-15)
         self.iAxis.setRange(minimum, maximum)
         self.iAxis.applyNiceNumbers()
 
@@ -361,8 +361,8 @@ class ItPlotWidget(PlotWidget):
         else:
             minimum = 0
             maximum = 200e-9
-        # HACK limit axis range to 1 pA minimum
-        minimum, maximum = limitRange(minimum, maximum, 2e-12)
+        # HACK limit axis range to 1 fA minimum
+        minimum, maximum = limitRange(minimum, maximum, 2e-15)
         self.iAxis.setRange(minimum, maximum)
         self.iAxis.applyNiceNumbers()
 
@@ -430,8 +430,8 @@ class CVPlotWidget(PlotWidget):
         self.vAxis.setReverse(minimum > maximum)
         minimum, maximum = sorted((minimum, maximum))
         self.vAxis.setRange(minimum, maximum)
-        # HACK limit axis range to 1 pF minimum
-        minimum, maximum = limitRange(self.cLimits.minimum(), self.cLimits.maximum(), 2e-12)
+        # HACK limit axis range to 1 fF minimum
+        minimum, maximum = limitRange(self.cLimits.minimum(), self.cLimits.maximum(), 2e-15)
         self.cAxis.setRange(minimum, maximum)
         self.cAxis.applyNiceNumbers()
 
