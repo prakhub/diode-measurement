@@ -104,6 +104,10 @@ class LCRMeter(SourceMeter):
     def measure_impedance(self) -> Tuple[float, float]:
         ...
 
+    @abstractmethod
+    def finalize(self) -> None:
+        ...
+
 
 class DMM(Driver):
 

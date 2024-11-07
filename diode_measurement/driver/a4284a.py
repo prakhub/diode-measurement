@@ -148,3 +148,6 @@ class A4284A(LCRMeter):
                     raise RuntimeError(f"Failed to fetch LCR reading: {exc}") from exc
             time.sleep(interval)
         raise RuntimeError(f"LCR reading timeout, exceeded {timeout:G} s")
+
+    def finalize(self):
+        pass
