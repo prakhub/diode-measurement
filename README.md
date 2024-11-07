@@ -54,6 +54,7 @@ LCR Meter
 - Keithley K595
 - Keysight E4980A
 - Agilent 4284A
+- Keithley 4215-CVU
 
 DMM (Temperature)
 

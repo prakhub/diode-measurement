@@ -16,6 +16,7 @@ __all__ = [
     "K6517BPanel",
     "A4284APanel",
     "E4980APanel",
+    "K4215Panel",
     "BrandBoxPanel",
 ]
 
@@ -88,11 +89,9 @@ class InstrumentPanel(QtWidgets.QWidget):
     def setModel(self, model: str) -> None:
         self.setProperty("model", model)
 
-    def restoreDefaults(self) -> None:
-        ...
+    def restoreDefaults(self) -> None: ...
 
-    def setLocked(self, state: bool) -> None:
-        ...
+    def setLocked(self, state: bool) -> None: ...
 
     def bindParameter(self, key: str, parameter: Any) -> None:
         if key in self._parameters:
@@ -250,7 +249,9 @@ class K2410Panel(InstrumentPanel):
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
-        self.bindParameter("route.terminals", WidgetParameter(self.routeTerminalsComboBox))
+        self.bindParameter(
+            "route.terminals", WidgetParameter(self.routeTerminalsComboBox)
+        )
 
         self.restoreDefaults()
 
@@ -362,8 +363,13 @@ class K2470Panel(InstrumentPanel):
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
         self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
-        self.bindParameter("route.terminals", WidgetParameter(self.routeTerminalsComboBox))
-        self.bindParameter("system.breakdown.protection", WidgetParameter(self.breakdownProtectionCheckBox))
+        self.bindParameter(
+            "route.terminals", WidgetParameter(self.routeTerminalsComboBox)
+        )
+        self.bindParameter(
+            "system.breakdown.protection",
+            WidgetParameter(self.breakdownProtectionCheckBox),
+        )
 
         self.restoreDefaults()
 
@@ -582,8 +588,12 @@ class K6514Panel(InstrumentPanel):
 
         self.bindParameter("sense.range", WidgetParameter(self.senseRangeMetric))
         self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
-        self.bindParameter("sense.auto_range.lower_limit", WidgetParameter(self.autoRangeLLimitMetric))
-        self.bindParameter("sense.auto_range.upper_limit", WidgetParameter(self.autoRangeULimitMetric))
+        self.bindParameter(
+            "sense.auto_range.lower_limit", WidgetParameter(self.autoRangeLLimitMetric)
+        )
+        self.bindParameter(
+            "sense.auto_range.upper_limit", WidgetParameter(self.autoRangeULimitMetric)
+        )
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
@@ -671,7 +681,9 @@ class K6517BPanel(InstrumentPanel):
         self.sourceGroupBox.setTitle("Source")
 
         self.meterConnectCheckBox = QtWidgets.QCheckBox("Meter Connect")
-        self.meterConnectCheckBox.setStatusTip("Enable or disable V-source LO to ammeter LO connection.")
+        self.meterConnectCheckBox.setStatusTip(
+            "Enable or disable V-source LO to ammeter LO connection."
+        )
 
         sourceLayout = QtWidgets.QVBoxLayout(self.sourceGroupBox)
         sourceLayout.addWidget(self.meterConnectCheckBox)
@@ -743,9 +755,15 @@ class K6517BPanel(InstrumentPanel):
 
         self.bindParameter("sense.range", WidgetParameter(self.senseRangeMetric))
         self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
-        self.bindParameter("sense.auto_range.lower_limit", WidgetParameter(self.autoRangeLLimitMetric))
-        self.bindParameter("sense.auto_range.upper_limit", WidgetParameter(self.autoRangeULimitMetric))
-        self.bindParameter("source.meter_connect", WidgetParameter(self.meterConnectCheckBox))
+        self.bindParameter(
+            "sense.auto_range.lower_limit", WidgetParameter(self.autoRangeLLimitMetric)
+        )
+        self.bindParameter(
+            "sense.auto_range.upper_limit", WidgetParameter(self.autoRangeULimitMetric)
+        )
+        self.bindParameter(
+            "source.meter_connect", WidgetParameter(self.meterConnectCheckBox)
+        )
         self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
         self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
         self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
@@ -881,14 +899,27 @@ class A4284APanel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-        self.bindParameter("voltage", MethodParameter(self.amplitudeVoltage, self.setAmplitudeVoltage))
-        self.bindParameter("frequency", MethodParameter(self.amplitudeFrequency, self.setAmplitudeFrequency))
+        self.bindParameter(
+            "voltage", MethodParameter(self.amplitudeVoltage, self.setAmplitudeVoltage)
+        )
+        self.bindParameter(
+            "frequency",
+            MethodParameter(self.amplitudeFrequency, self.setAmplitudeFrequency),
+        )
         self.bindParameter("amplitude.alc", WidgetParameter(self.amplitudeAlcCheckBox))
-        self.bindParameter("aperture.integration_time", WidgetParameter(self.integrationTimeComboBox))
-        self.bindParameter("aperture.averaging_rate", WidgetParameter(self.averagingRateSpinBox))
+        self.bindParameter(
+            "aperture.integration_time", WidgetParameter(self.integrationTimeComboBox)
+        )
+        self.bindParameter(
+            "aperture.averaging_rate", WidgetParameter(self.averagingRateSpinBox)
+        )
         self.bindParameter("correction.length", WidgetParameter(self.lengthComboBox))
-        self.bindParameter("correction.open.enabled", WidgetParameter(self.openEnabledCheckBox))
-        self.bindParameter("correction.short.enabled", WidgetParameter(self.shortEnabledCheckBox))
+        self.bindParameter(
+            "correction.open.enabled", WidgetParameter(self.openEnabledCheckBox)
+        )
+        self.bindParameter(
+            "correction.short.enabled", WidgetParameter(self.shortEnabledCheckBox)
+        )
 
         self.restoreDefaults()
 
@@ -1022,14 +1053,180 @@ class E4980APanel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
-        self.bindParameter("voltage", MethodParameter(self.amplitudeVoltage, self.setAmplitudeVoltage))
-        self.bindParameter("frequency", MethodParameter(self.amplitudeFrequency, self.setAmplitudeFrequency))
+        self.bindParameter(
+            "voltage", MethodParameter(self.amplitudeVoltage, self.setAmplitudeVoltage)
+        )
+        self.bindParameter(
+            "frequency",
+            MethodParameter(self.amplitudeFrequency, self.setAmplitudeFrequency),
+        )
         self.bindParameter("amplitude.alc", WidgetParameter(self.amplitudeAlcCheckBox))
-        self.bindParameter("aperture.integration_time", WidgetParameter(self.integrationTimeComboBox))
-        self.bindParameter("aperture.averaging_rate", WidgetParameter(self.averagingRateSpinBox))
+        self.bindParameter(
+            "aperture.integration_time", WidgetParameter(self.integrationTimeComboBox)
+        )
+        self.bindParameter(
+            "aperture.averaging_rate", WidgetParameter(self.averagingRateSpinBox)
+        )
         self.bindParameter("correction.length", WidgetParameter(self.lengthComboBox))
-        self.bindParameter("correction.open.enabled", WidgetParameter(self.openEnabledCheckBox))
-        self.bindParameter("correction.short.enabled", WidgetParameter(self.shortEnabledCheckBox))
+        self.bindParameter(
+            "correction.open.enabled", WidgetParameter(self.openEnabledCheckBox)
+        )
+        self.bindParameter(
+            "correction.short.enabled", WidgetParameter(self.shortEnabledCheckBox)
+        )
+
+        self.restoreDefaults()
+
+    def amplitudeVoltage(self) -> float:
+        return self.amplitudeVoltageSpinBox.value() / 1e3  # mV to V
+
+    def setAmplitudeVoltage(self, voltage: float) -> None:
+        self.amplitudeVoltageSpinBox.setValue(voltage * 1e3)  # V to mV
+
+    def amplitudeFrequency(self) -> float:
+        return self.amplitudeFrequencySpinBox.value() * 1e3  # kHz to Hz
+
+    def setAmplitudeFrequency(self, frequency: float) -> None:
+        self.amplitudeFrequencySpinBox.setValue(frequency / 1e3)  # Hz to kHz
+
+    def restoreDefaults(self) -> None:
+        self.setAmplitudeVoltage(1e0)
+        self.setAmplitudeFrequency(1e3)
+        self.amplitudeAlcCheckBox.setChecked(False)
+        self.integrationTimeComboBox.setCurrentIndex(1)
+        self.averagingRateSpinBox.setValue(1)
+        self.lengthComboBox.setCurrentIndex(0)
+        self.openEnabledCheckBox.setChecked(False)
+        self.shortEnabledCheckBox.setChecked(False)
+
+    def setLocked(self, state: bool) -> None:
+        self.amplitudeVoltageSpinBox.setEnabled(not state)
+        self.amplitudeFrequencySpinBox.setEnabled(not state)
+        self.amplitudeAlcCheckBox.setEnabled(not state)
+        self.integrationTimeComboBox.setEnabled(not state)
+        self.averagingRateSpinBox.setEnabled(not state)
+        self.lengthComboBox.setEnabled(not state)
+        self.openEnabledCheckBox.setEnabled(not state)
+        self.shortEnabledCheckBox.setEnabled(not state)
+
+
+class K4215Panel(InstrumentPanel):
+
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
+        super().__init__("K4215", parent)
+
+        # AC amplitude
+
+        self.amplitudeGroupBox = QtWidgets.QGroupBox()
+        self.amplitudeGroupBox.setTitle("AC Amplitude")
+
+        self.amplitudeVoltageTimeLabel = QtWidgets.QLabel("Voltage")
+
+        self.amplitudeVoltageSpinBox = QtWidgets.QDoubleSpinBox()
+        self.amplitudeVoltageSpinBox.setSuffix(" mV")
+        self.amplitudeVoltageSpinBox.setDecimals(0)
+        self.amplitudeVoltageSpinBox.setRange(5, 20e3)
+
+        self.amplitudeFrequencyTimeLabel = QtWidgets.QLabel("Frequency")
+
+        self.amplitudeFrequencySpinBox = QtWidgets.QDoubleSpinBox()
+        self.amplitudeFrequencySpinBox.setSuffix(" kHz")
+        self.amplitudeFrequencySpinBox.setDecimals(3)
+        self.amplitudeFrequencySpinBox.setRange(0.020, 2e6)
+
+        self.amplitudeAlcCheckBox = QtWidgets.QCheckBox("Auto Level Control (ALC)")
+
+        amplitudeLayout = QtWidgets.QVBoxLayout(self.amplitudeGroupBox)
+        amplitudeLayout.addWidget(self.amplitudeVoltageTimeLabel)
+        amplitudeLayout.addWidget(self.amplitudeVoltageSpinBox)
+        amplitudeLayout.addWidget(self.amplitudeFrequencyTimeLabel)
+        amplitudeLayout.addWidget(self.amplitudeFrequencySpinBox)
+        # amplitudeLayout.addWidget(self.amplitudeAlcCheckBox)
+        amplitudeLayout.addStretch()
+
+        # # Aperture
+
+        # self.apertureGroupBox = QtWidgets.QGroupBox()
+        # self.apertureGroupBox.setTitle("Aperture")
+
+        # self.integrationTimeLabel = QtWidgets.QLabel("Integration Time")
+
+        self.integrationTimeComboBox = QtWidgets.QComboBox()
+        # self.integrationTimeComboBox.addItem("Short", "SHOR")
+        # self.integrationTimeComboBox.addItem("Medium", "MED")
+        # self.integrationTimeComboBox.addItem("Long", "LONG")
+
+        # self.averagingRateLabel = QtWidgets.QLabel("Averaging Rate")
+
+        self.averagingRateSpinBox = QtWidgets.QSpinBox()
+        # self.averagingRateSpinBox.setRange(1, 128)
+
+        # apertureLayout = QtWidgets.QVBoxLayout(self.apertureGroupBox)
+        # apertureLayout.addWidget(self.integrationTimeLabel)
+        # apertureLayout.addWidget(self.integrationTimeComboBox)
+        # apertureLayout.addWidget(self.averagingRateLabel)
+        # apertureLayout.addWidget(self.averagingRateSpinBox)
+
+        # # Correction
+
+        # self.correctionGroupBox = QtWidgets.QGroupBox()
+        # self.correctionGroupBox.setTitle("Correction")
+
+        # self.lengthLabel = QtWidgets.QLabel("Cable Length")
+
+        self.lengthComboBox = QtWidgets.QComboBox()
+        # self.lengthComboBox.addItem("0 m", 0)
+        # self.lengthComboBox.addItem("1 m", 1)
+        # self.lengthComboBox.addItem("2 m", 2)
+
+        self.openEnabledCheckBox = QtWidgets.QCheckBox("Enable OPEN correction")
+        # self.openEnabledCheckBox.setStatusTip("Enable OPEN correction")
+
+        self.shortEnabledCheckBox = QtWidgets.QCheckBox("Enable SHORT correction")
+        # self.shortEnabledCheckBox.setStatusTip("Enable SHORT correction")
+
+        # correctionLayout = QtWidgets.QVBoxLayout(self.correctionGroupBox)
+        # correctionLayout.addWidget(self.lengthLabel)
+        # correctionLayout.addWidget(self.lengthComboBox)
+        # correctionLayout.addWidget(self.openEnabledCheckBox)
+        # correctionLayout.addWidget(self.shortEnabledCheckBox)
+        # correctionLayout.addStretch()
+
+        # Layout
+
+        rightLayout = QtWidgets.QVBoxLayout()
+        # rightLayout.addWidget(self.apertureGroupBox)
+        # rightLayout.addWidget(self.correctionGroupBox)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.amplitudeGroupBox)
+        layout.addLayout(rightLayout)
+        layout.addStretch()
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+        self.bindParameter(
+            "voltage", MethodParameter(self.amplitudeVoltage, self.setAmplitudeVoltage)
+        )
+        self.bindParameter(
+            "frequency",
+            MethodParameter(self.amplitudeFrequency, self.setAmplitudeFrequency),
+        )
+        self.bindParameter("amplitude.alc", WidgetParameter(self.amplitudeAlcCheckBox))
+        self.bindParameter(
+            "aperture.integration_time", WidgetParameter(self.integrationTimeComboBox)
+        )
+        self.bindParameter(
+            "aperture.averaging_rate", WidgetParameter(self.averagingRateSpinBox)
+        )
+        self.bindParameter("correction.length", WidgetParameter(self.lengthComboBox))
+        self.bindParameter(
+            "correction.open.enabled", WidgetParameter(self.openEnabledCheckBox)
+        )
+        self.bindParameter(
+            "correction.short.enabled", WidgetParameter(self.shortEnabledCheckBox)
+        )
 
         self.restoreDefaults()
 
@@ -1105,7 +1302,9 @@ class BrandBoxPanel(InstrumentPanel):
 
         # Parameters
 
-        self.bindParameter("channels", MethodParameter(self.closedChannels, self.setClosedChannels))
+        self.bindParameter(
+            "channels", MethodParameter(self.closedChannels, self.setClosedChannels)
+        )
 
         self.restoreDefaults()
 
