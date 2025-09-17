@@ -136,6 +136,7 @@ class Controller(QtCore.QObject):
         super().__init__(parent)
         self.view = view
 
+        self.isExceptionDialogActive: bool = False
         self.abortRequested = threading.Event()
         self.measurementThread: Optional[threading.Thread] = None
         self.state: State = State()
@@ -148,7 +149,7 @@ class Controller(QtCore.QObject):
             <p>IV/CV measurements for silicon sensors.</p>
             <p>Version {__version__}</p>
             <p>This software is licensed under the GNU General Public License Version 3.</p>
-            <p>Copyright &copy; 2021-2024 <a href=\"https://hephy.at\">HEPHY</a></p>
+            <p>Copyright &copy; 2021-2025 <a href=\"https://oeaw.ac.at/mbi\">MBI</a></p>
         """)
 
         # Controller
@@ -629,7 +630,11 @@ class Controller(QtCore.QObject):
     # Slots
 
     def handleException(self, exc):
-        showException(exc, self.view)
+        """Shows up to one error message at a time."""
+        if not self.isExceptionDialogActive:
+            self.isExceptionDialogActive = True
+            showException(exc, self.view)
+            self.isExceptionDialogActive = False
 
     def onUpdate(self, data):
         cache = {}
@@ -778,20 +783,26 @@ class Controller(QtCore.QObject):
 
     def onInstrumentsChanged(self) -> None:
         self.view.generalWidget.setCurrentComplianceLocked(False)
+        #
+        # HACK Not all instruments support compliance!
+        # TODO Implement instrument capabilities to lock not supported inputs
+        #
         if self.view.generalWidget.isSMUEnabled():
             ...
         elif self.view.generalWidget.isELMEnabled():
-            # TODO this is very ugly!
             role = self.view.findRole("ELM")
-            if role.resourceWidget.model() == "K6517B":  # HACK
+            if role.resourceWidget.model() in ["K6517B"]:
                 self.view.generalWidget.setCurrentComplianceLocked(True)
-                self.view.generalWidget.setCurrentCompliance(1.0e-3) # TODO
+                self.view.generalWidget.setCurrentCompliance(1.0e-3)  # fixed for K6517B
         elif self.view.generalWidget.isELM2Enabled():
-            # TODO this is very ugly!
             role = self.view.findRole("ELM2")
-            if role.resourceWidget.model() == "K6517B":  # HACK
+            if role.resourceWidget.model() in ["K6517B"]:
                 self.view.generalWidget.setCurrentComplianceLocked(True)
-                self.view.generalWidget.setCurrentCompliance(1.0e-3) # TODO
+                self.view.generalWidget.setCurrentCompliance(1.0e-3)  # fixed for K6517B
+        elif self.view.generalWidget.isLCREnabled():
+            role = self.view.findRole("LCR")
+            if role.resourceWidget.model() in ["K595", "E4980A", "A4284A"]:
+                self.view.generalWidget.setCurrentComplianceLocked(True)
 
     def onToggleSmu(self, state: bool) -> None:
         self.ivPlotsController.toggleSmuSeries(state)
