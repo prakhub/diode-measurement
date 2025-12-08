@@ -15,6 +15,7 @@ __all__ = [
     "K4215Panel",
     "K6514Panel",
     "K6517BPanel",
+    "K6847Panel",
     "A4284APanel",
     "E4980APanel",
     "BrandBoxPanel",
@@ -1081,6 +1082,122 @@ class K6517BPanel(InstrumentPanel):
         self.autoRangeLLimitMetric.setEnabled(enabled and checked)
         self.autoRangeULimitLabel.setEnabled(enabled and checked)
         self.autoRangeULimitMetric.setEnabled(enabled and checked)
+
+
+class K6847Panel(InstrumentPanel):
+
+    def __init__(self, parent: QtWidgets.QWidget = None) -> None:
+        super().__init__("K6847", parent)
+
+        # Range
+
+        self.rangeGroupBox = QtWidgets.QGroupBox()
+        self.rangeGroupBox.setTitle("Sense Range")
+
+        self.senseRangeMetric = MetricWidget()
+        self.senseRangeMetric.setDecimals(3)
+        self.senseRangeMetric.setRange(0, 999)
+        self.senseRangeMetric.setUnit("A")
+        self.senseRangeMetric.setPrefixes("munp")
+
+        self.autoRangeCheckBox = QtWidgets.QCheckBox("Auto Range")
+        self.autoRangeCheckBox.toggled.connect(self.updateState)
+
+        rangeLayout = QtWidgets.QVBoxLayout(self.rangeGroupBox)
+        rangeLayout.addWidget(self.senseRangeMetric)
+        rangeLayout.addWidget(self.autoRangeCheckBox)
+
+        # Filter
+
+        self.filterGroupBox = QtWidgets.QGroupBox()
+        self.filterGroupBox.setTitle("Filter")
+        self.filterEnableCheckBox = QtWidgets.QCheckBox("Enabled")
+
+        self.filterCountLabel = QtWidgets.QLabel("Count")
+
+        self.filterCountSpinBox = QtWidgets.QSpinBox()
+        self.filterCountSpinBox.setSingleStep(1)
+        self.filterCountSpinBox.setRange(2, 100)
+
+        self.filterModeLabel = QtWidgets.QLabel("Mode")
+
+        self.filterModeComboBox = QtWidgets.QComboBox()
+        self.filterModeComboBox.addItem("Repeat", "REP")
+        self.filterModeComboBox.addItem("Moving", "MOV")
+
+        filterLayout = QtWidgets.QVBoxLayout(self.filterGroupBox)
+        filterLayout.addWidget(self.filterEnableCheckBox)
+        filterLayout.addWidget(self.filterCountLabel)
+        filterLayout.addWidget(self.filterCountSpinBox)
+        filterLayout.addWidget(self.filterModeLabel)
+        filterLayout.addWidget(self.filterModeComboBox)
+
+        # Integration Time
+
+        self.integrationTimeGroupBox = QtWidgets.QGroupBox()
+        self.integrationTimeGroupBox.setTitle("Integration Time")
+
+        self.nplcLabel = QtWidgets.QLabel("NPLC")
+
+        self.nplcSpinBox = QtWidgets.QDoubleSpinBox()
+        self.nplcSpinBox.setStatusTip("Number of Power Line Cycles (0.01 to 10)")
+        self.nplcSpinBox.setRange(0.01, 10.0)
+        self.nplcSpinBox.setDecimals(2)
+        self.nplcSpinBox.setSingleStep(0.1)
+        self.nplcSpinBox.setStepType(QtWidgets.QDoubleSpinBox.AdaptiveDecimalStepType)
+
+        integrationTimeLayout = QtWidgets.QVBoxLayout(self.integrationTimeGroupBox)
+        integrationTimeLayout.addWidget(self.nplcLabel)
+        integrationTimeLayout.addWidget(self.nplcSpinBox)
+        integrationTimeLayout.addStretch()
+
+        # Layout
+
+        leftLayout = QtWidgets.QVBoxLayout()
+        leftLayout.addWidget(self.rangeGroupBox)
+
+        rightLayout = QtWidgets.QVBoxLayout()
+        rightLayout.addWidget(self.filterGroupBox)
+        rightLayout.addWidget(self.integrationTimeGroupBox)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(leftLayout)
+        layout.addLayout(rightLayout)
+        layout.setStretch(0, 1)
+        layout.setStretch(1, 1)
+
+        # Parameters
+
+        self.bindParameter("sense.range", WidgetParameter(self.senseRangeMetric))
+        self.bindParameter("sense.auto_range", WidgetParameter(self.autoRangeCheckBox))
+        self.bindParameter("filter.enable", WidgetParameter(self.filterEnableCheckBox))
+        self.bindParameter("filter.count", WidgetParameter(self.filterCountSpinBox))
+        self.bindParameter("filter.mode", WidgetParameter(self.filterModeComboBox))
+        self.bindParameter("nplc", WidgetParameter(self.nplcSpinBox))
+
+        self.restoreDefaults()
+
+    def restoreDefaults(self) -> None:
+        self.senseRangeMetric.setValue(20e-6)
+        self.autoRangeCheckBox.setChecked(True)
+        self.filterEnableCheckBox.setChecked(False)
+        self.filterCountSpinBox.setValue(10)
+        self.filterModeComboBox.setCurrentIndex(0)
+        self.nplcSpinBox.setValue(1.0)
+
+    def setLocked(self, state: bool) -> None:
+        self.senseRangeMetric.setEnabled(not state)
+        self.autoRangeCheckBox.setEnabled(not state)
+        self.filterEnableCheckBox.setEnabled(not state)
+        self.filterCountSpinBox.setEnabled(not state)
+        self.filterModeComboBox.setEnabled(not state)
+        self.nplcSpinBox.setEnabled(not state)
+        self.updateState(self.autoRangeCheckBox.isChecked())
+
+    def updateState(self, checked) -> None:
+        enabled = self.autoRangeCheckBox.isEnabled()
+        self.senseRangeMetric.setEnabled(enabled and not checked)
 
 
 class A4284APanel(InstrumentPanel):

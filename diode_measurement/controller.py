@@ -22,6 +22,7 @@ from .view.panels import K2657APanel
 # Electrometers
 from .view.panels import K6514Panel
 from .view.panels import K6517BPanel
+from .view.panels import K6847Panel
 
 # LCR meters
 from .view.panels import K595Panel
@@ -179,12 +180,14 @@ class Controller(QtCore.QObject):
         role = self.view.addRole("ELM")
         role.addInstrumentPanel(K6514Panel())
         role.addInstrumentPanel(K6517BPanel())
+        role.addInstrumentPanel(K6847Panel())
         role.resourceWidget.modelChanged.connect(self.onInstrumentsChanged)  # HACK
 
         # Electrometer 2
         role = self.view.addRole("ELM2")
         role.addInstrumentPanel(K6514Panel())
         role.addInstrumentPanel(K6517BPanel())
+        role.addInstrumentPanel(K6847Panel())
         role.resourceWidget.modelChanged.connect(self.onInstrumentsChanged)  # HACK
 
         # LCR meter
