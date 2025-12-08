@@ -98,11 +98,11 @@ class K6847(SourceMeter):
         self._write(f":SENS:FUNC {function}")
 
     def set_current_range(self, level: float) -> None:
-        self._write(f":SENS:CURR:RANG {level:E}")
+        self._write(f":SENS:CURR:DC:RANG {level:E}")
 
     def set_current_range_auto(self, enabled: bool) -> None:
         value = "ON" if enabled else "OFF"
-        self._write(f":SENS:CURR:RANG:AUTO {value}")
+        self._write(f":SENS:CURR:DC:RANG:AUTO {value}")
 
     def set_zero_check_enabled(self, enabled: bool) -> None:
         value = "ON" if enabled else "OFF"
@@ -121,16 +121,16 @@ class K6847(SourceMeter):
         self._write(f":FORM:ELEM {value}")
 
     def set_sense_current_average_tcontrol(self, tcontrol: str) -> None:
-        self._write(f":SENS:CURR:AVER:TCON {tcontrol}")
+        self._write(f":SENS:CURR:DC:AVER:TCON {tcontrol}")
 
     def set_sense_current_average_count(self, count: int) -> None:
-        self._write(f":SENS:CURR:AVER:COUN {count:d}")
+        self._write(f":SENS:CURR:DC:AVER:COUN {count:d}")
 
     def set_sense_current_average_enable(self, state: bool) -> None:
-        self._write(f":SENS:CURR:AVER:STAT {state:d}")
+        self._write(f":SENS:CURR:DC:AVER:STAT {state:d}")
 
     def set_sense_current_nplc(self, nplc: float) -> None:
-        self._write(f":SENS:CURR:NPLC {nplc:E}")
+        self._write(f":SENS:CURR:DC:NPLC {nplc:E}")
 
     def is_interlock(self) -> bool:
         """Return status of the interlock."""

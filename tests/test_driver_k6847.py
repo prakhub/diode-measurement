@@ -68,11 +68,11 @@ def test_driver_k6847(res):
 
     res.buffer = ["1"]
     assert d.set_current_range(20e-6) is None
-    assert res.buffer == [":SENS:CURR:RANG 2.000000E-05", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:DC:RANG 2.000000E-05", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_current_range_auto(True) is None
-    assert res.buffer == [":SENS:CURR:RANG:AUTO ON", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:DC:RANG:AUTO ON", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_zero_check_enabled(True) is None
@@ -92,19 +92,19 @@ def test_driver_k6847(res):
 
     res.buffer = ["1"]
     assert d.set_sense_current_average_tcontrol("MOV") is None
-    assert res.buffer == [":SENS:CURR:AVER:TCON MOV", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:DC:AVER:TCON MOV", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_sense_current_average_count(42) is None
-    assert res.buffer == [":SENS:CURR:AVER:COUN 42", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:DC:AVER:COUN 42", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_sense_current_average_enable(True) is None
-    assert res.buffer == [":SENS:CURR:AVER:STAT 1", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:DC:AVER:STAT 1", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_sense_current_nplc(4.2) is None
-    assert res.buffer == [":SENS:CURR:NPLC 4.200000E+00", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:DC:NPLC 4.200000E+00", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.is_interlock() is True
