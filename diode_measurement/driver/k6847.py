@@ -98,11 +98,11 @@ class K6847(SourceMeter):
         self._write(f":SENS:FUNC {function}")
 
     def set_current_range(self, level: float) -> None:
-        self._write(f":CURR:RANG {level:E}")
+        self._write(f":SENS:CURR:RANG {level:E}")
 
     def set_current_range_auto(self, enabled: bool) -> None:
         value = "ON" if enabled else "OFF"
-        self._write(f":CURR:RANG:AUTO {value}")
+        self._write(f":SENS:CURR:RANG:AUTO {value}")
 
     def set_zero_check_enabled(self, enabled: bool) -> None:
         value = "ON" if enabled else "OFF"

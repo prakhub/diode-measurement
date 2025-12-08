@@ -68,11 +68,11 @@ def test_driver_k6847(res):
 
     res.buffer = ["1"]
     assert d.set_current_range(20e-6) is None
-    assert res.buffer == [":CURR:RANG 2.000000E-05", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:RANG 2.000000E-05", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_current_range_auto(True) is None
-    assert res.buffer == [":CURR:RANG:AUTO ON", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:RANG:AUTO ON", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_zero_check_enabled(True) is None
