@@ -10,6 +10,7 @@ from .k2700 import K2700
 from .k4215 import K4215
 from .k6514 import K6514
 from .k6517b import K6517B
+from .k6847 import K6847
 from .e4980a import E4980A
 from .a4284a import A4284A
 from .brandbox import BrandBox
@@ -26,6 +27,7 @@ DRIVERS: Dict[str, type] = {
     "K4215": K4215,
     "K6514": K6514,
     "K6517B": K6517B,
+    "K6847": K6847,
     "E4980A": E4980A,
     "A4284A": A4284A,
     "BrandBox": BrandBox,
