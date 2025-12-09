@@ -35,17 +35,16 @@ class K6847(SourceMeter):
         sense_auto_range = options.get("sense.auto_range", True)
         self.set_current_range_auto(sense_auto_range)
 
-        filter_mode = options.get("filter.mode", "MOV")
-        self.set_sense_current_average_tcontrol(filter_mode)
-
-        filter_count = options.get("filter.count", 10)
-        self.set_sense_current_average_count(filter_count)
-
-        filter_enable = options.get("filter.enable", False)
-        self.set_sense_current_average_enable(filter_enable)
-
         nplc = options.get("nplc", 1.0)
         self.set_sense_current_nplc(nplc)
+
+        # K6487 averaging may not be supported or uses different commands
+        # filter_mode = options.get("filter.mode", "MOV")
+        # self.set_sense_current_average_tcontrol(filter_mode)
+        # filter_count = options.get("filter.count", 10)
+        # self.set_sense_current_average_count(filter_count)
+        # filter_enable = options.get("filter.enable", False)
+        # self.set_sense_current_average_enable(filter_enable)
 
     def get_output_enabled(self) -> bool:
         return self._query(":SOUR:VOLT:STAT?") == "1"
