@@ -35,10 +35,9 @@ class K6847(SourceMeter):
         sense_auto_range = options.get("sense.auto_range", True)
         self.set_current_range_auto(sense_auto_range)
 
-        nplc = options.get("nplc", 1.0)
-        self.set_sense_current_nplc(nplc)
-
-        # K6487 averaging may not be supported or uses different commands
+        # K6487 averaging and NPLC may not be supported or use different commands
+        # nplc = options.get("nplc", 1.0)
+        # self.set_sense_current_nplc(nplc)
         # filter_mode = options.get("filter.mode", "MOV")
         # self.set_sense_current_average_tcontrol(filter_mode)
         # filter_count = options.get("filter.count", 10)
