@@ -48,23 +48,26 @@ def test_driver_k6847(res):
 
     res.buffer = ["1"]
     assert d.compliance_tripped() is True
-    assert res.buffer == [":SOUR:VOLT:ILIM:TRIP?"]
+    assert res.buffer == [":SOUR:VOLT:INT:FAIL?"]
 
-    res.buffer = ["+4.210000E-03"]
+    res.buffer = ["+4.210000E-03A,+7.107460E+03,+0.000000E+00"]
     assert d.measure_i() == 0.00421
     assert res.buffer == [":READ?"]
 
-    res.buffer = ["1234567890,+4.210000E+01,+1.000000E-06"]
-    assert d.measure_v() == 42.1
-    assert res.buffer == [":READ?"]
+    res.buffer = ["4.200000E+01"]
+    assert d.measure_v() == 42.0
+    assert res.buffer == [":SOUR:VOLT:LEV?"]
 
-    res.buffer = ["1234567890,+4.210000E+01,+4.210000E-03"]
-    assert d.measure_iv() == (0.00421, 42.1)
-    assert res.buffer == [":READ?"]
+    # measure_iv calls measure_i (which does :READ?) then measure_v (which does :SOUR:VOLT:LEV?)
+    res.buffer = ["+4.210000E-03A,+7.107460E+03,+0.000000E+00", "4.200000E+01"]
+    i, v = d.measure_iv()
+    assert i == 0.00421
+    assert v == 42.0
+    assert res.buffer == [":READ?", ":SOUR:VOLT:LEV?"]
 
     res.buffer = ["1"]
     assert d.set_sense_function("CURR") is None
-    assert res.buffer == [":SENS:FUNC CURR", "*OPC?"]
+    assert res.buffer == [":SENS:FUNC 'CURR'", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_current_range(20e-6) is None
@@ -100,12 +103,12 @@ def test_driver_k6847(res):
 
     res.buffer = ["1"]
     assert d.set_sense_current_average_enable(True) is None
-    assert res.buffer == [":SENS:CURR:AVER:STAT 1", "*OPC?"]
+    assert res.buffer == [":SENS:CURR:AVER:STAT ON", "*OPC?"]
 
     res.buffer = ["1"]
     assert d.set_sense_current_nplc(4.2) is None
     assert res.buffer == [":SENS:CURR:NPLC 4.200000E+00", "*OPC?"]
 
-    res.buffer = ["1"]
+    res.buffer = ["0"]
     assert d.is_interlock() is True
-    assert res.buffer == [":OUTP:INT:TRIP?"]
+    assert res.buffer == [":SOUR:VOLT:INT:FAIL?"]

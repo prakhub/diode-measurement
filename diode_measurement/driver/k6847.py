@@ -28,7 +28,6 @@ class K6847(SourceMeter):
 
     def configure(self, options: dict) -> None:
         self.set_sense_function("CURR")
-
         sense_range = options.get("sense.range", 20e-6)
         self.set_current_range(sense_range)
 
@@ -36,14 +35,14 @@ class K6847(SourceMeter):
         self.set_current_range_auto(sense_auto_range)
 
         # K6487 averaging and NPLC may not be supported or use different commands
-        # nplc = options.get("nplc", 1.0)
-        # self.set_sense_current_nplc(nplc)
-        # filter_mode = options.get("filter.mode", "MOV")
-        # self.set_sense_current_average_tcontrol(filter_mode)
-        # filter_count = options.get("filter.count", 10)
-        # self.set_sense_current_average_count(filter_count)
-        # filter_enable = options.get("filter.enable", False)
-        # self.set_sense_current_average_enable(filter_enable)
+        nplc = options.get("nplc", 1.0)
+        self.set_sense_current_nplc(nplc)
+        filter_mode = options.get("filter.mode", "MOV")
+        self.set_sense_current_average_tcontrol(filter_mode)
+        filter_count = options.get("filter.count", 10)
+        self.set_sense_current_average_count(filter_count)
+        filter_enable = options.get("filter.enable", False)
+        self.set_sense_current_average_enable(filter_enable)
 
     def get_output_enabled(self) -> bool:
         return self._query(":SOUR:VOLT:STAT?") == "1"
@@ -65,35 +64,27 @@ class K6847(SourceMeter):
         self._write(f":SOUR:VOLT:ILIM {level:E}")
 
     def compliance_tripped(self) -> bool:
-        return self._query(":SOUR:VOLT:ILIM:TRIP?") == "1"
+        return self._query(":SOUR:VOLT:INT:FAIL?") == "1"
 
     def measure_i(self) -> float:
         result = self._query(":READ?")
-        # Format: TIME,VSO,READ or just current value
+        print(f"DEBUG: K6847 measure_i raw result: {result}")
+        # Format appears to be: CURRENT,TIMESTAMP,OTHER
         parts = result.split(",")
-        return float(parts[-1])  # Last element is the reading
+        current_str = parts[0].rstrip("A")  # Remove the 'A' suffix
+        return float(current_str)
 
     def measure_v(self) -> float:
-        # K6487 measures voltage source output (VSO)
-        result = self._query(":READ?")
-        parts = result.split(",")
-        if len(parts) >= 2:
-            return float(parts[-2])  # Second to last is VSO
-        return float("nan")
+        # K6847 doesn't measure actual voltage, return the set voltage level
+        return self.get_voltage_level()
 
     def measure_iv(self) -> Tuple[float, float]:
-        result = self._query(":READ?")
-        parts = result.split(",")
-        if len(parts) >= 2:
-            v = float(parts[-2])  # VSO (voltage source output)
-            i = float(parts[-1])  # Current reading
-        else:
-            i = float(parts[-1])
-            v = float("nan")
+        i = self.measure_i()
+        v = self.measure_v()
         return i, v
 
     def set_sense_function(self, function: str) -> None:
-        self._write(f":SENS:FUNC {function}")
+        self._write(f":SENS:FUNC '{function}'")
 
     def set_current_range(self, level: float) -> None:
         self._write(f":CURR:RANG {level:E}")
@@ -125,14 +116,15 @@ class K6847(SourceMeter):
         self._write(f":SENS:CURR:AVER:COUN {count:d}")
 
     def set_sense_current_average_enable(self, state: bool) -> None:
-        self._write(f":SENS:CURR:AVER:STAT {state:d}")
+        value = "ON" if state else "OFF"
+        self._write(f":SENS:CURR:AVER:STAT {value}")
 
     def set_sense_current_nplc(self, nplc: float) -> None:
         self._write(f":SENS:CURR:NPLC {nplc:E}")
 
     def is_interlock(self) -> bool:
         """Return status of the interlock."""
-        return bool(int(self._query(":OUTP:INT:TRIP?")))
+        return not bool(int(self._query(":SOUR:VOLT:INT:FAIL?")))
 
     @handle_exception
     def _write(self, message):
