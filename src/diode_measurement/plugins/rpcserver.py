@@ -4,22 +4,24 @@ to control measurements remotely by third party software.
 
 import asyncio
 import datetime
-import jsonrpc
 import logging
 import math
 import threading
 import time
-from dataclasses import dataclass
-from concurrent.futures import Future
-from queue import Queue, Empty
 from collections.abc import Callable
-from typing import Any, Optional
+from concurrent.futures import Future
+from dataclasses import asdict, dataclass
+from queue import Empty, Queue
+from typing import Any
 
+import jsonrpc
 from PySide6 import QtCore, QtWidgets
 
+from diode_measurement.controller import Controller, GeneralConfig
+from diode_measurement.core.events import ChangeVoltageParameters
 from diode_measurement.core.plugin import Plugin
-from diode_measurement.controller import Controller
-from diode_measurement.utils import get_bool, get_int, get_str
+from diode_measurement.core.role import Role
+from diode_measurement.gui.adapters import SettingsAdapter
 
 __all__ = ["RPCServerPlugin"]
 
@@ -33,22 +35,22 @@ def is_finite(value: Any) -> bool:
     return True
 
 
-def json_dict(d: dict) -> dict:
+def json_dict(d: dict[Any, Any]) -> dict[Any, Any]:
     """Replace non-finite floats (nan, +inf, -inf) with `None` to be converted to `null` in JSON."""
     return {k: (v if is_finite(v) else None) for k, v in d.items()}
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ConfigureEvent:
-    parameters: dict
+    config: GeneralConfig
 
     def __call__(self, controller: Controller) -> None:
-        controller.configure(self.parameters)
+        controller.configure(self.config)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class StartEvent:
-    parameters: dict
+    config: GeneralConfig
 
     def __call__(self, controller: Controller) -> None:
         # The start action is disabled while a measurement is active, refuse
@@ -57,40 +59,70 @@ class StartEvent:
             raise RuntimeError(
                 "Cannot start measurement, another measurement is still active."
             )
-        controller.configure(self.parameters)
-        controller.main_window.start_action.trigger()
+        controller.configure(self.config)
+        controller.request_start()
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class StopEvent:
     def __call__(self, controller: Controller) -> None:
-        controller.aborted.emit()
+        controller.request_stop()
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ChangeVoltageEvent:
     end_voltage: float
     step_voltage: float
     waiting_time: float
 
     def __call__(self, controller: Controller) -> None:
-        controller.request_change_voltage(
-            self.end_voltage,
-            self.step_voltage,
-            self.waiting_time,
+        parameters = ChangeVoltageParameters(
+            end_voltage=self.end_voltage,
+            step_voltage=self.step_voltage,
+            waiting_time=self.waiting_time,
         )
+        controller.request_change_voltage(parameters)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class StateEvent:
     def __call__(self, controller: Controller) -> dict[str, Any]:
-        return controller.snapshot()
+        return asdict(controller.snapshot())
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
+class InstrumentGetEvent:
+    instrument: str
+
+    def __call__(self, controller: Controller) -> dict[str, Any]:
+        model = controller.get_role_model(self.instrument)
+        options = controller.get_role_config(self.instrument)
+        return {
+            "instrument": self.instrument,
+            "model": model,
+            "options": options,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class InstrumentUpdateEvent:
+    instrument: str
+    options: dict[str, Any]
+
+    def __call__(self, controller: Controller) -> dict[str, Any]:
+        model = controller.get_role_model(self.instrument)
+        options = controller.update_role_config(self.instrument, self.options)
+        return {
+            "instrument": self.instrument,
+            "model": model,
+            "options": options,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class Envelope:
     event: Any
-    future: Future
+    future: Future[Any]
 
 
 class EventHandler:
@@ -105,12 +137,12 @@ class EventHandler:
     def shutdown(self) -> None:
         self.event_timer.stop()
 
-    def notify(self, event: Callable[[Controller], Any]) -> Future:
-        future: Future = Future()
+    def notify(self, event: Callable[[Controller], Any]) -> Future[Any]:
+        future: Future[Any] = Future()
         self.inbox.put_nowait(Envelope(event, future))
         return future
 
-    def poll_event(self) -> Optional[Envelope]:
+    def poll_event(self) -> Envelope | None:
         try:
             return self.inbox.get_nowait()
         except Empty:
@@ -128,69 +160,68 @@ class EventHandler:
                     envelope.future.set_exception(exc)
                 else:
                     envelope.future.set_result(result)
-            except Exception as exc:
-                logger.exception(exc)
+            except Exception:
+                logger.exception("failed to poll event")
 
 
-def collect_parameters(
-    continuous: Optional[bool] = None,
-    auto_reconnect: Optional[bool] = None,
-    measurement_type: Optional[str] = None,
-    measurement_instruments: Optional[list[str]] = None,
-    begin_voltage: Optional[float] = None,
-    end_voltage: Optional[float] = None,
-    step_voltage: Optional[float] = None,
-    waiting_time: Optional[float] = None,
-    compliance: Optional[float] = None,
-    continue_in_compliance: Optional[bool] = None,
-    waiting_time_continuous: Optional[float] = None,
-    sample: Optional[str] = None,
-    output_enabled: Optional[bool] = None,
-    output_dir: Optional[str] = None,
-    filename: Optional[str] = None,
-    filename_suffix: Optional[str] = None,
-    lcr_amplitude: Optional[float] = None,
-    lcr_frequency: Optional[float] = None,
-) -> dict[str, Any]:
-    """Return a configuration mapping omitting all unspecified parameters."""
-    parameters: dict[str, Any] = {}
-    if continuous is not None:
-        parameters["continuous"] = continuous
-    if auto_reconnect is not None:
-        parameters["auto_reconnect"] = auto_reconnect
-    if measurement_type is not None:
-        parameters["measurement_type"] = measurement_type
-    if measurement_instruments is not None:
-        parameters["measurement_roles"] = measurement_instruments
-    if begin_voltage is not None:
-        parameters["begin_voltage"] = begin_voltage
-    if end_voltage is not None:
-        parameters["end_voltage"] = end_voltage
-    if step_voltage is not None:
-        parameters["step_voltage"] = step_voltage
-    if waiting_time is not None:
-        parameters["waiting_time"] = waiting_time
-    if compliance is not None:
-        parameters["compliance"] = compliance
-    if continue_in_compliance is not None:
-        parameters["continue_in_compliance"] = continue_in_compliance
-    if waiting_time_continuous is not None:
-        parameters["waiting_time_continuous"] = waiting_time_continuous
-    if sample is not None:
-        parameters["sample"] = sample
-    if output_enabled is not None:
-        parameters["output_enabled"] = output_enabled
-    if output_dir is not None:
-        parameters["output_dir"] = output_dir
-    if filename is not None:
-        parameters["filename"] = filename
-    if filename_suffix is not None:
-        parameters["filename_suffix"] = filename_suffix
-    if lcr_amplitude is not None:
-        parameters["lcr_amplitude"] = lcr_amplitude
-    if lcr_frequency is not None:
-        parameters["lcr_frequency"] = lcr_frequency
-    return parameters
+def create_general_config(
+    continuous: bool | None = None,
+    auto_reconnect: bool | None = None,
+    measurement_type: str | None = None,
+    measurement_instruments: list[str] | None = None,
+    sample: str | None = None,
+    begin_voltage: float | None = None,
+    end_voltage: float | None = None,
+    step_voltage: float | None = None,
+    waiting_time: float | None = None,
+    source_instrument: str | None = None,
+    bias_voltage: float | None = None,
+    bias_source_instrument: str | None = None,
+    compliance: float | None = None,
+    continue_in_compliance: bool | None = None,
+    waiting_time_continuous: float | None = None,
+    wait_for_setpoint: bool | None = None,
+    output_enabled: bool | None = None,
+    output_dir: str | None = None,
+    filename: str | None = None,
+    filename_suffix: str | None = None,
+    lcr_amplitude: float | None = None,
+    lcr_frequency: float | None = None,
+) -> GeneralConfig:
+    """Return a general configuration, unspecified parameters are left unchanged."""
+    measurement_roles = (
+        [Role(role) for role in measurement_instruments]
+        if measurement_instruments is not None
+        else None
+    )
+    source_role = Role(source_instrument) if source_instrument is not None else None
+    bias_source_role = (
+        Role(bias_source_instrument) if bias_source_instrument is not None else None
+    )
+    return GeneralConfig(
+        continuous=continuous,
+        auto_reconnect=auto_reconnect,
+        measurement_type=measurement_type,
+        measurement_roles=measurement_roles,
+        sample=sample,
+        begin_voltage=begin_voltage,
+        end_voltage=end_voltage,
+        step_voltage=step_voltage,
+        waiting_time=waiting_time,
+        source_role=source_role,
+        bias_voltage=bias_voltage,
+        bias_source_role=bias_source_role,
+        compliance=compliance,
+        continue_in_compliance=continue_in_compliance,
+        waiting_time_continuous=waiting_time_continuous,
+        wait_for_setpoint=wait_for_setpoint,
+        output_enabled=output_enabled,
+        output_dir=output_dir,
+        filename=filename,
+        filename_suffix=filename_suffix,
+        lcr_amplitude=lcr_amplitude,
+        lcr_frequency=lcr_frequency,
+    )
 
 
 class RPCHandler:
@@ -203,18 +234,20 @@ class RPCHandler:
         self.dispatcher["stop"] = self.on_stop
         self.dispatcher["change_voltage"] = self.on_change_voltage
         self.dispatcher["state"] = self.on_state
+        self.dispatcher["instrument.get"] = self.on_instrument_get
+        self.dispatcher["instrument.update"] = self.on_instrument_update
         self.manager = jsonrpc.JSONRPCResponseManager()
 
     def handle(self, request) -> dict[str, Any]:
         return self.manager.handle(request, self.dispatcher)
 
     def on_configure(self, **kwargs: Any) -> None:
-        parameters = collect_parameters(**kwargs)
-        self.event_handler.notify(ConfigureEvent(parameters)).result(self.timeout)
+        config = create_general_config(**kwargs)
+        self.event_handler.notify(ConfigureEvent(config)).result(self.timeout)
 
     def on_start(self, **kwargs: Any) -> None:
-        parameters = collect_parameters(**kwargs)
-        self.event_handler.notify(StartEvent(parameters)).result(self.timeout)
+        config = create_general_config(**kwargs)
+        self.event_handler.notify(StartEvent(config)).result(self.timeout)
 
     def on_stop(self) -> None:
         self.event_handler.notify(StopEvent()).result(self.timeout)
@@ -237,6 +270,16 @@ class RPCHandler:
         result = self.event_handler.notify(StateEvent()).result(self.timeout)
         return json_dict(result)
 
+    def on_instrument_get(self, instrument: str) -> dict[str, Any]:
+        event = InstrumentGetEvent(instrument=instrument)
+        return self.event_handler.notify(event).result(self.timeout)
+
+    def on_instrument_update(
+        self, instrument: str, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        event = InstrumentUpdateEvent(instrument=instrument, options=options)
+        return self.event_handler.notify(event).result(self.timeout)
+
 
 class AsyncioTCPServer:
     buffer_size: int = 4096
@@ -246,8 +289,8 @@ class AsyncioTCPServer:
         self.port = port
         self.rpc_handler = rpc_handler
         self.message_ready = message_ready
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._server: Optional[asyncio.base_events.Server] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._server: asyncio.base_events.Server | None = None
 
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -277,7 +320,7 @@ class AsyncioTCPServer:
                 writer.close()
                 await writer.wait_closed()
             except Exception:
-                pass
+                logger.exception("failed to close writer")
 
     async def start(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
@@ -308,7 +351,7 @@ class RPCWidget(QtWidgets.QWidget):
 
     restart_signal = QtCore.Signal()
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("RPC")
 
@@ -392,15 +435,17 @@ class RPCServerPlugin(Plugin, QtCore.QObject):
     failed = QtCore.Signal(object)
     message_ready = QtCore.Signal(str)
 
-    def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
         self._thread = threading.Thread(target=self.run)
         self._enabled = threading.Event()
-        self._shutdown_handlers: list = []
-        self._message_cache: list = []
+        self._shutdown_handlers: list[Callable[[], None]] = []
+        self._message_cache: list[str] = []
         self._message_cache_lock = threading.RLock()
         self._message_timer = QtCore.QTimer()
         self._message_timer.timeout.connect(self.append_cached_messages)
+        self.event_handler = None
+        self.rpc_handler = None
         self.failed.connect(
             lambda _: self.rpc_widget.set_server_enabled(False)
         )  # disable on error
@@ -423,26 +468,28 @@ class RPCServerPlugin(Plugin, QtCore.QObject):
         self.write_settings()
 
     def read_settings(self) -> None:
-        settings = QtCore.QSettings()
-        settings.beginGroup("tcpServer")
-        enabled = get_bool(settings.value("enabled"), False)
-        hostname = get_str(settings.value("hostname"), "")
-        port = get_int(settings.value("port"), 8000)
-        settings.endGroup()
-        self.rpc_widget.set_server_enabled(enabled)
-        self.rpc_widget.set_hostname(hostname)
-        self.rpc_widget.set_port(port)
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("tcpServer"):
+            enabled = settings.get("enabled", False)
+            self.rpc_widget.set_server_enabled(enabled)
+
+            hostname = settings.get("hostname", "")
+            self.rpc_widget.set_hostname(hostname)
+
+            port = settings.get("port", 4000)
+            self.rpc_widget.set_port(port)
 
     def write_settings(self) -> None:
-        settings = QtCore.QSettings()
-        enabled = self.rpc_widget.is_server_enabled()
-        hostname = self.rpc_widget.hostname()
-        port = self.rpc_widget.port()
-        settings.beginGroup("tcpServer")
-        settings.setValue("enabled", enabled)
-        settings.setValue("hostname", hostname)
-        settings.setValue("port", port)
-        settings.endGroup()
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("tcpServer"):
+            enabled = self.rpc_widget.is_server_enabled()
+            settings.set("enabled", enabled)
+
+            hostname = self.rpc_widget.hostname()
+            settings.set("hostname", hostname)
+
+            port = self.rpc_widget.port()
+            settings.set("port", port)
 
     def _request_restart(self) -> None:
         for handler in self._shutdown_handlers:
@@ -462,7 +509,9 @@ class RPCServerPlugin(Plugin, QtCore.QObject):
 
     def _append_protocol(self, message: str) -> None:
         with self._message_cache_lock:
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            timestamp = (
+                datetime.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S")
+            )
             self._message_cache.append(f"{timestamp} {message}")
 
     def fetch_cached_messages(self) -> list[str]:
@@ -509,7 +558,7 @@ class RPCServerPlugin(Plugin, QtCore.QObject):
 
     def _run_server(self, hostname: str, port: int) -> None:
         logger.info("TCP started %s:%s", hostname, port)
-        loop: Optional[asyncio.AbstractEventLoop] = None
+        loop: asyncio.AbstractEventLoop | None = None
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -528,7 +577,7 @@ class RPCServerPlugin(Plugin, QtCore.QObject):
                 server._server.close()
                 loop.run_until_complete(server._server.wait_closed())
         except Exception as exc:
-            logger.exception(exc)
+            logger.exception("TCP failed %s:%s", hostname, port)
             self.failed.emit(exc)
         finally:
             try:
@@ -536,7 +585,7 @@ class RPCServerPlugin(Plugin, QtCore.QObject):
                     loop.stop()
                     loop.close()
             except Exception:
-                pass
+                ...
             logger.info("TCP stopped %s:%s", hostname, port)
             self.running.emit(False)
             self._shutdown_handlers.clear()

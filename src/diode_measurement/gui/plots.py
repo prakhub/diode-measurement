@@ -1,12 +1,25 @@
+import math
 import os
 import time
-from typing import Optional
-
-from PySide6 import QtCharts, QtCore, QtWidgets
+from collections.abc import Iterable, Mapping
+from queue import Empty, Queue
+from typing import Any
 
 from comet.utils import auto_scale
+from PySide6 import QtCharts, QtCore, QtWidgets
 
-__all__ = ["IVPlotWidget", "ItPlotWidget", "CVPlotWidget", "CV2PlotWidget"]
+from ..core.role import Role
+from ..measurements.cv import CVReading
+from ..measurements.iv import IVReading
+
+__all__ = [
+    "IVPlotWidget",
+    "ItPlotWidget",
+    "CVPlotWidget",
+    "CV2PlotWidget",
+    "IVPlotsDataWidget",
+    "CVPlotsDataWidget",
+]
 
 
 def limit_range(minimum: float, maximum: float, value: float) -> tuple[float, float]:
@@ -27,7 +40,7 @@ class DynamicValueAxis(QtCharts.QValueAxis):
         axis.rangeChanged.connect(self.setRange)
         axis.hide()
 
-    def setRange(self, minimum: float, maximum: float) -> None:
+    def setRange(self, minimum: float, maximum: float) -> None:  # pyright: ignore
         # Get best matching scale/prefix
         base = max(abs(minimum), abs(maximum))
         scale, prefix, _ = auto_scale(base)
@@ -42,7 +55,7 @@ class DynamicValueAxis(QtCharts.QValueAxis):
 
 
 class LimitsAggregator(QtCore.QObject):
-    def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
         self._minimum: float = 0.0
         self._maximum: float = 0.0
@@ -73,13 +86,13 @@ class LimitsAggregator(QtCore.QObject):
 
 
 class PlotToolButton(QtWidgets.QPushButton):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setFixedSize(18, 18)
 
 
 class PlotWidget(QtCharts.QChartView):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         chart = QtCharts.QChart()
         chart.setMargins(QtCore.QMargins(4, 4, 4, 4))
@@ -141,8 +154,12 @@ class PlotWidget(QtCharts.QChartView):
                 filename = f"{filename}.png"
             try:
                 self.grab().save(filename)
-            except Exception:
-                pass
+            except Exception as exc:
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Save Failed",
+                    f"Could not save the image to:\n\n{filename}\n\nReason: {exc}",
+                )
 
     def clear(self) -> None:
         for series in self.chart().series():
@@ -151,10 +168,12 @@ class PlotWidget(QtCharts.QChartView):
 
     def is_reverse(self) -> bool:
         for series in self.chart().series():
-            if isinstance(series, QtCharts.QXYSeries):
-                if series.count():
-                    if series.at(series.count() - 1).x() < series.at(0).x():
-                        return True
+            if (
+                isinstance(series, QtCharts.QXYSeries)
+                and series.count()
+                and series.at(series.count() - 1).x() < series.at(0).x()
+            ):
+                return True
         return False
 
     def replace_series(self, name: str, points: list[QtCore.QPointF]) -> None:
@@ -164,7 +183,7 @@ class PlotWidget(QtCharts.QChartView):
 
 
 class IVPlotWidget(PlotWidget):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.chart().setTitle("I vs. V")
 
@@ -218,10 +237,10 @@ class IVPlotWidget(PlotWidget):
         self.i_limits = LimitsAggregator(self)
         self.v_limits = LimitsAggregator(self)
 
-        self._series["smu"] = self.smu_series
-        self._series["smu2"] = self.smu2_series
-        self._series["elm"] = self.elm_series
-        self._series["elm2"] = self.elm2_series
+        self._series[Role.SMU] = self.smu_series
+        self._series[Role.SMU2] = self.smu2_series
+        self._series[Role.ELM] = self.elm_series
+        self._series[Role.ELM2] = self.elm2_series
 
     def fit_v_axis(self) -> None:
         self.v_axis.setReverse(self.is_reverse())
@@ -268,7 +287,7 @@ class IVPlotWidget(PlotWidget):
 class ItPlotWidget(PlotWidget):
     MAX_POINTS: int = 60 * 60 * 24
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.chart().setTitle("I vs. t")
 
@@ -322,10 +341,10 @@ class ItPlotWidget(PlotWidget):
         self.i_limits = LimitsAggregator(self)
         self.t_limits = LimitsAggregator(self)
 
-        self._series["smu"] = self.smu_series
-        self._series["smu2"] = self.smu2_series
-        self._series["elm"] = self.elm_series
-        self._series["elm2"] = self.elm2_series
+        self._series[Role.SMU] = self.smu_series
+        self._series[Role.SMU2] = self.smu2_series
+        self._series[Role.ELM] = self.elm_series
+        self._series[Role.ELM2] = self.elm2_series
 
     def fitTAxis(self) -> None:
         if self.t_limits.is_valid():
@@ -374,7 +393,7 @@ class ItPlotWidget(PlotWidget):
 
 
 class CVPlotWidget(PlotWidget):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.chart().setTitle("C vs. V")
 
@@ -404,7 +423,7 @@ class CVPlotWidget(PlotWidget):
         self.c_limits = LimitsAggregator(self)
         self.v_limits = LimitsAggregator(self)
 
-        self._series["lcr"] = self.lcr_series
+        self._series[Role.LCR] = self.lcr_series
 
     def fit(self) -> None:
         if self.chart().isZoomed():
@@ -436,7 +455,7 @@ class CVPlotWidget(PlotWidget):
 
 
 class CV2PlotWidget(PlotWidget):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.chart().setTitle("1/C^2 vs. V")
 
@@ -464,7 +483,7 @@ class CV2PlotWidget(PlotWidget):
         self.c_limits = LimitsAggregator(self)
         self.v_limits = LimitsAggregator(self)
 
-        self._series["lcr"] = self.lcr_series
+        self._series[Role.LCR] = self.lcr_series
 
     def fit(self) -> None:
         if self.chart().isZoomed():
@@ -490,3 +509,278 @@ class CV2PlotWidget(PlotWidget):
             self.c_limits.append(y)
             self.v_limits.append(x)
             self.fit()
+
+
+class IVPlotsDataWidget(QtWidgets.QWidget):
+    def __init__(
+        self,
+        iv_reading_queue: Queue[IVReading],
+        it_reading_queue: Queue[IVReading],
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.iv_reading_queue = iv_reading_queue
+        self.it_reading_queue = it_reading_queue
+
+        self.iv_plot_widget = IVPlotWidget(self)
+        self.it_plot_widget = ItPlotWidget(self)
+        self.it_plot_widget.setVisible(False)
+
+        self.iv_layout = QtWidgets.QHBoxLayout(self)
+        self.iv_layout.addWidget(self.iv_plot_widget)
+        self.iv_layout.addWidget(self.it_plot_widget)
+        self.iv_layout.setStretch(0, 1)
+        self.iv_layout.setStretch(1, 1)
+        self.iv_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.max_flush_readings: int = 1000
+
+        self.update_timer = QtCore.QTimer()
+        self.update_timer.timeout.connect(self.on_flush_iv_readings)
+        self.update_timer.timeout.connect(self.on_flush_it_readings)
+
+    def start(self, interval: int) -> None:
+        self.update_timer.start(interval)
+
+    def stop(self) -> None:
+        self.update_timer.stop()
+
+    def clear(self):
+        self.iv_plot_widget.clear()
+        self.iv_plot_widget.reset()
+        self.it_plot_widget.clear()
+        self.it_plot_widget.reset()
+
+    def set_series_visible(self, role: Role, visible: bool) -> None:
+        if role == Role.SMU:
+            self.iv_plot_widget.smu_series.setVisible(visible)
+            self.it_plot_widget.smu_series.setVisible(visible)
+        elif role == Role.SMU2:
+            self.iv_plot_widget.smu2_series.setVisible(visible)
+            self.it_plot_widget.smu2_series.setVisible(visible)
+        elif role == Role.ELM:
+            self.iv_plot_widget.elm_series.setVisible(visible)
+            self.it_plot_widget.elm_series.setVisible(visible)
+        elif role == Role.ELM2:
+            self.iv_plot_widget.elm2_series.setVisible(visible)
+            self.it_plot_widget.elm2_series.setVisible(visible)
+
+    def set_continuous(self, enabled: bool) -> None:
+        self.it_plot_widget.setVisible(enabled)
+
+    @QtCore.Slot()
+    def on_flush_iv_readings(self) -> None:
+        n_readings = 0
+        for _ in range(self.max_flush_readings):
+            try:
+                reading = self.iv_reading_queue.get_nowait()
+            except Empty:
+                break
+            self.append_iv_reading(reading)
+            n_readings += 1
+        if n_readings:
+            self.iv_plot_widget.fit()
+
+    def append_iv_reading(self, reading: IVReading, fit: bool = True) -> None:
+        voltage: float = reading.voltage
+        i_smu: float = reading.i_smu
+        i_smu2: float = reading.i_smu2
+        i_elm: float = reading.i_elm
+        i_elm2: float = reading.i_elm2
+        if math.isfinite(voltage) and math.isfinite(i_smu):
+            self.iv_plot_widget.append(Role.SMU, voltage, i_smu)
+        if math.isfinite(voltage) and math.isfinite(i_smu2):
+            self.iv_plot_widget.append(Role.SMU2, voltage, i_smu2)
+        if math.isfinite(voltage) and math.isfinite(i_elm):
+            self.iv_plot_widget.append(Role.ELM, voltage, i_elm)
+        if math.isfinite(voltage) and math.isfinite(i_elm2):
+            self.iv_plot_widget.append(Role.ELM2, voltage, i_elm2)
+
+    def on_load_iv_readings(self, readings: Iterable[Mapping[str, Any]]) -> None:
+        smu_points: list[QtCore.QPointF] = []
+        smu2_points: list[QtCore.QPointF] = []
+        elm_points: list[QtCore.QPointF] = []
+        elm2_points: list[QtCore.QPointF] = []
+        widget = self.iv_plot_widget
+        widget.clear()
+        for reading in readings:
+            voltage: float = reading.get("voltage", math.nan)
+            i_smu: float = reading.get("i_smu", math.nan)
+            i_smu2: float = reading.get("i_smu2", math.nan)
+            i_elm: float = reading.get("i_elm", math.nan)
+            i_elm2: float = reading.get("i_elm2", math.nan)
+            if math.isfinite(voltage) and math.isfinite(i_smu):
+                smu_points.append(QtCore.QPointF(voltage, i_smu))
+                widget.i_limits.append(i_smu)
+                widget.v_limits.append(voltage)
+            if math.isfinite(voltage) and math.isfinite(i_smu2):
+                smu2_points.append(QtCore.QPointF(voltage, i_smu2))
+                widget.i_limits.append(i_smu2)
+                widget.v_limits.append(voltage)
+            if math.isfinite(voltage) and math.isfinite(i_elm):
+                elm_points.append(QtCore.QPointF(voltage, i_elm))
+                widget.i_limits.append(i_elm)
+                widget.v_limits.append(voltage)
+            if math.isfinite(voltage) and math.isfinite(i_elm2):
+                elm2_points.append(QtCore.QPointF(voltage, i_elm2))
+                widget.i_limits.append(i_elm2)
+                widget.v_limits.append(voltage)
+        widget.replace_series(Role.SMU, smu_points)
+        widget.replace_series(Role.SMU2, smu2_points)
+        widget.replace_series(Role.ELM, elm_points)
+        widget.replace_series(Role.ELM2, elm2_points)
+        widget.fit()
+
+    @QtCore.Slot()
+    def on_flush_it_readings(self) -> None:
+        n_readings = 0
+        for _ in range(self.max_flush_readings):
+            try:
+                reading = self.it_reading_queue.get_nowait()
+            except Empty:
+                break
+            self.append_it_reading(reading)
+            n_readings += 1
+        if n_readings:
+            self.it_plot_widget.fit()
+
+    def append_it_reading(self, reading: IVReading) -> None:
+        timestamp: float = reading.timestamp
+        i_smu: float = reading.i_smu
+        i_smu2: float = reading.i_smu2
+        i_elm: float = reading.i_elm
+        i_elm2: float = reading.i_elm2
+        if math.isfinite(timestamp) and math.isfinite(i_smu):
+            self.it_plot_widget.append(Role.SMU, timestamp, i_smu)
+        if math.isfinite(timestamp) and math.isfinite(i_smu2):
+            self.it_plot_widget.append(Role.SMU2, timestamp, i_smu2)
+        if math.isfinite(timestamp) and math.isfinite(i_elm):
+            self.it_plot_widget.append(Role.ELM, timestamp, i_elm)
+        if math.isfinite(timestamp) and math.isfinite(i_elm2):
+            self.it_plot_widget.append(Role.ELM2, timestamp, i_elm2)
+
+    def on_load_it_readings(self, readings: Iterable[Mapping[str, Any]]) -> None:
+        smu_points: list[QtCore.QPointF] = []
+        smu2_points: list[QtCore.QPointF] = []
+        elm_points: list[QtCore.QPointF] = []
+        elm2_points: list[QtCore.QPointF] = []
+        widget = self.it_plot_widget
+        widget.clear()
+        for reading in readings:
+            timestamp: float = reading.get("timestamp", math.nan)
+            i_smu: float = reading.get("i_smu", math.nan)
+            i_smu2: float = reading.get("i_smu2", math.nan)
+            i_elm: float = reading.get("i_elm", math.nan)
+            i_elm2: float = reading.get("i_elm2", math.nan)
+            if math.isfinite(timestamp) and math.isfinite(i_smu):
+                smu_points.append(QtCore.QPointF(timestamp * 1e3, i_smu))
+                widget.i_limits.append(i_smu)
+                widget.t_limits.append(timestamp)
+            if math.isfinite(timestamp) and math.isfinite(i_smu2):
+                smu2_points.append(QtCore.QPointF(timestamp * 1e3, i_smu2))
+                widget.i_limits.append(i_smu2)
+                widget.t_limits.append(timestamp)
+            if math.isfinite(timestamp) and math.isfinite(i_elm):
+                elm_points.append(QtCore.QPointF(timestamp * 1e3, i_elm))
+                widget.i_limits.append(i_elm)
+                widget.t_limits.append(timestamp)
+            if math.isfinite(timestamp) and math.isfinite(i_elm2):
+                elm2_points.append(QtCore.QPointF(timestamp * 1e3, i_elm2))
+                widget.i_limits.append(i_elm2)
+                widget.t_limits.append(timestamp)
+        widget.replace_series(Role.SMU, smu_points)
+        widget.replace_series(Role.SMU2, smu2_points)
+        widget.replace_series(Role.ELM, elm_points)
+        widget.replace_series(Role.ELM2, elm2_points)
+        widget.fit()
+
+
+class CVPlotsDataWidget(QtWidgets.QWidget):
+    def __init__(
+        self,
+        cv_reading_queue: Queue[CVReading],
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.cv_reading_queue = cv_reading_queue
+
+        self.cv_plot_widget = CVPlotWidget(self)
+        self.cv2_plot_widget = CV2PlotWidget(self)
+
+        self.cv_layout = QtWidgets.QHBoxLayout(self)
+        self.cv_layout.addWidget(self.cv_plot_widget)
+        self.cv_layout.addWidget(self.cv2_plot_widget)
+        self.cv_layout.setStretch(0, 1)
+        self.cv_layout.setStretch(1, 1)
+        self.cv_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.max_flush_readings: int = 1000
+
+        self.update_timer = QtCore.QTimer()
+        self.update_timer.timeout.connect(self.flush_cv_readings)
+
+    def start(self, interval: int) -> None:
+        self.update_timer.start(interval)
+
+    def stop(self) -> None:
+        self.update_timer.stop()
+
+    def clear(self) -> None:
+        self.cv_plot_widget.clear()
+        self.cv_plot_widget.reset()
+        self.cv2_plot_widget.clear()
+        self.cv2_plot_widget.reset()
+
+    def set_series_visible(self, role: Role, enabled: bool) -> None: ...
+
+    def set_continuous(self, enabled: bool) -> None: ...
+
+    @QtCore.Slot()
+    def flush_cv_readings(self) -> None:
+        n_readings = 0
+        for _ in range(self.max_flush_readings):
+            try:
+                reading = self.cv_reading_queue.get_nowait()
+            except Empty:
+                break
+            self.append_cv_reading(reading)
+            n_readings += 1
+        if n_readings:
+            self.cv_plot_widget.fit()
+
+    def append_cv_reading(self, reading: CVReading) -> None:
+        voltage = reading.voltage
+        c_lcr = reading.c_lcr
+        c2_lcr = reading.c2_lcr
+        if math.isfinite(voltage) and math.isfinite(c_lcr):
+            self.cv_plot_widget.append(Role.LCR, voltage, c_lcr)
+        if math.isfinite(voltage) and math.isfinite(c2_lcr):
+            self.cv2_plot_widget.append(Role.LCR, voltage, c2_lcr)
+
+    def load_cv_readings(self, readings: Iterable[Mapping[str, Any]]) -> None:
+        lcr_points: list[QtCore.QPointF] = []
+        widget = self.cv_plot_widget
+        widget.clear()
+        for reading in readings:
+            voltage: float = reading.get("voltage", math.nan)
+            c_lcr: float = reading.get("c_lcr", math.nan)
+            if math.isfinite(voltage) and math.isfinite(c_lcr):
+                lcr_points.append(QtCore.QPointF(voltage, c_lcr))
+                widget.c_limits.append(c_lcr)
+                widget.v_limits.append(voltage)
+        widget.replace_series(Role.LCR, lcr_points)
+        widget.fit()
+
+    def load_cv2_readings(self, readings: Iterable[Mapping[str, Any]]) -> None:
+        lcr2_points: list[QtCore.QPointF] = []
+        widget = self.cv2_plot_widget
+        widget.clear()
+        for reading in readings:
+            voltage: float = reading.get("voltage", math.nan)
+            c2_lcr: float = reading.get("c2_lcr", math.nan)
+            if math.isfinite(voltage) and math.isfinite(c2_lcr):
+                lcr2_points.append(QtCore.QPointF(voltage, c2_lcr))
+                widget.c_limits.append(c2_lcr)
+                widget.v_limits.append(voltage)
+        widget.replace_series(Role.LCR, lcr2_points)
+        widget.fit()

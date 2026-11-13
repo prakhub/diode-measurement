@@ -1,15 +1,13 @@
-from typing import Optional
-
 from PySide6 import QtWidgets
 
-from ..panel import InstrumentPanel, WidgetParameter
+from ..panel import FSMState, InstrumentPanel, WidgetParameter
 
 __all__ = ["K2657APanel"]
 
 
 class K2657APanel(InstrumentPanel):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("K2657A", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("K2657A", "Keithley 2657A", parent)
 
         self.filter_group_box = QtWidgets.QGroupBox()
         self.filter_group_box.setTitle("Filter")
@@ -85,8 +83,9 @@ class K2657APanel(InstrumentPanel):
         self.filter_mode_combo_box.setCurrentIndex(0)
         self.nplc_spin_box.setValue(1.0)
 
-    def set_locked(self, state: bool) -> None:
-        self.filter_enable_check_box.setEnabled(not state)
-        self.filter_count_spin_box.setEnabled(not state)
-        self.filter_mode_combo_box.setEnabled(not state)
-        self.nplc_spin_box.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.filter_enable_check_box.setEnabled(enabled)
+        self.filter_count_spin_box.setEnabled(enabled)
+        self.filter_mode_combo_box.setEnabled(enabled)
+        self.nplc_spin_box.setEnabled(enabled)

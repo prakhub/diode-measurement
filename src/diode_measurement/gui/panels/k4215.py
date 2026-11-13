@@ -1,8 +1,6 @@
-from typing import Optional
-
 from PySide6 import QtCore, QtWidgets
 
-from ..panel import InstrumentPanel, WidgetParameter, MethodParameter
+from ..panel import FSMState, InstrumentPanel, MethodParameter, WidgetParameter
 
 __all__ = ["K4215Panel", "K4215CorrectionDialog"]
 
@@ -10,8 +8,8 @@ __all__ = ["K4215Panel", "K4215CorrectionDialog"]
 class K4215Panel(InstrumentPanel):
     perform_correction_clicked = QtCore.Signal()
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("K4215", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("K4215", "Keithley 4215 CVU", parent)
 
         # AC amplitude
 
@@ -188,7 +186,7 @@ class K4215Panel(InstrumentPanel):
             "aperture.aperture", WidgetParameter(self.averaging_rate_spin_box)
         )
         self.bind_parameter(
-            "aperture.filter_count", WidgetParameter(self.filter_factor_spin_box)
+            "aperture.filter_factor", WidgetParameter(self.filter_factor_spin_box)
         )
         self.bind_parameter(
             "aperture.delay_factor", WidgetParameter(self.delay_factor_spin_box)
@@ -308,18 +306,21 @@ class K4215Panel(InstrumentPanel):
         self.short_enabled_check_box.setChecked(False)
         self.external_bias_tee_check_box.setChecked(False)
 
-    def set_locked(self, state: bool) -> None:
-        self.amplitude_voltage_spin_box.setEnabled(not state)
-        self.amplitude_frequency_spin_box.setEnabled(not state)
-        self.amplitude_alc_check_box.setEnabled(not state)
-        self.integration_time_combo_box.setEnabled(not state)
-        self.averaging_rate_spin_box.setEnabled(not state)
-        self.length_combo_box.setEnabled(not state)
-        self.open_enabled_check_box.setEnabled(not state)
-        self.short_enabled_check_box.setEnabled(not state)
-        self.load_enabled_check_box.setEnabled(not state)
-        self.performCorrectionButton.setEnabled(not state)
-        self.external_bias_tee_check_box.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.amplitude_voltage_spin_box.setEnabled(enabled)
+        self.amplitude_frequency_spin_box.setEnabled(enabled)
+        self.amplitude_alc_check_box.setEnabled(enabled)
+        self.integration_time_combo_box.setEnabled(enabled)
+        self.averaging_rate_spin_box.setEnabled(enabled)
+        self.filter_factor_spin_box.setEnabled(enabled)
+        self.delay_factor_spin_box.setEnabled(enabled)
+        self.length_combo_box.setEnabled(enabled)
+        self.open_enabled_check_box.setEnabled(enabled)
+        self.short_enabled_check_box.setEnabled(enabled)
+        self.load_enabled_check_box.setEnabled(enabled)
+        self.performCorrectionButton.setEnabled(enabled)
+        self.external_bias_tee_check_box.setEnabled(enabled)
 
 
 class K4215CorrectionDialog(QtWidgets.QDialog):
@@ -378,7 +379,7 @@ class K4215CorrectionDialog(QtWidgets.QDialog):
         data = self.combo_box.currentData()
         return data == "short"
 
-    def get_load_correction(self) -> Optional[int]:
+    def get_load_correction(self) -> int | None:
         data = self.combo_box.currentData()
         if data == "load":
             return self.load_spin_box.value()

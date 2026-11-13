@@ -1,8 +1,6 @@
-from typing import Optional
-
 from PySide6 import QtCore, QtWidgets
 
-from ..utils import get_str
+from .adapters import SettingsAdapter
 
 TIMESTAMP_FORMATS: list[str] = [
     ".3f",
@@ -19,40 +17,27 @@ VALUE_FORMATS: list[str] = [
 
 
 class PreferencesDialog(QtWidgets.QDialog):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
 
         self.setWindowTitle("Preferences")
         self.setMinimumSize(320, 240)
 
-        # Output Tab
-
-        self.output_widget = QtWidgets.QWidget(self)
-
-        self.timestamp_format_combo_box = QtWidgets.QComboBox(self.output_widget)
-
-        for timestamp_format in TIMESTAMP_FORMATS:
-            self.timestamp_format_combo_box.addItem(
-                format(1.0, timestamp_format), timestamp_format
-            )
-
-        self.value_format_combo_box = QtWidgets.QComboBox(self.output_widget)
-
-        for value_format in VALUE_FORMATS:
-            self.value_format_combo_box.addItem(format(1.0, value_format), value_format)
-
-        output_widget_layout = QtWidgets.QFormLayout(self.output_widget)
-        output_widget_layout.addRow("Timestamp Format", self.timestamp_format_combo_box)
-        output_widget_layout.addRow("Value Format", self.value_format_combo_box)
+        self.output_widget = OutputWidget(self)
+        self.misc_widget = MiscWidget(self)
+        self.logging_widget = LoggingWidget(self)
 
         self.tab_widget = QtWidgets.QTabWidget(self)
         self.tab_widget.addTab(self.output_widget, "Output")
+        self.tab_widget.addTab(self.misc_widget, "Misc")
+        self.tab_widget.addTab(self.logging_widget, "Logging")
 
         self.dialog_button_box = QtWidgets.QDialogButtonBox(self)
         self.dialog_button_box.addButton(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         self.dialog_button_box.addButton(
             QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
+
         self.dialog_button_box.accepted.connect(self.accept)
         self.dialog_button_box.rejected.connect(self.reject)
 
@@ -60,38 +45,162 @@ class PreferencesDialog(QtWidgets.QDialog):
         layout.addWidget(self.tab_widget)
         layout.addWidget(self.dialog_button_box)
 
+    def read_settings(self) -> None:
+        self.output_widget.read_settings()
+        self.misc_widget.read_settings()
+        self.logging_widget.read_settings()
+
+    def write_settings(self) -> None:
+        self.output_widget.write_settings()
+        self.misc_widget.write_settings()
+        self.logging_widget.write_settings()
+
+
+class OutputWidget(QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.timestamp_format_combo_box = QtWidgets.QComboBox(self)
+
+        for timestamp_format in TIMESTAMP_FORMATS:
+            self.timestamp_format_combo_box.addItem(
+                format(1.0, timestamp_format),
+                timestamp_format,
+            )
+
+        self.value_format_combo_box = QtWidgets.QComboBox(self)
+
+        for value_format in VALUE_FORMATS:
+            self.value_format_combo_box.addItem(
+                format(1.0, value_format),
+                value_format,
+            )
+
+        layout = QtWidgets.QFormLayout(self)
+        layout.addRow("Timestamp Format", self.timestamp_format_combo_box)
+        layout.addRow("Value Format", self.value_format_combo_box)
+
     def timestamp_format(self) -> str:
         value = self.timestamp_format_combo_box.currentData()
         return value if isinstance(value, str) else TIMESTAMP_FORMATS[1]
 
     def set_timestamp_format(self, timestamp_format: str) -> None:
-        """Select the timestamp format, falling back to the default if unknown."""
         index = self.timestamp_format_combo_box.findData(timestamp_format)
         if index < 0:
-            index = 1  # default: TIMESTAMP_FORMATS[1]
+            index = 1  # TIMESTAMP_FORMATS[1]
         self.timestamp_format_combo_box.setCurrentIndex(index)
 
-    def valueFormat(self) -> str:
+    def value_format(self) -> str:
         value = self.value_format_combo_box.currentData()
         return value if isinstance(value, str) else VALUE_FORMATS[0]
 
     def set_value_format(self, value_format: str) -> None:
-        """Select the value format, falling back to the default if unknown."""
         index = self.value_format_combo_box.findData(value_format)
-        if index < 0:
-            index = 0  # default: VALUE_FORMATS[0]
+        index = max(index, 0)
         self.value_format_combo_box.setCurrentIndex(index)
 
     def read_settings(self) -> None:
-        settings = QtCore.QSettings()
-        timestamp_format = get_str(
-            settings.value("writer/timestampFormat"), TIMESTAMP_FORMATS[1]
-        )
-        self.set_timestamp_format(timestamp_format)
-        value_format = get_str(settings.value("writer/valueFormat"), VALUE_FORMATS[0])
-        self.set_value_format(value_format)
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("writer"):
+            timestamp_format = settings.get("timestampFormat", TIMESTAMP_FORMATS[1])
+            self.set_timestamp_format(timestamp_format)
+
+            value_format = settings.get("valueFormat", VALUE_FORMATS[0])
+            self.set_value_format(value_format)
 
     def write_settings(self) -> None:
-        settings = QtCore.QSettings()
-        settings.setValue("writer/timestampFormat", self.timestamp_format())
-        settings.setValue("writer/valueFormat", self.valueFormat())
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("writer"):
+            settings.set("timestampFormat", self.timestamp_format())
+            settings.set("valueFormat", self.value_format())
+
+
+class MiscWidget(QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.discharge_timeout_spin_box = QtWidgets.QDoubleSpinBox(self)
+        self.discharge_timeout_spin_box.setRange(0.0, 360.0)
+        self.discharge_timeout_spin_box.setSuffix(" s")
+        self.discharge_timeout_spin_box.setDecimals(1)
+        self.discharge_timeout_spin_box.setSingleStep(1.0)
+        self.discharge_timeout_spin_box.setToolTip(
+            "Sets the timeout for voltage discharge. "
+            "The discharge waits until the source voltage is below the discharge threshold."
+        )
+
+        self.discharge_threshold_spin_box = QtWidgets.QDoubleSpinBox(self)
+        self.discharge_threshold_spin_box.setRange(0.0, 1_000_000.0)
+        self.discharge_threshold_spin_box.setSuffix(" V")
+        self.discharge_threshold_spin_box.setDecimals(3)
+        self.discharge_threshold_spin_box.setSingleStep(0.1)
+        self.discharge_threshold_spin_box.setToolTip(
+            "Voltage threshold below which the source is considered discharged."
+        )
+
+        layout = QtWidgets.QFormLayout(self)
+        layout.addRow("Discharge timeout", self.discharge_timeout_spin_box)
+        layout.addRow("Discharge threshold", self.discharge_threshold_spin_box)
+
+        self.read_settings()
+
+    def read_settings(self) -> None:
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("misc"):
+            discharge_timeout = settings.get("discharge_timeout", 60.0)
+            self.discharge_timeout_spin_box.setValue(discharge_timeout)
+
+            discharge_threshold = settings.get("discharge_threshold", 0.5)
+            self.discharge_threshold_spin_box.setValue(discharge_threshold)
+
+    def write_settings(self) -> None:
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("misc"):
+            discharge_timeout = self.discharge_timeout_spin_box.value()
+            settings.set("discharge_timeout", discharge_timeout)
+
+            discharge_threshold = self.discharge_threshold_spin_box.value()
+            settings.set("discharge_threshold", discharge_threshold)
+
+
+class LoggingWidget(QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        self.level_combo_box = QtWidgets.QComboBox(self)
+        self.level_combo_box.addItem("Info", "info")
+        self.level_combo_box.addItem("Debug", "debug")
+        self.level_combo_box.setToolTip(
+            "Select log level. Requires restart to apply changes."
+        )
+
+        self.write_logfile_check_box = QtWidgets.QCheckBox(self)
+        self.write_logfile_check_box.setText("Write Logfile")
+        self.write_logfile_check_box.setToolTip(
+            "Write logfile to user home directory. Requires restart to apply changes."
+        )
+
+        layout = QtWidgets.QFormLayout(self)
+        layout.addRow("Log Level", self.level_combo_box)
+        layout.addWidget(self.write_logfile_check_box)
+
+        self.read_settings()
+
+    def read_settings(self) -> None:
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("logging"):
+            log_level = settings.get("log_level", "info")
+            index = self.level_combo_box.findData(log_level)
+            self.level_combo_box.setCurrentIndex(max(0, index))
+
+            write_logifle = settings.get("write_logfile", True)
+            self.write_logfile_check_box.setChecked(write_logifle)
+
+    def write_settings(self) -> None:
+        settings = SettingsAdapter(QtCore.QSettings())
+        with settings.group("logging"):
+            log_level = self.level_combo_box.currentData() or "info"
+            settings.set("log_level", log_level)
+
+            write_logfile = self.write_logfile_check_box.isChecked()
+            settings.set("write_logfile", write_logfile)

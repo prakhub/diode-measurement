@@ -1,9 +1,8 @@
 import pytest
 
-from diode_measurement.drivers.a4155c import A4155C
+from diode_measurement.drivers.keysight.a4155c import A4155CAdapter
+from diode_measurement.gui.panel import FSMState
 from diode_measurement.gui.panels.a4155c import A4155CPanel
-
-from . import res
 
 
 @pytest.fixture
@@ -37,7 +36,7 @@ def test_panel_a4155c_channels(panel):
         panel.channel_combo_box.itemData(index)
         for index in range(panel.channel_combo_box.count())
     ]
-    assert channels == list(A4155C.CHANNELS)
+    assert channels == list(A4155CAdapter.CHANNELS)
 
 
 def test_panel_a4155c_apply_config(panel):
@@ -82,20 +81,20 @@ def test_panel_a4155c_range_enabled_for_non_auto(panel):
     assert not panel.range_metric.isEnabled()
 
 
-def test_panel_a4155c_locked(panel):
-    panel.set_locked(True)
+def test_panel_a4155c_fsm_state(panel):
+    panel.set_fsm_state(FSMState.RAMPING)
     assert not panel.channel_combo_box.isEnabled()
     assert not panel.integration_time_combo_box.isEnabled()
     assert not panel.nplc_spin_box.isEnabled()
 
-    panel.set_locked(False)
+    panel.set_fsm_state(FSMState.IDLE)
     assert panel.channel_combo_box.isEnabled()
     assert panel.integration_time_combo_box.isEnabled()
 
 
 def test_panel_a4155c_config_accepted_by_driver(panel, res):
     """Panel parameters must match the options read by the driver."""
-    d = A4155C(res)
+    d = A4155CAdapter(res)
     res.buffer = ["1"] * 32
     assert d.configure(panel.config()) is None
     assert d.channel == "SMU1"
@@ -126,7 +125,7 @@ def test_panel_a4155c_source_defaults(source_panel):
 
 
 def test_panel_a4155c_source_config_accepted_by_driver(source_panel, res):
-    d = A4155C(res)
+    d = A4155CAdapter(res)
     res.buffer = ["1"] * 32
     assert d.configure(source_panel.config()) is None
     assert not d.is_invert_sign_enabled()

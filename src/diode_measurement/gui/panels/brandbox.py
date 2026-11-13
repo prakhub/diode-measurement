@@ -1,17 +1,17 @@
-from typing import Optional
+from collections.abc import Iterable
 
 from PySide6 import QtWidgets
 
-from ..panel import InstrumentPanel, MethodParameter
+from ..panel import FSMState, InstrumentPanel, MethodParameter
 
 __all__ = ["BrandBoxPanel"]
 
 
 class BrandBoxPanel(InstrumentPanel):
-    CHANNELS: list[str] = ["A1", "B1", "C1", "A2", "B2", "C2"]
+    CHANNELS: tuple[str, ...] = ("A1", "B1", "C1", "A2", "B2", "C2")
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("BrandBox", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("BrandBox", "HEPHY Brandbox", parent)
 
         # Channels
 
@@ -57,7 +57,7 @@ class BrandBoxPanel(InstrumentPanel):
                 channels.append(channel)
         return channels
 
-    def set_closed_channels(self, channels: list[str]) -> None:
+    def set_closed_channels(self, channels: Iterable[str]) -> None:
         selected = set(channels)
         for channel, check_box in self.channel_check_boxes.items():
             check_box.setChecked(channel in selected)
@@ -65,6 +65,7 @@ class BrandBoxPanel(InstrumentPanel):
     def restore_defaults(self) -> None:
         self.set_closed_channels([])
 
-    def set_locked(self, state: bool) -> None:
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
         for check_box in self.channel_check_boxes.values():
-            check_box.setEnabled(not state)
+            check_box.setEnabled(enabled)

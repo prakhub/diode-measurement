@@ -1,13 +1,18 @@
 import logging
-from typing import Any, Iterator, Optional, Protocol
+from collections.abc import Iterable, Mapping
+from typing import Any, Protocol, runtime_checkable
 
 from comet.driver.generic import InstrumentError
 
-from ..resource import Resource
+from .resource import Resource
+
+__all__ = [
+    "Driver",
+    "driver_registry",
+    "driver_factory",
+]
 
 logger = logging.getLogger(__name__)
-
-__all__ = ["Driver", "BaseDriver"]
 
 
 def handle_exception(method):
@@ -23,18 +28,13 @@ def handle_exception(method):
 class DriverError(Exception): ...
 
 
-class BaseDriver:
-    def __init__(self, resource: Resource) -> None:
-        self.resource = resource
-
-
 class Driver(Protocol):
     def __init__(self, resource: Resource) -> None: ...
     def identify(self) -> str: ...
     def reset(self) -> None: ...
     def clear(self) -> None: ...
-    def next_error(self) -> Optional[InstrumentError]: ...
-    def configure(self, options: dict[str, Any]) -> None: ...
+    def next_error(self) -> InstrumentError | None: ...
+    def configure(self, options: Mapping[str, Any]) -> None: ...
 
 
 class SourceMeter(Driver, Protocol):
@@ -63,13 +63,33 @@ class DMM(Driver, Protocol):
 
 class TCU(Driver, Protocol):
     def get_temperature(self) -> float: ...
+    def get_humidity(self) -> float: ...
+    def is_setpoint_enabled(self) -> bool: ...
+    def set_setpoint_enabled(self, enabled: bool) -> None: ...
     def set_target_temperature(self, temperature: float) -> None: ...
     def is_within_setpoint(self) -> bool: ...
     def get_state(self) -> str: ...
+    def handle_event(self, event: Any) -> None: ...
 
 
 class SwitchingMatrix(Driver, Protocol):
-    def close_channels(self, channels: Iterator[str]) -> None: ...
-    def open_channels(self, channels: Iterator[str]) -> None: ...
+    def close_channels(self, channels: Iterable[str]) -> None: ...
+    def open_channels(self, channels: Iterable[str]) -> None: ...
     def open_all_channels(self) -> None: ...
     def closed_channels(self) -> list[str]: ...
+
+
+@runtime_checkable
+class VoltageMeasurable(Protocol):
+    def measure_v(self) -> float: ...
+
+
+driver_registry: dict[str, type[Driver]] = {}
+
+
+def driver_factory(model: str) -> type[Driver]:
+    """Return the driver class for the given model."""
+    try:
+        return driver_registry[model]
+    except KeyError as exc:
+        raise ValueError(f"Unknown driver model: {model}") from exc

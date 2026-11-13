@@ -1,16 +1,14 @@
-from typing import Optional
-
 from PySide6 import QtWidgets
 
-from ..panel import InstrumentPanel, WidgetParameter
 from ..metric import MetricWidget
+from ..panel import FSMState, InstrumentPanel, WidgetParameter
 
 __all__ = ["K6514Panel"]
 
 
 class K6514Panel(InstrumentPanel):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("K6514", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("K6514", "Keithley 6514", parent)
 
         # Range
 
@@ -18,26 +16,26 @@ class K6514Panel(InstrumentPanel):
         self.range_group_box.setTitle("Sense Range")
 
         self.sense_range_metric = MetricWidget()
-        self.sense_range_metric.setDecimals(3)
-        self.sense_range_metric.setRange(0, 999)  # TODO
-        self.sense_range_metric.setUnit("A")
-        self.sense_range_metric.setPrefixes("munp")
+        self.sense_range_metric.set_decimals(3)
+        self.sense_range_metric.set_range(0, 999)  # TODO
+        self.sense_range_metric.set_unit("A")
+        self.sense_range_metric.set_prefixes("munp")
 
         self.auto_range_llimit_label = QtWidgets.QLabel("Lower Limit")
 
         self.auto_range_llimit_metric = MetricWidget()
-        self.auto_range_llimit_metric.setDecimals(3)
-        self.auto_range_llimit_metric.setRange(0, 999)  # TODO
-        self.auto_range_llimit_metric.setUnit("A")
-        self.auto_range_llimit_metric.setPrefixes("munp")
+        self.auto_range_llimit_metric.set_decimals(3)
+        self.auto_range_llimit_metric.set_range(0, 999)  # TODO
+        self.auto_range_llimit_metric.set_unit("A")
+        self.auto_range_llimit_metric.set_prefixes("munp")
 
         self.auto_range_ulimit_label = QtWidgets.QLabel("Upper Limit")
 
         self.auto_range_ulimit_metric = MetricWidget()
-        self.auto_range_ulimit_metric.setDecimals(3)
-        self.auto_range_ulimit_metric.setRange(0, 999)  # TODO
-        self.auto_range_ulimit_metric.setUnit("A")
-        self.auto_range_ulimit_metric.setPrefixes("munp")
+        self.auto_range_ulimit_metric.set_decimals(3)
+        self.auto_range_ulimit_metric.set_range(0, 999)  # TODO
+        self.auto_range_ulimit_metric.set_unit("A")
+        self.auto_range_ulimit_metric.set_prefixes("munp")
 
         self.auto_range_check_box = QtWidgets.QCheckBox("Auto Range")
         self.auto_range_check_box.toggled.connect(self.on_auto_range_check_changed)
@@ -139,25 +137,26 @@ class K6514Panel(InstrumentPanel):
         self.restore_defaults()
 
     def restore_defaults(self) -> None:
-        self.sense_range_metric.setValue(200e-6)
+        self.sense_range_metric.set_value(200e-6)
         self.auto_range_check_box.setChecked(True)
-        self.auto_range_llimit_metric.setValue(2e-12)
-        self.auto_range_ulimit_metric.setValue(20e-3)
+        self.auto_range_llimit_metric.set_value(2e-12)
+        self.auto_range_ulimit_metric.set_value(20e-3)
         self.filter_enable_check_box.setChecked(False)
         self.filter_count_spin_box.setValue(10)
         self.filter_mode_combo_box.setCurrentIndex(0)
         self.nplc_spin_box.setValue(5.0)
         self.on_auto_range_check_changed(self.auto_range_check_box.isChecked())
 
-    def set_locked(self, state: bool) -> None:
-        self.sense_range_metric.setEnabled(not state)
-        self.auto_range_check_box.setEnabled(not state)
-        self.auto_range_llimit_metric.setEnabled(not state)
-        self.auto_range_ulimit_metric.setEnabled(not state)
-        self.filter_enable_check_box.setEnabled(not state)
-        self.filter_count_spin_box.setEnabled(not state)
-        self.filter_mode_combo_box.setEnabled(not state)
-        self.nplc_spin_box.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.sense_range_metric.setEnabled(enabled)
+        self.auto_range_check_box.setEnabled(enabled)
+        self.auto_range_llimit_metric.setEnabled(enabled)
+        self.auto_range_ulimit_metric.setEnabled(enabled)
+        self.filter_enable_check_box.setEnabled(enabled)
+        self.filter_count_spin_box.setEnabled(enabled)
+        self.filter_mode_combo_box.setEnabled(enabled)
+        self.nplc_spin_box.setEnabled(enabled)
         self.on_auto_range_check_changed(self.auto_range_check_box.isChecked())
 
     def on_auto_range_check_changed(self, checked) -> None:

@@ -1,19 +1,17 @@
-from typing import Optional
-
 from PySide6 import QtWidgets
 
-from ...drivers.a4155c import A4155C
-from ..panel import InstrumentPanel, WidgetParameter
+from ...drivers.keysight.a4155c import A4155CAdapter
 from ..metric import MetricWidget
+from ..panel import FSMState, InstrumentPanel, WidgetParameter
 
 __all__ = ["A4155CPanel"]
 
 
 class A4155CPanel(InstrumentPanel):
     def __init__(
-        self, is_source: bool = False, parent: Optional[QtWidgets.QWidget] = None
+        self, is_source: bool = False, parent: QtWidgets.QWidget | None = None
     ) -> None:
-        super().__init__("A4155C", parent)
+        super().__init__("A4155C", "Agilent 4155C", parent)
 
         # Used as voltage source (SMU role) the measurement controls the source
         # level, compliance and output state, otherwise used as electrometer.
@@ -32,7 +30,7 @@ class A4155CPanel(InstrumentPanel):
             if is_source
             else "Source monitor unit used as electrometer."
         )
-        for channel in A4155C.CHANNELS:
+        for channel in A4155CAdapter.CHANNELS:
             self.channel_combo_box.addItem(channel, channel)
 
         self.disable_others_check_box = QtWidgets.QCheckBox("Disable Other Channels")
@@ -69,19 +67,19 @@ class A4155CPanel(InstrumentPanel):
 
         self.voltage_metric = MetricWidget()
         self.voltage_metric.setStatusTip("Constant voltage applied by the SMU.")
-        self.voltage_metric.setDecimals(3)
-        self.voltage_metric.setRange(-A4155C.MAX_VOLTAGE, A4155C.MAX_VOLTAGE)
-        self.voltage_metric.setUnit("V")
-        self.voltage_metric.setPrefixes("1m")
+        self.voltage_metric.set_decimals(3)
+        self.voltage_metric.set_range(-A4155CAdapter.MAX_VOLTAGE, A4155CAdapter.MAX_VOLTAGE)
+        self.voltage_metric.set_unit("V")
+        self.voltage_metric.set_prefixes("1m")
 
         self.compliance_label = QtWidgets.QLabel("Current Compliance")
 
         self.compliance_metric = MetricWidget()
         self.compliance_metric.setStatusTip("Current compliance of the SMU.")
-        self.compliance_metric.setDecimals(3)
-        self.compliance_metric.setRange(0, 999)
-        self.compliance_metric.setUnit("A")
-        self.compliance_metric.setPrefixes("munp")
+        self.compliance_metric.set_decimals(3)
+        self.compliance_metric.set_range(0, 999)
+        self.compliance_metric.set_unit("A")
+        self.compliance_metric.set_prefixes("munp")
 
         source_layout = QtWidgets.QVBoxLayout(self.source_group_box)
         source_layout.addWidget(self.voltage_label)
@@ -114,10 +112,10 @@ class A4155CPanel(InstrumentPanel):
         self.range_metric.setStatusTip(
             "Fixed range, respectively lowest range used by limited auto ranging."
         )
-        self.range_metric.setDecimals(3)
-        self.range_metric.setRange(0, 999)
-        self.range_metric.setUnit("A")
-        self.range_metric.setPrefixes("munp")
+        self.range_metric.set_decimals(3)
+        self.range_metric.set_range(0, 999)
+        self.range_metric.set_unit("A")
+        self.range_metric.set_prefixes("munp")
 
         range_layout = QtWidgets.QVBoxLayout(self.range_group_box)
         range_layout.addWidget(self.range_mode_combo_box)
@@ -171,19 +169,19 @@ class A4155CPanel(InstrumentPanel):
         self.interval_metric.setStatusTip(
             "Sampling interval, must not be shorter than the integration time."
         )
-        self.interval_metric.setDecimals(3)
-        self.interval_metric.setRange(0, 999)
-        self.interval_metric.setUnit("s")
-        self.interval_metric.setPrefixes("1m")
+        self.interval_metric.set_decimals(3)
+        self.interval_metric.set_range(0, 999)
+        self.interval_metric.set_unit("s")
+        self.interval_metric.set_prefixes("1m")
 
         self.hold_time_label = QtWidgets.QLabel("Hold Time")
 
         self.hold_time_metric = MetricWidget()
         self.hold_time_metric.setStatusTip("Delay before the first sample is taken.")
-        self.hold_time_metric.setDecimals(3)
-        self.hold_time_metric.setRange(0, 999)
-        self.hold_time_metric.setUnit("s")
-        self.hold_time_metric.setPrefixes("1m")
+        self.hold_time_metric.set_decimals(3)
+        self.hold_time_metric.set_range(0, 999)
+        self.hold_time_metric.set_unit("s")
+        self.hold_time_metric.set_prefixes("1m")
 
         sampling_layout = QtWidgets.QVBoxLayout(self.sampling_group_box)
         sampling_layout.addWidget(self.points_label)
@@ -255,34 +253,35 @@ class A4155CPanel(InstrumentPanel):
         self.standby_check_box.setChecked(True)
         # A source reports currents with SMU polarity like the other SMUs
         self.invert_sign_check_box.setChecked(not self._is_source)
-        self.voltage_metric.setValue(0.0)
-        self.compliance_metric.setValue(1e-3)
+        self.voltage_metric.set_value(0.0)
+        self.compliance_metric.set_value(1e-3)
         self.range_mode_combo_box.setCurrentIndex(0)
-        self.range_metric.setValue(1e-9)
+        self.range_metric.set_value(1e-9)
         self.integration_time_combo_box.setCurrentIndex(1)
         self.nplc_spin_box.setValue(1)
         self.points_spin_box.setValue(1)
-        self.interval_metric.setValue(2e-3)
-        self.hold_time_metric.setValue(0.0)
+        self.interval_metric.set_value(2e-3)
+        self.hold_time_metric.set_value(0.0)
         self.on_integration_time_changed(
             self.integration_time_combo_box.currentIndex()
         )
         self.on_range_mode_changed(self.range_mode_combo_box.currentIndex())
 
-    def set_locked(self, state: bool) -> None:
-        self.channel_combo_box.setEnabled(not state)
-        self.disable_others_check_box.setEnabled(not state)
-        self.standby_check_box.setEnabled(not state)
-        self.invert_sign_check_box.setEnabled(not state)
-        self.voltage_metric.setEnabled(not state)
-        self.compliance_metric.setEnabled(not state)
-        self.range_mode_combo_box.setEnabled(not state)
-        self.range_metric.setEnabled(not state)
-        self.integration_time_combo_box.setEnabled(not state)
-        self.nplc_spin_box.setEnabled(not state)
-        self.points_spin_box.setEnabled(not state)
-        self.interval_metric.setEnabled(not state)
-        self.hold_time_metric.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.channel_combo_box.setEnabled(enabled)
+        self.disable_others_check_box.setEnabled(enabled)
+        self.standby_check_box.setEnabled(enabled)
+        self.invert_sign_check_box.setEnabled(enabled)
+        self.voltage_metric.setEnabled(enabled)
+        self.compliance_metric.setEnabled(enabled)
+        self.range_mode_combo_box.setEnabled(enabled)
+        self.range_metric.setEnabled(enabled)
+        self.integration_time_combo_box.setEnabled(enabled)
+        self.nplc_spin_box.setEnabled(enabled)
+        self.points_spin_box.setEnabled(enabled)
+        self.interval_metric.setEnabled(enabled)
+        self.hold_time_metric.setEnabled(enabled)
         self.on_integration_time_changed(
             self.integration_time_combo_box.currentIndex()
         )

@@ -1,15 +1,54 @@
-from typing import Optional
+from typing import Any
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
-from ..panel import InstrumentPanel, WidgetParameter
+from ..metric import MetricWidget
+from ..panel import FSMState, InstrumentPanel, WidgetParameter
 
 __all__ = ["K2470Panel"]
 
 
 class K2470Panel(InstrumentPanel):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("K2470", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("K2470", "Keithley 2470", parent)
+
+        # Range
+
+        self.range_group_box = QtWidgets.QGroupBox()
+        self.range_group_box.setTitle("Sense Range")
+
+        self.sense_range_metric = MetricWidget()
+        self.sense_range_metric.set_decimals(3)
+        self.sense_range_metric.set_range(10e-09, 1.0)
+        self.sense_range_metric.set_unit("A")
+        self.sense_range_metric.set_prefixes("mun")
+
+        self.auto_range_check_box = QtWidgets.QCheckBox("Auto Range")
+        self.auto_range_check_box.toggled.connect(self.on_auto_range_check_changed)
+
+        self.auto_range_llimit_label = QtWidgets.QLabel("Lower Limit")
+
+        self.auto_range_llimit_metric = MetricWidget()
+        self.auto_range_llimit_metric.set_decimals(3)
+        self.auto_range_llimit_metric.set_range(10e-09, 100e-03)
+        self.auto_range_llimit_metric.set_unit("A")
+        self.auto_range_llimit_metric.set_prefixes("mun")
+
+        self.source_delay_auto_check_box = QtWidgets.QCheckBox("Auto Source Delay")
+        self.source_delay_auto_check_box.setStatusTip(
+            "Set :SOURce:VOLTage:DELay:AUTO ON/OFF"
+        )
+
+        self.sense_azero_check_box = QtWidgets.QCheckBox("Auto Zero")
+        self.sense_azero_check_box.setStatusTip("Set :SENSe:CURRent:AZERo ON/OFF")
+
+        range_layout = QtWidgets.QVBoxLayout(self.range_group_box)
+        range_layout.addWidget(self.sense_range_metric)
+        range_layout.addWidget(self.auto_range_check_box)
+        range_layout.addWidget(self.auto_range_llimit_label)
+        range_layout.addWidget(self.auto_range_llimit_metric)
+        range_layout.addWidget(self.sense_azero_check_box)
+        range_layout.addWidget(self.source_delay_auto_check_box)
 
         # Filter
 
@@ -74,17 +113,22 @@ class K2470Panel(InstrumentPanel):
         self.system_group_box = QtWidgets.QGroupBox()
         self.system_group_box.setTitle("System")
 
-        self.breakdown_protection_check_box = QtWidgets.QCheckBox(
-            "Breakdown Protection"
-        )
+        self.breakdown_protection_label = QtWidgets.QLabel("Breakdown Protection")
+
+        self.breakdown_protection_combo_box = QtWidgets.QComboBox()
+        self.breakdown_protection_combo_box.addItem("Auto", "AUTO")
+        self.breakdown_protection_combo_box.addItem("On", "ON")
+        self.breakdown_protection_combo_box.addItem("Off", "OFF")
 
         system_layout = QtWidgets.QVBoxLayout(self.system_group_box)
-        system_layout.addWidget(self.breakdown_protection_check_box)
+        system_layout.addWidget(self.breakdown_protection_label)
+        system_layout.addWidget(self.breakdown_protection_combo_box)
         system_layout.addStretch()
 
         # Layout
 
         left_layout = QtWidgets.QVBoxLayout()
+        left_layout.addWidget(self.range_group_box)
         left_layout.addWidget(self.filter_group_box)
 
         right_layout = QtWidgets.QVBoxLayout()
@@ -99,6 +143,22 @@ class K2470Panel(InstrumentPanel):
         layout.setStretch(0, 1)
         layout.setStretch(1, 1)
 
+        self.bind_parameter("sense.range", WidgetParameter(self.sense_range_metric))
+        self.bind_parameter(
+            "sense.auto_range", WidgetParameter(self.auto_range_check_box)
+        )
+        self.bind_parameter(
+            "sense.auto_range.lower_limit",
+            WidgetParameter(self.auto_range_llimit_metric),
+        )
+        self.bind_parameter(
+            "source.delay.auto",
+            WidgetParameter(self.source_delay_auto_check_box),
+        )
+        self.bind_parameter(
+            "sense.azero",
+            WidgetParameter(self.sense_azero_check_box),
+        )
         self.bind_parameter(
             "filter.enable", WidgetParameter(self.filter_enable_check_box)
         )
@@ -110,23 +170,49 @@ class K2470Panel(InstrumentPanel):
         )
         self.bind_parameter(
             "system.breakdown.protection",
-            WidgetParameter(self.breakdown_protection_check_box),
+            WidgetParameter(self.breakdown_protection_combo_box),
         )
 
         self.restore_defaults()
 
     def restore_defaults(self) -> None:
+        self.sense_range_metric.set_value(1e-08)
+        self.auto_range_check_box.setChecked(True)
+        self.auto_range_llimit_metric.set_value(1e-08)
+        self.source_delay_auto_check_box.setChecked(True)
+        self.sense_azero_check_box.setChecked(True)
         self.filter_enable_check_box.setChecked(False)
         self.filter_count_spin_box.setValue(10)
         self.filter_mode_combo_box.setCurrentIndex(0)
         self.nplc_spin_box.setValue(1.0)
         self.route_terminals_combo_box.setCurrentIndex(0)
-        self.breakdown_protection_check_box.setChecked(False)
+        self.breakdown_protection_combo_box.setCurrentIndex(0)
 
-    def set_locked(self, state: bool) -> None:
-        self.filter_enable_check_box.setEnabled(not state)
-        self.filter_count_spin_box.setEnabled(not state)
-        self.filter_mode_combo_box.setEnabled(not state)
-        self.nplc_spin_box.setEnabled(not state)
-        self.route_terminals_combo_box.setEnabled(not state)
-        self.breakdown_protection_check_box.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.sense_range_metric.setEnabled(enabled)
+        self.auto_range_check_box.setEnabled(enabled)
+        self.auto_range_llimit_metric.setEnabled(enabled)
+        self.source_delay_auto_check_box.setEnabled(enabled)
+        self.sense_azero_check_box.setEnabled(enabled)
+        self.filter_enable_check_box.setEnabled(enabled)
+        self.filter_count_spin_box.setEnabled(enabled)
+        self.filter_mode_combo_box.setEnabled(enabled)
+        self.nplc_spin_box.setEnabled(enabled)
+        self.route_terminals_combo_box.setEnabled(enabled)
+        self.breakdown_protection_combo_box.setEnabled(enabled)
+        self.on_auto_range_check_changed(self.auto_range_check_box.isChecked())
+
+    @QtCore.Slot(bool)
+    def on_auto_range_check_changed(self, checked: bool) -> None:
+        enabled = self.auto_range_check_box.isEnabled()
+        self.sense_range_metric.setEnabled(enabled and not checked)
+        self.auto_range_llimit_label.setEnabled(enabled and checked)
+        self.auto_range_llimit_metric.setEnabled(enabled and checked)
+
+    def migrate_config_value(self, key: str, value: Any) -> Any:
+        match key:
+            case "system.breakdown.protection":
+                if isinstance(value, bool):
+                    return {True: "AUTO", False: "OFF"}.get(value, "AUTO")
+        return value

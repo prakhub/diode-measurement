@@ -1,15 +1,13 @@
-from typing import Optional
-
 from PySide6 import QtWidgets
 
-from ..panel import InstrumentPanel, WidgetParameter
+from ..panel import FSMState, InstrumentPanel, WidgetParameter
 
 __all__ = ["K237Panel"]
 
 
 class K237Panel(InstrumentPanel):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("K237", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("K237", "Keithley 237", parent)
 
         # Filter
 
@@ -49,5 +47,6 @@ class K237Panel(InstrumentPanel):
     def restore_defaults(self) -> None:
         self.filter_mode_combo_box.setCurrentIndex(0)
 
-    def set_locked(self, state: bool) -> None:
-        self.filter_mode_combo_box.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.filter_mode_combo_box.setEnabled(enabled)

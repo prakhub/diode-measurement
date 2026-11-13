@@ -1,16 +1,15 @@
 from collections.abc import Iterable
-from typing import Optional
 
 from PySide6 import QtWidgets
 
-from ..panel import InstrumentPanel, MethodParameter
+from ..panel import FSMState, InstrumentPanel, MethodParameter
 
 __all__ = ["K707BPanel"]
 
 
 class K707BPanel(InstrumentPanel):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("K707B", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("K707B", "Keithley 707B", parent)
 
         # Channels
 
@@ -81,5 +80,6 @@ class K707BPanel(InstrumentPanel):
     def restore_defaults(self) -> None:
         self.set_closed_channels([])
 
-    def set_locked(self, state: bool) -> None:
-        self.slots_tab_widgets.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.slots_tab_widgets.setEnabled(enabled)

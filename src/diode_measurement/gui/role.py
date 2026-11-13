@@ -1,23 +1,32 @@
 import logging
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any
 
 from PySide6 import QtCore, QtWidgets
 
+from ..core.measurement import FSMState
+from ..core.role import Role
 from .panel import InstrumentPanel
 from .resource import ResourceWidget
 
 __all__ = ["RoleWidget"]
 
+logger = logging.getLogger(__name__)
+
 
 class RoleWidget(QtWidgets.QWidget):
-    def __init__(self, name: str, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    browse_resources = QtCore.Signal()
+    test_connection = QtCore.Signal()
+
+    def __init__(self, role: Role, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self._name: str = name
+        self._role: Role = role
         self._resources: dict[str, Any] = {}  # TODO
 
         self.resource_widget = ResourceWidget(self)
         self.resource_widget.model_changed.connect(self.model_changed)
+        self.resource_widget.browse_resources.connect(self.browse_resources.emit)
+        self.resource_widget.test_connection.connect(self.test_connection.emit)
 
         self.stacked_widget = QtWidgets.QStackedWidget(self)
 
@@ -32,11 +41,8 @@ class RoleWidget(QtWidgets.QWidget):
         layout.setColumnStretch(0, 1)
         layout.setColumnStretch(1, 2)
 
-    def name(self) -> str:
-        return self._name
-
-    def set_name(self, name: str) -> None:
-        self._name = name
+    def role(self) -> Role:
+        return self._role
 
     def model(self) -> str:
         return self.resource_widget.model()
@@ -62,6 +68,12 @@ class RoleWidget(QtWidgets.QWidget):
     def set_timeout(self, timeout: float) -> None:
         self.resource_widget.set_timeout(timeout)
 
+    def baud_rate(self) -> int:
+        return self.resource_widget.baud_rate()
+
+    def set_baud_rate(self, baud_rate: int) -> None:
+        self.resource_widget.set_baud_rate(baud_rate)
+
     def is_reset_instrument(self) -> bool:
         return self.resource_widget.is_reset_instrument()
 
@@ -82,6 +94,7 @@ class RoleWidget(QtWidgets.QWidget):
                 "resource_name": self.resource_name(),
                 "termination": self.termination(),
                 "timeout": self.timeout(),
+                "baud_reate": self.baud_rate(),
             }
             self._resources.setdefault(model, {}).update(resource)
 
@@ -91,14 +104,11 @@ class RoleWidget(QtWidgets.QWidget):
             return widget.config()
         return {}
 
-    def apply_current_config(self, config: Mapping[str, Any]) -> None:
-        """Apply parameters to the panel of the currently selected instrument,
-        the one `current_config` reads back.
-        """
-        widget = self.stacked_widget.currentWidget()
-        if not isinstance(widget, InstrumentPanel):
-            raise RuntimeError(f"No instrument selected for role {self.name()}.")
-        widget.apply_config(config)
+    def set_current_config(self, config: Mapping[str, Any]) -> None:
+        for widget in self.instrument_panels():
+            if widget.model() == self.model():
+                widget.apply_config(config)
+                break
 
     def configs(self) -> dict[str, Any]:
         configs = {}
@@ -110,14 +120,14 @@ class RoleWidget(QtWidgets.QWidget):
         for widget in self.instrument_panels():
             widget.apply_config(configs.get(widget.model(), {}))
 
-    def set_locked(self, state: bool) -> None:
-        self.resource_widget.set_locked(state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        self.resource_widget.set_fsm_state(state)
         for widget in self.instrument_panels():
-            widget.set_locked(state)
+            widget.set_fsm_state(state)
         self.restore_defaults_button.setEnabled(not state)
 
     def add_instrument_panel(self, widget: InstrumentPanel) -> None:
-        self.resource_widget.add_model(widget.model())
+        self.resource_widget.add_model(widget.model(), widget.title())
         self.stacked_widget.addWidget(widget)
 
     def instrument_panels(self) -> list[InstrumentPanel]:
@@ -129,11 +139,14 @@ class RoleWidget(QtWidgets.QWidget):
                 widgets.append(widget)
         return widgets
 
-    def find_instrument_panel(self, model: str) -> Optional[InstrumentPanel]:
+    def find_instrument_panel(self, model: str) -> InstrumentPanel | None:
         for widget in self.instrument_panels():
             if model == widget.model():
                 return widget
         return None
+
+    def show_browse_resources(self, resource_names: list[str]) -> None:
+        self.resource_widget.show_browse_resources(resource_names)
 
     @QtCore.Slot(str)
     def model_changed(self, model: str) -> None:
@@ -145,9 +158,10 @@ class RoleWidget(QtWidgets.QWidget):
                 self.set_resource_name(resource.get("resource_name", ""))
                 self.set_termination(resource.get("termination", "\r\n"))
                 self.set_timeout(resource.get("timeout", 8.0))
+                self.set_baud_rate(resource.get("baud_rate", 9_600))
                 self.set_reset_instrument(resource.get("reset_instrument", False))
-            except Exception as exc:
-                logging.exception(exc)
+            except Exception:
+                logger.exception(f"failed to set resource config for model: {model!r}")
             self.stacked_widget.setCurrentWidget(widget)
             self.stacked_widget.show()
         else:

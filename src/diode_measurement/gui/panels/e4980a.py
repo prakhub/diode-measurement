@@ -1,15 +1,13 @@
-from typing import Optional
-
 from PySide6 import QtWidgets
 
-from ..panel import InstrumentPanel, WidgetParameter, MethodParameter
+from ..panel import FSMState, InstrumentPanel, MethodParameter, WidgetParameter
 
 __all__ = ["E4980APanel"]
 
 
 class E4980APanel(InstrumentPanel):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__("E4980A", parent)
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__("E4980A", "Keysight E4980A", parent)
 
         # AC amplitude
 
@@ -153,12 +151,13 @@ class E4980APanel(InstrumentPanel):
         self.open_enabled_check_box.setChecked(False)
         self.short_enabled_check_box.setChecked(False)
 
-    def set_locked(self, state: bool) -> None:
-        self.amplitude_voltage_spin_box.setEnabled(not state)
-        self.amplitude_frequency_spin_box.setEnabled(not state)
-        self.amplitude_alc_check_box.setEnabled(not state)
-        self.integration_time_combo_box.setEnabled(not state)
-        self.averaging_rate_spin_box.setEnabled(not state)
-        self.length_combo_box.setEnabled(not state)
-        self.open_enabled_check_box.setEnabled(not state)
-        self.short_enabled_check_box.setEnabled(not state)
+    def set_fsm_state(self, state: FSMState) -> None:
+        enabled = state == FSMState.IDLE
+        self.amplitude_voltage_spin_box.setEnabled(enabled)
+        self.amplitude_frequency_spin_box.setEnabled(enabled)
+        self.amplitude_alc_check_box.setEnabled(enabled)
+        self.integration_time_combo_box.setEnabled(enabled)
+        self.averaging_rate_spin_box.setEnabled(enabled)
+        self.length_combo_box.setEnabled(enabled)
+        self.open_enabled_check_box.setEnabled(enabled)
+        self.short_enabled_check_box.setEnabled(enabled)

@@ -1,10 +1,15 @@
-from typing import Optional
+import logging
+from collections.abc import Iterable
 
 from PySide6 import QtCore, QtWidgets
 
-from ..utils import convert
+from ..core.measurement import MeasurementParameters
+from ..core.role import Role
+from ..core.utils import convert
 
 __all__ = ["GeneralWidget"]
+
+logger = logging.getLogger(__name__)
 
 
 class GeneralWidget(QtWidgets.QWidget):
@@ -13,8 +18,9 @@ class GeneralWidget(QtWidgets.QWidget):
     continue_in_compliance_changed = QtCore.Signal(bool)
     waiting_time_continuous_changed = QtCore.Signal(float)
     change_voltage_clicked = QtCore.Signal()
+    wait_for_setpoint_changed = QtCore.Signal(bool)
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("General")
 
@@ -23,32 +29,12 @@ class GeneralWidget(QtWidgets.QWidget):
         self._create_widgets()
         self._create_layout()
 
+        self.instruments_changed.connect(self.on_instruments_changed)
+
     def _create_widgets(self) -> None:
         self.measurement_combo_box = QtWidgets.QComboBox(self)
 
-        self.smu_check_box = QtWidgets.QCheckBox("SMU", self)
-        self.smu_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.smu2_check_box = QtWidgets.QCheckBox("SMU2", self)
-        self.smu2_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.elm_check_box = QtWidgets.QCheckBox("ELM", self)
-        self.elm_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.elm2_check_box = QtWidgets.QCheckBox("ELM2", self)
-        self.elm2_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.lcr_check_box = QtWidgets.QCheckBox("LCR", self)
-        self.lcr_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.dmm_check_box = QtWidgets.QCheckBox("DMM", self)
-        self.dmm_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.tcu_check_box = QtWidgets.QCheckBox("TCU", self)
-        self.tcu_check_box.checkStateChanged.connect(self.instruments_changed)
-
-        self.switch_check_box = QtWidgets.QCheckBox("Switch", self)
-        self.switch_check_box.checkStateChanged.connect(self.instruments_changed)
+        self.role_check_boxes: dict[str, QtWidgets.QCheckBox] = {}
 
         self.begin_voltage_spin_box = QtWidgets.QDoubleSpinBox(self)
         self.begin_voltage_spin_box.setDecimals(3)
@@ -68,10 +54,20 @@ class GeneralWidget(QtWidgets.QWidget):
         self.waiting_time_spin_box = QtWidgets.QDoubleSpinBox(self)
         self.waiting_time_spin_box.setSuffix(" s")
 
+        self.source_role_combo_box = QtWidgets.QComboBox(self)
+        self.source_role_combo_box.currentIndexChanged.connect(
+            self.on_source_role_changed
+        )
+
         self.bias_voltage_spin_box = QtWidgets.QDoubleSpinBox(self)
         self.bias_voltage_spin_box.setDecimals(3)
         self.bias_voltage_spin_box.setRange(-3030.0, +3030.0)
         self.bias_voltage_spin_box.setSuffix(" V")
+
+        self.bias_source_role_combo_box = QtWidgets.QComboBox(self)
+        self.bias_source_role_combo_box.currentIndexChanged.connect(
+            self.on_bias_source_role_changed
+        )
 
         self.current_compliance_spin_box = QtWidgets.QDoubleSpinBox(self)
         self.current_compliance_spin_box.setDecimals(3)
@@ -145,6 +141,12 @@ class GeneralWidget(QtWidgets.QWidget):
         self.change_voltage_button.setEnabled(False)
         self.change_voltage_button.clicked.connect(self.change_voltage_clicked)
 
+        self.wait_for_setpoint_check_box = QtWidgets.QCheckBox(self)
+        self.wait_for_setpoint_check_box.setText("Wait for TCU Setpoint")
+        self.wait_for_setpoint_check_box.toggled.connect(
+            self.on_wait_for_setpoint_toggled
+        )
+
         self.measurement_group_box = QtWidgets.QGroupBox(self)
         self.measurement_group_box.setTitle("Measurement")
 
@@ -157,13 +159,16 @@ class GeneralWidget(QtWidgets.QWidget):
         self.ramp_group_box.setTitle("Ramp")
 
         self.bias_group_box = QtWidgets.QGroupBox(self)
-        self.bias_group_box.setTitle("Bias Voltage (SMU2)")
+        self.bias_group_box.setTitle("Bias")
 
         self.compliance_group_box = QtWidgets.QGroupBox(self)
         self.compliance_group_box.setTitle("Compliance")
 
         self.continuous_group_box = QtWidgets.QGroupBox(self)
         self.continuous_group_box.setTitle("Continuous Meas.")
+
+        self.options_group_box = QtWidgets.QGroupBox(self)
+        self.options_group_box.setTitle("Options")
 
     def _create_layout(self) -> None:
         vbox_layout = QtWidgets.QVBoxLayout(self.measurement_group_box)
@@ -172,17 +177,12 @@ class GeneralWidget(QtWidgets.QWidget):
         vbox_layout.addWidget(QtWidgets.QLabel("Instruments"))
         self.instrument_widget = QtWidgets.QWidget()
         vbox_layout.addWidget(self.instrument_widget)
-        self.instrument_layout = QtWidgets.QHBoxLayout(self.instrument_widget)
-        self.instrument_layout.addWidget(self.smu_check_box)
-        self.instrument_layout.addWidget(self.smu2_check_box)
-        self.instrument_layout.addWidget(self.elm_check_box)
-        self.instrument_layout.addWidget(self.elm2_check_box)
-        self.instrument_layout.addWidget(self.lcr_check_box)
-        self.instrument_layout.addWidget(self.dmm_check_box)
-        self.instrument_layout.addWidget(self.tcu_check_box)
-        self.instrument_layout.addWidget(self.switch_check_box)
+        self.instrument_layout = QtWidgets.QHBoxLayout()
         self.instrument_layout.addStretch()
         self.instrument_layout.setContentsMargins(0, 0, 0, 0)
+        instruments_layout = QtWidgets.QVBoxLayout(self.instrument_widget)
+        instruments_layout.setContentsMargins(0, 0, 0, 0)
+        instruments_layout.addLayout(self.instrument_layout)
 
         vbox_layout = QtWidgets.QVBoxLayout(self.output_group_box)
         vbox_layout.addWidget(QtWidgets.QLabel("Sample Name"))
@@ -207,9 +207,14 @@ class GeneralWidget(QtWidgets.QWidget):
         vbox_layout.addWidget(self.step_voltage_spin_box)
         vbox_layout.addWidget(QtWidgets.QLabel("Waiting Time"))
         vbox_layout.addWidget(self.waiting_time_spin_box)
+        vbox_layout.addWidget(QtWidgets.QLabel("Source Instrument"))
+        vbox_layout.addWidget(self.source_role_combo_box)
 
         vbox_layout = QtWidgets.QVBoxLayout(self.bias_group_box)
+        vbox_layout.addWidget(QtWidgets.QLabel("Bias Voltage"))
         vbox_layout.addWidget(self.bias_voltage_spin_box)
+        vbox_layout.addWidget(QtWidgets.QLabel("Source Instrument"))
+        vbox_layout.addWidget(self.bias_source_role_combo_box)
         vbox_layout.addStretch()
 
         vbox_layout = QtWidgets.QVBoxLayout(self.compliance_group_box)
@@ -227,6 +232,9 @@ class GeneralWidget(QtWidgets.QWidget):
         vbox_layout.addWidget(self.change_voltage_button)
         vbox_layout.addStretch()
 
+        vbox_layout = QtWidgets.QVBoxLayout(self.options_group_box)
+        vbox_layout.addWidget(self.wait_for_setpoint_check_box)
+
         layout = QtWidgets.QHBoxLayout(self)
 
         vbox_layout = QtWidgets.QVBoxLayout()
@@ -242,6 +250,7 @@ class GeneralWidget(QtWidgets.QWidget):
         vbox_layout = QtWidgets.QVBoxLayout()
         vbox_layout.addWidget(self.compliance_group_box)
         vbox_layout.addWidget(self.continuous_group_box)
+        vbox_layout.addWidget(self.options_group_box)
         layout.addLayout(vbox_layout)
 
         layout.addStretch()
@@ -257,10 +266,16 @@ class GeneralWidget(QtWidgets.QWidget):
         self.end_voltage_spin_box.setEnabled(True)
         self.step_voltage_spin_box.setEnabled(True)
         self.waiting_time_spin_box.setEnabled(True)
+        self.source_role_combo_box.setEnabled(True)
         self.bias_voltage_spin_box.setEnabled(True)
+        self.bias_source_role_combo_box.setEnabled(True)
         self.change_voltage_button.setEnabled(False)
         self.current_compliance_spin_box.setEnabled(not self._current_compliance_locked)
         self.continue_in_compliance_check_box.setEnabled(True)
+        self.waiting_time_continuous_spin_box.setEnabled(True)
+        self.wait_for_setpoint_check_box.setEnabled(
+            not self._is_wait_for_setpoint_enabled()
+        )
 
     def set_running_state(self) -> None:
         self.measurement_combo_box.setEnabled(False)
@@ -270,83 +285,80 @@ class GeneralWidget(QtWidgets.QWidget):
         self.end_voltage_spin_box.setEnabled(False)
         self.step_voltage_spin_box.setEnabled(False)
         self.waiting_time_spin_box.setEnabled(False)
+        self.source_role_combo_box.setEnabled(False)
         self.bias_voltage_spin_box.setEnabled(False)
+        self.bias_source_role_combo_box.setEnabled(False)
 
     def set_stopping_state(self):
         self.change_voltage_button.setEnabled(False)
         self.current_compliance_spin_box.setEnabled(False)
         self.continue_in_compliance_check_box.setEnabled(False)
+        self.waiting_time_continuous_spin_box.setEnabled(False)
+        self.wait_for_setpoint_check_box.setEnabled(False)
 
-    def add_measurement(self, spec: dict) -> None:
-        self.measurement_combo_box.addItem(spec.get("title", ""), spec)
+    def add_measurement(self, spec: MeasurementParameters) -> None:
+        self.measurement_combo_box.addItem(spec.title, spec)
 
-    def current_measurement(self) -> Optional[dict]:
+    def current_measurement(self) -> MeasurementParameters | None:
         return self.measurement_combo_box.currentData()
+
+    def has_measurement(self, measurement_id: str) -> bool:
+        for index in range(self.measurement_combo_box.count()):
+            measurement = self.measurement_combo_box.itemData(index)
+            if measurement_id == measurement.id:
+                return True
+        return False
 
     def set_current_measurement(self, measurement_id: str) -> None:
         for index in range(self.measurement_combo_box.count()):
-            data = self.measurement_combo_box.itemData(index)
-            if isinstance(data, dict):
-                if data.get("id") == measurement_id:
-                    self.measurement_combo_box.setCurrentIndex(index)
-                    return
+            parameters = self.measurement_combo_box.itemData(index)
+            if (
+                isinstance(parameters, MeasurementParameters)
+                and parameters.id == measurement_id
+            ):
+                self.measurement_combo_box.setCurrentIndex(index)
+                return
 
-    def set_measurement_roles(self, roles: list[str]) -> None:
-        self.set_smu_enabled("smu" in roles)
-        self.set_smu2_enabled("smu2" in roles)
-        self.set_elm_enabled("elm" in roles)
-        self.set_elm2_enabled("elm2" in roles)
-        self.set_lcr_enabled("lcr" in roles)
-        self.set_dmm_enabled("dmm" in roles)
-        self.set_switch_enabled("switch" in roles)
+    def add_role(self, role: str, title: str, optional: bool = False) -> None:
+        if role not in self.role_check_boxes:
+            check_box = QtWidgets.QCheckBox(self)
+            check_box.setText(title)
+            check_box.checkStateChanged.connect(self.instruments_changed)
+            index = self.instrument_layout.count() - 1
+            self.instrument_layout.insertWidget(index, check_box)
+            self.role_check_boxes[role] = check_box
+        else:
+            logger.warning("add_role(): role already exists: %r", role)
 
-    def is_smu_enabled(self):
-        return self.smu_check_box.isChecked()
+    def set_role_enabled(self, role: str, active: bool) -> None:
+        check_box = self.role_check_boxes.get(role)
+        if check_box is not None:
+            check_box.setEnabled(active)
+            check_box.setVisible(active)
+        else:
+            logger.warning("set_role_enabled(): no such role: %r", role)
 
-    def set_smu_enabled(self, enabled):
-        return self.smu_check_box.setChecked(enabled)
+    def is_role_checked(self, role: str) -> bool:
+        check_box = self.role_check_boxes.get(role)
+        if check_box is not None:
+            return check_box.isChecked()
+        else:
+            logger.warning("is_role_checked(): no such role: %r", role)
+            return False
 
-    def is_smu2_enabled(self):
-        return self.smu2_check_box.isChecked()
+    def set_role_checked(self, role: str, enabled: bool) -> None:
+        check_box = self.role_check_boxes.get(role)
+        if check_box is not None:
+            check_box.setChecked(enabled)
+        else:
+            logger.warning("set_role_checked(): no such role: %r", role)
 
-    def set_smu2_enabled(self, enabled):
-        return self.smu2_check_box.setChecked(enabled)
-
-    def is_elm_enabled(self):
-        return self.elm_check_box.isChecked()
-
-    def set_elm_enabled(self, enabled):
-        return self.elm_check_box.setChecked(enabled)
-
-    def is_elm2_enabled(self):
-        return self.elm2_check_box.isChecked()
-
-    def set_elm2_enabled(self, enabled):
-        return self.elm2_check_box.setChecked(enabled)
-
-    def is_lcr_enabled(self):
-        return self.lcr_check_box.isChecked()
-
-    def set_lcr_enabled(self, enabled):
-        return self.lcr_check_box.setChecked(enabled)
-
-    def is_dmm_enabled(self):
-        return self.dmm_check_box.isChecked()
-
-    def set_dmm_enabled(self, enabled):
-        return self.dmm_check_box.setChecked(enabled)
-
-    def is_tcu_enabled(self):
-        return self.tcu_check_box.isChecked()
-
-    def set_tcu_enabled(self, enabled):
-        return self.tcu_check_box.setChecked(enabled)
-
-    def is_switch_enabled(self):
-        return self.switch_check_box.isChecked()
-
-    def set_switch_enabled(self, enabled):
-        return self.switch_check_box.setChecked(enabled)
+    def set_measurement_roles(self, roles: Iterable[str]) -> None:
+        for role in roles:
+            if role not in self.role_check_boxes:
+                logger.warning("set_measurement_roles(): no such role: %r", role)
+        for role in self.role_check_boxes:
+            self.set_role_checked(role, role in roles)
 
     def is_output_enabled(self):
         return self.output_group_box.isChecked()
@@ -426,10 +438,36 @@ class GeneralWidget(QtWidgets.QWidget):
     def set_waiting_time(self, waiting_time: float) -> None:
         self.waiting_time_spin_box.setValue(waiting_time)
 
+    def source_role(self) -> Role | None:
+        return self.source_role_combo_box.currentData()
+
+    def set_source_role(self, role: Role) -> None:
+        index = self.source_role_combo_box.findData(role)
+        self.source_role_combo_box.setCurrentIndex(index)
+
+    def clear_source_roles(self) -> None:
+        self.source_role_combo_box.clear()
+
+    def add_source_role(self, role: Role, title: str) -> None:
+        self.source_role_combo_box.addItem(title, role)
+
     def bias_voltage(self) -> float:
         value = self.bias_voltage_spin_box.value()
         unit = self.bias_voltage_spin_box.suffix().strip()
         return convert(value, unit, "V")
+
+    def bias_source_role(self) -> Role | None:
+        return self.bias_source_role_combo_box.currentData()
+
+    def set_bias_source_role(self, role: Role) -> None:
+        index = self.bias_source_role_combo_box.findData(role)
+        self.bias_source_role_combo_box.setCurrentIndex(index)
+
+    def clear_bias_source_roles(self) -> None:
+        self.bias_source_role_combo_box.clear()
+
+    def add_bias_source_role(self, role: Role, title: str) -> None:
+        self.bias_source_role_combo_box.addItem(title, role)
 
     def set_bias_voltage(self, bias_voltage: float) -> None:
         unit = self.bias_voltage_spin_box.suffix().strip()
@@ -465,3 +503,52 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def set_change_voltage_enabled(self, enabled: bool) -> None:
         self.change_voltage_button.setEnabled(enabled)
+
+    def is_wait_for_setpoint(self) -> bool:
+        return self.wait_for_setpoint_check_box.isChecked()
+
+    def set_wait_for_setpoint(self, enabled: bool) -> None:
+        with QtCore.QSignalBlocker(self.wait_for_setpoint_check_box):
+            self.wait_for_setpoint_check_box.setChecked(enabled)
+        self.wait_for_setpoint_changed.emit(enabled)
+
+    @QtCore.Slot(int)
+    def on_source_role_changed(self, index: int) -> None:
+        self._resolve_source_roles(
+            self.source_role_combo_box, self.bias_source_role_combo_box
+        )
+
+    @QtCore.Slot(int)
+    def on_bias_source_role_changed(self, index: int) -> None:
+        self._resolve_source_roles(
+            self.bias_source_role_combo_box, self.source_role_combo_box
+        )
+
+    @QtCore.Slot(bool)
+    def on_wait_for_setpoint_toggled(self, checked: bool) -> None:
+        self.wait_for_setpoint_changed.emit(checked)
+
+    @QtCore.Slot()
+    def on_instruments_changed(self) -> None:
+        enabled = self.is_role_checked(Role.TCU)
+        self._wait_for_setpoint_locked = not enabled
+        self.wait_for_setpoint_check_box.setEnabled(
+            not self._is_wait_for_setpoint_enabled()
+        )
+
+    def _is_wait_for_setpoint_enabled(self) -> bool:
+        return not self.is_role_checked(Role.TCU)
+
+    def _resolve_source_roles(
+        self, changed: QtWidgets.QComboBox, other: QtWidgets.QComboBox
+    ) -> None:
+        if changed.currentIndex() < 0:
+            return
+        if changed.currentData() == other.currentData():
+            for index in range(other.count()):
+                if changed.currentData() != other.itemData(index):
+                    with QtCore.QSignalBlocker(other):
+                        other.setCurrentIndex(index)
+                        return
+            with QtCore.QSignalBlocker(other):
+                other.setCurrentIndex(-1)

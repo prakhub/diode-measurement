@@ -1,16 +1,22 @@
 import logging
 import webbrowser
-from typing import Optional
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from .. import __version__ as APP_VERSION
-from ..utils import format_metric, format_switch
-
+from ..core.measurement import FSMState
+from ..core.role import Role
 from .general import GeneralWidget
 from .logwindow import LogWidget
 from .preferences import PreferencesDialog
 from .role import RoleWidget
+from .status import (
+    DMMStatusGroupBox,
+    ELMStatusGroupBox,
+    LCRStatusGroupBox,
+    SMUStatusGroupBox,
+    TCUStatusGroupBox,
+)
 
 __all__ = ["MainWindow"]
 
@@ -25,18 +31,12 @@ ABOUT_TEXT: str = f"""
 """
 
 
-def stylesheet_switch(state):
-    if state is None:
-        return ""
-    return (
-        "QLineEdit:enabled{ background-color: #339933; color: white; }" if state else ""
-    )
-
-
 class MainWindow(QtWidgets.QMainWindow):
     prepare_change_voltage = QtCore.Signal()
+    role_browse_resources = QtCore.Signal(str)
+    role_test_connection = QtCore.Signal(str)
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._locked: bool = False
 
@@ -49,14 +49,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.import_action = QtGui.QAction("&Import File...")
         self.import_action.setStatusTip("Import measurement data")
 
-        self.quitAction = QtGui.QAction("&Quit")
-        self.quitAction.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
-        self.quitAction.setStatusTip("Quit the application")
-        self.quitAction.triggered.connect(self.close)
+        self.quit_action = QtGui.QAction("&Quit")
+        self.quit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
+        self.quit_action.setStatusTip("Quit the application")
+        self.quit_action.triggered.connect(self.close)
 
-        self.preferencesAction = QtGui.QAction("&Preferences...")
-        self.preferencesAction.setStatusTip("Show preferences dialog")
-        self.preferencesAction.triggered.connect(self.on_show_preferences)
+        self.preferences_action = QtGui.QAction("&Preferences...")
+        self.preferences_action.setStatusTip("Show preferences dialog")
+        self.preferences_action.triggered.connect(self.on_show_preferences)
 
         self.start_action = QtGui.QAction("&Start")
         self.start_action.setStatusTip("Start a new measurement")
@@ -68,51 +68,52 @@ class MainWindow(QtWidgets.QMainWindow):
         self.continuous_action.setCheckable(True)
         self.continuous_action.setStatusTip("Enable continuous measurement")
 
-        self.changeVoltageAction = QtGui.QAction("&Change Voltage...")
-        self.changeVoltageAction.setStatusTip(
+        self.change_voltage_action = QtGui.QAction("&Change Voltage...")
+        self.change_voltage_action.setStatusTip(
             "Change voltage in continuous measurement"
         )
-        self.changeVoltageAction.triggered.connect(self.prepare_change_voltage.emit)
+        self.change_voltage_action.triggered.connect(self.prepare_change_voltage.emit)
 
-        self.contentsAction = QtGui.QAction("&Contents")
-        self.contentsAction.setStatusTip("Open the user manual")
-        self.contentsAction.setShortcut(QtGui.QKeySequence("F1"))
-        self.contentsAction.triggered.connect(self.on_show_contents)
+        self.contents_action = QtGui.QAction("&Contents")
+        self.contents_action.setStatusTip("Open the user manual")
+        self.contents_action.setShortcut(QtGui.QKeySequence("F1"))
+        self.contents_action.triggered.connect(self.on_show_contents)
 
-        self.aboutQtAction = QtGui.QAction("About &Qt")
-        self.aboutQtAction.setStatusTip("About the used Qt framework")
-        self.aboutQtAction.triggered.connect(self.on_show_about_qt)
+        self.about_qt_action = QtGui.QAction("About &Qt")
+        self.about_qt_action.setStatusTip("About the used Qt framework")
+        self.about_qt_action.triggered.connect(self.on_show_about_qt)
 
-        self.aboutAction = QtGui.QAction("&About")
-        self.aboutAction.setStatusTip("About the application")
-        self.aboutAction.triggered.connect(self.on_show_about)
+        self.about_action = QtGui.QAction("&About")
+        self.about_action.setStatusTip("About the application")
+        self.about_action.triggered.connect(self.on_show_about)
 
     def _create_menus(self) -> None:
-        self.fileMenu = self.menuBar().addMenu("&File")
-        self.fileMenu.addAction(self.import_action)
-        self.fileMenu.addSeparator()
-        self.fileMenu.addAction(self.quitAction)
+        self.file_menu = self.menuBar().addMenu("&File")
+        self.file_menu.addAction(self.import_action)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.quit_action)
 
-        self.editMenu = self.menuBar().addMenu("&Edit")
-        self.editMenu.addAction(self.preferencesAction)
+        self.edit_menu = self.menuBar().addMenu("&Edit")
+        self.edit_menu.addAction(self.preferences_action)
 
-        self.viewMenu = self.menuBar().addMenu("&View")
+        self.view_menu = self.menuBar().addMenu("&View")
 
-        self.measureMenu = self.menuBar().addMenu("&Measure")
-        self.measureMenu.addAction(self.start_action)
-        self.measureMenu.addAction(self.stop_action)
-        self.measureMenu.addSeparator()
-        self.measureMenu.addAction(self.continuous_action)
-        self.measureMenu.addAction(self.changeVoltageAction)
+        self.measure_menu = self.menuBar().addMenu("&Measure")
+        self.measure_menu.addAction(self.start_action)
+        self.measure_menu.addAction(self.stop_action)
+        self.measure_menu.addSeparator()
+        self.measure_menu.addAction(self.continuous_action)
+        self.measure_menu.addAction(self.change_voltage_action)
 
-        self.helpMenu = self.menuBar().addMenu("&Help")
-        self.helpMenu.addAction(self.contentsAction)
-        self.helpMenu.addAction(self.aboutQtAction)
-        self.helpMenu.addAction(self.aboutAction)
+        self.help_menu = self.menuBar().addMenu("&Help")
+        self.help_menu.addAction(self.contents_action)
+        self.help_menu.addSeparator()
+        self.help_menu.addAction(self.about_qt_action)
+        self.help_menu.addAction(self.about_action)
 
     def _create_widgets(self) -> None:
-        self.dataStackedWidget = QtWidgets.QStackedWidget()
-        self.dataStackedWidget.setMinimumHeight(240)
+        self.data_stacked_widget = QtWidgets.QStackedWidget()
+        self.data_stacked_widget.setMinimumHeight(240)
 
         self.start_button = QtWidgets.QPushButton("&Start")
         self.start_button.setStatusTip("Start a new measurement")
@@ -137,135 +138,74 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.general_widget = GeneralWidget()
         self.general_widget.change_voltage_clicked.connect(
-            self.changeVoltageAction.trigger
+            self.change_voltage_action.trigger
         )
 
-        self.roleWidgets: dict[str, RoleWidget] = {}
+        self.role_widgets: dict[Role, RoleWidget] = {}
 
         self.control_tab_widget = QtWidgets.QTabWidget()
         self.control_tab_widget.addTab(
             self.general_widget, self.general_widget.windowTitle()
         )
 
-        self.smu_group_box = QtWidgets.QGroupBox()
+        self.smu_group_box = SMUStatusGroupBox(self)
         self.smu_group_box.setTitle("SMU Status")
 
-        self.smu2_group_box = QtWidgets.QGroupBox()
+        self.smu2_group_box = SMUStatusGroupBox(self)
         self.smu2_group_box.setTitle("SMU2 Status")
 
-        self.elm_group_box = QtWidgets.QGroupBox()
+        self.elm_group_box = ELMStatusGroupBox(self)
         self.elm_group_box.setTitle("ELM Status")
 
-        self.elm2_group_box = QtWidgets.QGroupBox()
+        self.elm2_group_box = ELMStatusGroupBox(self)
         self.elm2_group_box.setTitle("ELM2 Status")
 
-        self.lcr_group_box = QtWidgets.QGroupBox()
+        self.lcr_group_box = LCRStatusGroupBox(self)
         self.lcr_group_box.setTitle("LCR Status")
 
-        self.dmm_group_box = QtWidgets.QGroupBox()
+        self.dmm_group_box = DMMStatusGroupBox(self)
         self.dmm_group_box.setTitle("DMM Status")
 
-        self.tcu_group_box = QtWidgets.QGroupBox()
+        self.tcu_group_box = TCUStatusGroupBox(self)
         self.tcu_group_box.setTitle("TCU Status")
 
-        self.smuVoltageLineEdit = QtWidgets.QLineEdit("---")
-        self.smuVoltageLineEdit.setReadOnly(True)
-        self.smuVoltageLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self.status_group_boxes: dict[str, QtWidgets.QGroupBox] = {}
+        self.status_group_boxes[Role.SMU] = self.smu_group_box
+        self.status_group_boxes[Role.SMU2] = self.smu2_group_box
+        self.status_group_boxes[Role.ELM] = self.elm_group_box
+        self.status_group_boxes[Role.ELM2] = self.elm2_group_box
+        self.status_group_boxes[Role.LCR] = self.lcr_group_box
+        self.status_group_boxes[Role.DMM] = self.dmm_group_box
+        self.status_group_boxes[Role.TCU] = self.tcu_group_box
 
-        self.smuCurrentLineEdit = QtWidgets.QLineEdit("---")
-        self.smuCurrentLineEdit.setReadOnly(True)
-        self.smuCurrentLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        self.tcu_temperature_line_edit = QtWidgets.QLineEdit("---")
+        self.tcu_temperature_line_edit.setReadOnly(True)
+        self.tcu_temperature_line_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 
-        self.smuOutputStateLineEdit = QtWidgets.QLineEdit()
-        self.smuOutputStateLineEdit.setReadOnly(True)
-        self.smuOutputStateLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.smu2VoltageLineEdit = QtWidgets.QLineEdit("---")
-        self.smu2VoltageLineEdit.setReadOnly(True)
-        self.smu2VoltageLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.smu2CurrentLineEdit = QtWidgets.QLineEdit("---")
-        self.smu2CurrentLineEdit.setReadOnly(True)
-        self.smu2CurrentLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.smu2OutputStateLineEdit = QtWidgets.QLineEdit()
-        self.smu2OutputStateLineEdit.setReadOnly(True)
-        self.smu2OutputStateLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.elmVoltageLineEdit = QtWidgets.QLineEdit("---")
-        self.elmVoltageLineEdit.setReadOnly(True)
-        self.elmVoltageLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.elmCurrentLineEdit = QtWidgets.QLineEdit("---")
-        self.elmCurrentLineEdit.setReadOnly(True)
-        self.elmCurrentLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.elmOutputStateLineEdit = QtWidgets.QLineEdit("---")
-        self.elmOutputStateLineEdit.setReadOnly(True)
-        self.elmOutputStateLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.elm2VoltageLineEdit = QtWidgets.QLineEdit("---")
-        self.elm2VoltageLineEdit.setReadOnly(True)
-        self.elm2VoltageLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.elm2CurrentLineEdit = QtWidgets.QLineEdit("---")
-        self.elm2CurrentLineEdit.setReadOnly(True)
-        self.elm2CurrentLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.elm2OutputStateLineEdit = QtWidgets.QLineEdit("---")
-        self.elm2OutputStateLineEdit.setReadOnly(True)
-        self.elm2OutputStateLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.lcrVoltageLineEdit = QtWidgets.QLineEdit("---")
-        self.lcrVoltageLineEdit.setReadOnly(True)
-        self.lcrVoltageLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.lcrCurrentLineEdit = QtWidgets.QLineEdit("---")
-        self.lcrCurrentLineEdit.setReadOnly(True)
-        self.lcrCurrentLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.lcrOutputStateLineEdit = QtWidgets.QLineEdit("---")
-        self.lcrOutputStateLineEdit.setReadOnly(True)
-        self.lcrOutputStateLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.dmmTemperatureLineEdit = QtWidgets.QLineEdit("---")
-        self.dmmTemperatureLineEdit.setReadOnly(True)
-        self.dmmTemperatureLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.tcuTemperatureLineEdit = QtWidgets.QLineEdit("---")
-        self.tcuTemperatureLineEdit.setReadOnly(True)
-        self.tcuTemperatureLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        self.tcuStateLineEdit = QtWidgets.QLineEdit("---")
-        self.tcuStateLineEdit.setReadOnly(True)
-        self.tcuStateLineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-
-        centralWidget = QtWidgets.QWidget()
-        self.setCentralWidget(centralWidget)
+        self.central_widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.central_widget)
 
         # Dock widgets
 
-        self.loggingWidget = LogWidget(self)
-        self.loggingWidget.addLogger(logging.getLogger())
-        self.loggingWidget.setLevel(logging.DEBUG)
+        self.logging_widget = LogWidget(self)
 
-        self.loggingDockWidget = QtWidgets.QDockWidget("Logging")
-        self.loggingDockWidget.setObjectName("loggingDockWidget")
-        self.loggingDockWidget.setAllowedAreas(
+        self.logging_dock_widget = QtWidgets.QDockWidget("Logging")
+        self.logging_dock_widget.setObjectName("logging_dock_widget")
+        self.logging_dock_widget.setAllowedAreas(
             QtCore.Qt.DockWidgetArea.BottomDockWidgetArea
         )
-        self.loggingDockWidget.setWidget(self.loggingWidget)
-        self.loggingDockWidget.setFeatures(
+        self.logging_dock_widget.setWidget(self.logging_widget)
+        self.logging_dock_widget.setFeatures(
             QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable
         )
-        self.loggingDockWidget.hide()
+        self.logging_dock_widget.hide()
         self.addDockWidget(
-            QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, self.loggingDockWidget
+            QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, self.logging_dock_widget
         )
 
-        self.loggingAction = self.loggingDockWidget.toggleViewAction()
-        self.loggingAction.setStatusTip("Toggle logging dock window")
-        self.viewMenu.addAction(self.loggingAction)
+        self.logging_action = self.logging_dock_widget.toggleViewAction()
+        self.logging_action.setStatusTip("Toggle logging dock window")
+        self.view_menu.addAction(self.logging_action)
 
         # Status bar
 
@@ -284,180 +224,81 @@ class MainWindow(QtWidgets.QMainWindow):
         control_layout.addWidget(self.auto_reconnect_check_box)
         control_layout.addStretch()
 
-        smu_group_box = QtWidgets.QHBoxLayout(self.smu_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
-        vboxLayout.addWidget(self.smuVoltageLineEdit)
-        smu_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Current"))
-        vboxLayout.addWidget(self.smuCurrentLineEdit)
-        smu_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
-        vboxLayout.addWidget(self.smuOutputStateLineEdit)
-        smu_group_box.addLayout(vboxLayout)
-        smu_group_box.setStretch(0, 3)
-        smu_group_box.setStretch(1, 3)
-        smu_group_box.setStretch(2, 1)
-
-        smu2_group_box = QtWidgets.QHBoxLayout(self.smu2_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
-        vboxLayout.addWidget(self.smu2VoltageLineEdit)
-        smu2_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Current"))
-        vboxLayout.addWidget(self.smu2CurrentLineEdit)
-        smu2_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
-        vboxLayout.addWidget(self.smu2OutputStateLineEdit)
-        smu2_group_box.addLayout(vboxLayout)
-        smu2_group_box.setStretch(0, 3)
-        smu2_group_box.setStretch(1, 3)
-        smu2_group_box.setStretch(2, 1)
-
-        elm_group_box = QtWidgets.QHBoxLayout(self.elm_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
-        vboxLayout.addWidget(self.elmVoltageLineEdit)
-        elm_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Current"))
-        vboxLayout.addWidget(self.elmCurrentLineEdit)
-        elm_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
-        vboxLayout.addWidget(self.elmOutputStateLineEdit)
-        elm_group_box.addLayout(vboxLayout)
-        elm_group_box.setStretch(0, 3)
-        elm_group_box.setStretch(1, 3)
-        elm_group_box.setStretch(2, 1)
-
-        elm2_group_box = QtWidgets.QHBoxLayout(self.elm2_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
-        vboxLayout.addWidget(self.elm2VoltageLineEdit)
-        elm2_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Current"))
-        vboxLayout.addWidget(self.elm2CurrentLineEdit)
-        elm2_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
-        vboxLayout.addWidget(self.elm2OutputStateLineEdit)
-        elm2_group_box.addLayout(vboxLayout)
-        elm2_group_box.setStretch(0, 3)
-        elm2_group_box.setStretch(1, 3)
-        elm2_group_box.setStretch(2, 1)
-
-        lcr_group_box = QtWidgets.QHBoxLayout(self.lcr_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Voltage"))
-        vboxLayout.addWidget(self.lcrVoltageLineEdit)
-        lcr_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Capacity"))
-        vboxLayout.addWidget(self.lcrCurrentLineEdit)
-        lcr_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Output"))
-        vboxLayout.addWidget(self.lcrOutputStateLineEdit)
-        lcr_group_box.addLayout(vboxLayout)
-        lcr_group_box.setStretch(0, 3)
-        lcr_group_box.setStretch(1, 3)
-        lcr_group_box.setStretch(2, 1)
-
-        dmm_group_box = QtWidgets.QHBoxLayout(self.dmm_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Temperature"))
-        vboxLayout.addWidget(self.dmmTemperatureLineEdit)
-        dmm_group_box.addLayout(vboxLayout)
-        dmm_group_box.addStretch()
-        dmm_group_box.setStretch(0, 2)
-        dmm_group_box.setStretch(1, 3)
-
-        tcu_group_box = QtWidgets.QHBoxLayout(self.tcu_group_box)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("Temperature"))
-        vboxLayout.addWidget(self.tcuTemperatureLineEdit)
-        tcu_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel("State"))
-        vboxLayout.addWidget(self.tcuStateLineEdit)
-        tcu_group_box.addLayout(vboxLayout)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(QtWidgets.QLabel())
-        tcu_group_box.addLayout(vboxLayout)
-        tcu_group_box.setStretch(0, 3)
-        tcu_group_box.setStretch(1, 3)
-        tcu_group_box.setStretch(2, 1)
-
         bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addLayout(control_layout)
         bottomLayout.addWidget(self.control_tab_widget)
-        vboxLayout = QtWidgets.QVBoxLayout()
-        vboxLayout.addWidget(self.smu_group_box)
-        vboxLayout.addWidget(self.smu2_group_box)
-        vboxLayout.addWidget(self.elm_group_box)
-        vboxLayout.addWidget(self.elm2_group_box)
-        vboxLayout.addWidget(self.lcr_group_box)
-        vboxLayout.addWidget(self.dmm_group_box)
-        vboxLayout.addWidget(self.tcu_group_box)
-        vboxLayout.addStretch()
-        bottomLayout.addLayout(vboxLayout)
+        vbox_layout = QtWidgets.QVBoxLayout()
+        vbox_layout.addWidget(self.smu_group_box)
+        vbox_layout.addWidget(self.smu2_group_box)
+        vbox_layout.addWidget(self.elm_group_box)
+        vbox_layout.addWidget(self.elm2_group_box)
+        vbox_layout.addWidget(self.lcr_group_box)
+        vbox_layout.addWidget(self.dmm_group_box)
+        vbox_layout.addWidget(self.tcu_group_box)
+        vbox_layout.addStretch()
+        bottomLayout.addLayout(vbox_layout)
         bottomLayout.setStretch(0, 0)
         bottomLayout.setStretch(1, 7)
         bottomLayout.setStretch(2, 3)
 
-        layout = QtWidgets.QVBoxLayout(self.centralWidget())
-        layout.addWidget(self.dataStackedWidget)
+        layout = QtWidgets.QVBoxLayout(self.central_widget)
+        layout.addWidget(self.data_stacked_widget)
         layout.addLayout(bottomLayout)
 
-    def set_data_widget(self, widget: QtWidgets.QWidget) -> None:
-        while self.dataStackedWidget.count():
-            self.dataStackedWidget.removeWidget(self.dataStackedWidget.currentWidget())
-        self.dataStackedWidget.addWidget(widget)
+    def add_logger(self, logger: logging.Logger) -> None:
+        self.logging_widget.addLogger(logger)
 
-    def add_role(self, name: str) -> RoleWidget:
-        if name in self.roleWidgets:
-            raise KeyError(f"No suc role: {name}")
-        widget = RoleWidget(name)
-        self.roleWidgets[name] = widget
-        self.control_tab_widget.addTab(widget, widget.name())
+    def set_log_level(self, log_level: int) -> None:
+        self.logging_widget.setLevel(log_level)
+
+    def set_data_widget(self, widget: QtWidgets.QWidget) -> None:
+        while self.data_stacked_widget.count():
+            current_widget = self.data_stacked_widget.currentWidget()
+            if current_widget is not None:
+                self.data_stacked_widget.removeWidget(current_widget)
+        self.data_stacked_widget.addWidget(widget)
+
+    def add_role(self, role: Role, title: str, optional: bool = False) -> RoleWidget:
+        if role in self.role_widgets:
+            raise KeyError(f"No such role: {role!r}")
+        self.general_widget.add_role(role, title, optional)
+        widget = RoleWidget(role)
+        widget.browse_resources.connect(
+            lambda role=role: self.role_browse_resources.emit(role)
+        )
+        widget.test_connection.connect(
+            lambda role=role: self.role_test_connection.emit(role)
+        )
+        self.role_widgets[role] = widget
+        self.control_tab_widget.addTab(widget, title)
         return widget
 
-    def find_role(self, name: str) -> Optional[RoleWidget]:
-        return self.roleWidgets.get(name)
+    def find_role(self, role: Role) -> RoleWidget | None:
+        return self.role_widgets.get(role)
 
     def roles(self) -> list[RoleWidget]:
-        return list(self.roleWidgets.values())
+        return list(self.role_widgets.values())
+
+    def set_role_enabled(self, role: str, enabled: bool) -> None:
+        self.general_widget.set_role_enabled(role, enabled)
+        status = self.status_group_boxes.get(role)
+        if status is not None:
+            status.setEnabled(enabled)
+            status.setVisible(enabled)
 
     def clear(self) -> None:
         """Clear displayed data in plots and inputs."""
-        self.smuVoltageLineEdit.setText("---")
-        self.smuCurrentLineEdit.setText("---")
-        self.setSMUOutputState(None)
-        self.smu2VoltageLineEdit.setText("---")
-        self.smu2CurrentLineEdit.setText("---")
-        self.setSMU2OutputState(None)
-        self.elmVoltageLineEdit.setText("---")
-        self.elmCurrentLineEdit.setText("---")
-        self.setELMOutputState(None)
-        self.elm2VoltageLineEdit.setText("---")
-        self.elm2CurrentLineEdit.setText("---")
-        self.setELM2OutputState(None)
-        self.lcrVoltageLineEdit.setText("---")
-        self.lcrCurrentLineEdit.setText("---")
-        self.setLCROutputState(None)
-        self.dmmTemperatureLineEdit.setText("---")
-        self.tcuTemperatureLineEdit.setText("---")
-        self.tcuStateLineEdit.setText("---")
+        self.smu_group_box.clear()
+        self.smu2_group_box.clear()
+        self.elm_group_box.clear()
+        self.elm2_group_box.clear()
+        self.lcr_group_box.clear()
+        self.dmm_group_box.clear()
+        self.tcu_group_box.clear()
 
     def set_idle_state(self) -> None:
         self.import_action.setEnabled(True)
-        self.preferencesAction.setEnabled(True)
+        self.preferences_action.setEnabled(True)
         self.start_action.setEnabled(True)
         self.stop_action.setEnabled(False)
         self.continuous_action.setEnabled(True)
@@ -469,18 +310,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.auto_reconnect_check_box.setEnabled(True)
         self.general_widget.set_idle_state()
         self.set_change_voltage_enabled(False)
-        for role in self.roles():
-            role.set_locked(False)
-        self.setSMUOutputState(None)
-        self.setSMU2OutputState(None)
-        self.setELMOutputState(None)
-        self.setLCROutputState(None)
+        self.smu_group_box.clear()
+        self.smu2_group_box.clear()
+        self.elm_group_box.clear()
+        self.elm2_group_box.clear()
+        self.lcr_group_box.clear()
+        self.dmm_group_box.clear()
+        self.tcu_group_box.clear()
         self._locked = False
 
     def set_running_state(self) -> None:
         self._locked = True
         self.import_action.setEnabled(False)
-        self.preferencesAction.setEnabled(False)
+        self.preferences_action.setEnabled(False)
         self.start_action.setEnabled(False)
         self.stop_action.setEnabled(True)
         self.continuous_action.setEnabled(False)
@@ -491,15 +333,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.continuous_check_box.setEnabled(False)
         self.auto_reconnect_check_box.setEnabled(False)
         self.general_widget.set_running_state()
-        for role in self.roles():
-            role.set_locked(True)
-        self.loggingWidget.ensureRecentRecordsVisible()
+        self.logging_widget.ensure_recent_records_visible()
 
     def set_stopping_state(self) -> None:
         self.stop_action.setEnabled(False)
         self.stop_button.setEnabled(False)
         self.general_widget.set_stopping_state()
         self.set_change_voltage_enabled(False)
+
+    def set_fsm_state(self, state: FSMState) -> None:
+        for role_widget in self.role_widgets.values():
+            role_widget.set_fsm_state(state)
 
     def set_message(self, message: str) -> None:
         self.message_label.show()
@@ -527,10 +371,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.continuous_check_box.setChecked(enabled)
 
     def is_change_voltage_enabled(self) -> bool:
-        return self.changeVoltageAction.isEnabled()
+        return self.change_voltage_action.isEnabled()
 
     def set_change_voltage_enabled(self, state: bool) -> None:
-        self.changeVoltageAction.setEnabled(state)
+        self.change_voltage_action.setEnabled(state)
         self.general_widget.set_change_voltage_enabled(state)
 
     def is_auto_reconnect(self) -> bool:
@@ -539,96 +383,101 @@ class MainWindow(QtWidgets.QMainWindow):
     def set_auto_reconnect(self, enabled: bool) -> None:
         self.auto_reconnect_check_box.setChecked(enabled)
 
-    def setSMUOutputState(self, state) -> None:
-        self.smuOutputStateLineEdit.setText(format_switch(state))
-        self.smuOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+    def set_smu_output_state(self, state: bool) -> None:
+        self.smu_group_box.set_output_state(state)
 
-    def setSMU2OutputState(self, state) -> None:
-        self.smu2OutputStateLineEdit.setText(format_switch(state))
-        self.smu2OutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+    def set_smu2_output_state(self, state: bool) -> None:
+        self.smu2_group_box.set_output_state(state)
 
-    def setELMOutputState(self, state) -> None:
-        self.elmOutputStateLineEdit.setText(format_switch(state))
-        self.elmOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+    def set_elm_output_state(self, state: bool) -> None:
+        self.elm_group_box.set_output_state(state)
 
-    def setELM2OutputState(self, state) -> None:
-        self.elm2OutputStateLineEdit.setText(format_switch(state))
-        self.elm2OutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+    def set_elm2_output_state(self, state: bool) -> None:
+        self.elm2_group_box.set_output_state(state)
 
-    def setLCROutputState(self, state) -> None:
-        self.lcrOutputStateLineEdit.setText(format_switch(state))
-        self.lcrOutputStateLineEdit.setStyleSheet(stylesheet_switch(state))
+    def set_lcr_output_state(self, state: bool) -> None:
+        self.lcr_group_box.set_output_state(state)
 
-    def updateSourceVoltage(self, voltage: float) -> None:
+    def update_source_voltage(self, voltage: float) -> None:
         if self.smu_group_box.isEnabled():
-            self.updateSMUVoltage(voltage)
+            self.update_smu_voltage(voltage)
         elif self.elm_group_box.isEnabled():
-            self.updateELMVoltage(voltage)
+            self.update_elm_voltage(voltage)
         elif self.elm2_group_box.isEnabled():
-            self.updateELM2Voltage(voltage)
+            self.update_elm2_voltage(voltage)
         elif self.lcr_group_box.isEnabled():
-            self.updateLCRVoltage(voltage)
+            self.update_lcr_voltage(voltage)
 
-    def updateBiasSourceVoltage(self, voltage: float) -> None:
-        self.updateSMU2Voltage(voltage)
+    def update_bias_source_voltage(self, voltage: float) -> None:
+        self.update_smu2_voltage(voltage)
 
-    def updateSourceOutputState(self, state: bool) -> None:
+    def update_source_output_state(self, state: bool) -> None:
         if self.smu_group_box.isEnabled():
-            self.setSMUOutputState(state)
+            self.set_smu_output_state(state)
         elif self.elm_group_box.isEnabled():
-            self.setELMOutputState(state)
+            self.set_elm_output_state(state)
         elif self.lcr_group_box.isEnabled():
-            self.setLCROutputState(state)
+            self.set_lcr_output_state(state)
 
-    def updateBiasSourceOutputState(self, state: bool) -> None:
+    def update_bias_source_output_state(self, state: bool) -> None:
         if self.smu2_group_box.isEnabled():
-            self.setSMU2OutputState(state)
+            self.set_smu2_output_state(state)
 
-    def updateSMUVoltage(self, voltage: float) -> None:
-        self.smuVoltageLineEdit.setText(format_metric(voltage, "V"))
+    def update_smu_voltage(self, voltage: float) -> None:
+        self.smu_group_box.set_voltage(voltage)
 
-    def updateSMUCurrent(self, current: float) -> None:
-        self.smuCurrentLineEdit.setText(format_metric(current, "A"))
+    def update_smu_current(self, current: float) -> None:
+        self.smu_group_box.set_current(current)
 
-    def updateSMU2Voltage(self, voltage: float) -> None:
-        self.smu2VoltageLineEdit.setText(format_metric(voltage, "V"))
+    def update_smu2_voltage(self, voltage: float) -> None:
+        self.smu2_group_box.set_voltage(voltage)
 
-    def updateSMU2Current(self, current: float) -> None:
-        self.smu2CurrentLineEdit.setText(format_metric(current, "A"))
+    def update_smu2_current(self, current: float) -> None:
+        self.smu2_group_box.set_current(current)
 
-    def updateELMVoltage(self, voltage: float) -> None:
-        self.elmVoltageLineEdit.setText(format_metric(voltage, "V"))
+    def update_elm_voltage(self, voltage: float) -> None:
+        self.elm_group_box.set_voltage(voltage)
 
-    def updateELMCurrent(self, current: float) -> None:
-        self.elmCurrentLineEdit.setText(format_metric(current, "A"))
+    def update_elm_current(self, current: float) -> None:
+        self.elm_group_box.set_current(current)
 
-    def updateELM2Voltage(self, voltage: float) -> None:
-        self.elm2VoltageLineEdit.setText(format_metric(voltage, "V"))
+    def update_elm2_voltage(self, voltage: float) -> None:
+        self.elm2_group_box.set_voltage(voltage)
 
-    def updateELM2Current(self, current: float) -> None:
-        self.elm2CurrentLineEdit.setText(format_metric(current, "A"))
+    def update_elm2_current(self, current: float) -> None:
+        self.elm2_group_box.set_current(current)
 
-    def updateLCRVoltage(self, voltage: float) -> None:
-        self.lcrVoltageLineEdit.setText(format_metric(voltage, "V"))
+    def update_lcr_voltage(self, voltage: float) -> None:
+        self.lcr_group_box.set_voltage(voltage)
 
-    def updateLCRCapacity(self, capacity: float) -> None:
-        self.lcrCurrentLineEdit.setText(format_metric(capacity, "F"))
+    def update_lcr_capacity(self, capacity: float) -> None:
+        self.lcr_group_box.set_capacity(capacity)
 
-    def updateDMMTemperature(self, temperature: float) -> None:
-        self.dmmTemperatureLineEdit.setText(format_metric(temperature, "°C", 1))
+    def update_dmm_temperature(self, temperature: float) -> None:
+        self.dmm_group_box.set_temperature(temperature)
 
-    def updateTCUTemperature(self, temperature: float) -> None:
-        self.tcuTemperatureLineEdit.setText(format_metric(temperature, "°C", 1))
+    def update_tcu_temperature(self, temperature: float) -> None:
+        self.tcu_group_box.set_temperature(temperature)
 
-    def updateTCUState(self, state: str) -> None:
-        self.tcuStateLineEdit.setText(str(state or "---"))
+    def update_tcu_humidity(self, humidity: float) -> None:
+        self.tcu_group_box.set_humidity(humidity)
+
+    def update_tcu_state(self, state: str) -> None:
+        self.tcu_group_box.set_state(state)
 
     @QtCore.Slot()
     def on_show_preferences(self) -> None:
         dialog = PreferencesDialog(self)
         dialog.read_settings()
-        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            dialog.write_settings()
+
+        def finished(result: int) -> None:
+            if result == QtWidgets.QDialog.DialogCode.Accepted:
+                dialog.write_settings()
+
+            dialog.deleteLater()
+
+        dialog.finished.connect(finished)
+        dialog.open()
 
     @QtCore.Slot()
     def on_show_contents(self) -> None:

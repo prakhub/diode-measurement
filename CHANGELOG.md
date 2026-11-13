@@ -9,17 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Output file name and file name suffix inputs, falling back to the previous
-  sample name and timestamp scheme when the file name is left empty.
-- JSON-RPC method `configure`, applying parameters without starting a
-  measurement.
-- JSON-RPC parameters `sample`, `output_enabled`, `output_dir`, `filename`,
-  `filename_suffix`, `continue_in_compliance`, `lcr_amplitude` and
-  `lcr_frequency`, accepted by both `start` and `configure`.
-- JSON-RPC state snapshot fields `running`, `filename` and `last_error`,
-  allowing remote clients to await completion and detect failed measurements.
-- TCU (Temperature Control Unit) role and support for AC3 Chiller (#136).
-- Per-Instrument reset options (#137).
+- Settings adapter for typed settings (#193).
 - Agilent 4155C semiconductor parameter analyzer as electrometer, using a
   selectable SMU (SMU1 to SMU4) as constant voltage source and current meter,
   with ranging, integration time and sample averaging options. Currents are
@@ -29,25 +19,195 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   analyzer to source on one SMU and act as electrometer on another. Roles
   sharing an instrument are checked for conflicting settings (reset, disable
   other channels, same SMU) before a measurement starts.
+- Output file name and file name suffix inputs, falling back to the previous
+  sample name and timestamp scheme when the file name is left empty.
+- JSON-RPC method `configure`, applying parameters without starting a
+  measurement.
+- JSON-RPC parameters `output_enabled`, `output_dir`, `filename`,
+  `filename_suffix`, `continue_in_compliance`, `lcr_amplitude` and
+  `lcr_frequency`, accepted by both `start` and `configure`.
+- JSON-RPC state snapshot fields `running`, `filename` and `last_error`,
+  allowing remote clients to await completion and detect failed measurements.
+
+### Changed
+
+- Follow Qt recommendations for modal dialog creation (#187).
+- Improved SCPI error parsing (#188).
+- Normalized instrument drivers by using adapters (#190).
+- Migrated the build backend from Hatchling to `uv_build` (#192).
+
+## [0.31.4] - 2026-10-05
+
+### Fixed
+
+- Explicitly clear K2657A error queue (#195).
+
+## [0.31.3] - 2026-09-25
+
+### Fixed
+
+- Exclude GPIB interfaces from instrument buffer drain (#194).
+
+## [0.31.2] - 2026-08-21
+
+### Fixed
+
+- Keithley 4215 CVU aperture filter factor parameter (#191).
+
+## [0.31.1] - 2026-08-19
+
+### Fixed
+
+- CTS/ITC setpoint being set when disabled (#188).
+
+## [0.31.0] - 2026-08-12
+
+### Added
+
+- Select source and bias source instruments in UI and JSON RPC (#184).
+- Option to wait for TCU setpoint reached (#186).
+- Setpoint enable option for CTS/ITC (#186).
+
+## [0.30.1] - 2026-08-11
+
+### Fixed
+
+- Change Voltage action not working (#185).
+
+## [0.30.0] - 2026-08-10
+
+### Added
+
+- CTS/ITC setpoint tolerance (#181).
+
+### Changed
+
+- Update AC3 setpoint in continiuous mode (#181).
+- Replace panel lock state with FSM state (#183).
+
+## [0.29.0] - 2026-08-06
+
+### Added
+
+- Support for CTS/ITC chlimate chamber as TCU role (#84, #175, #178).
+- Options to select log level and to write a logfile to the use home directory (#176).
+- Drain output buffers on errors (#179).
+- Additional Keithley 2470 parameters (#180).
+
+### Changed
+
+- Refactored main window for improved maintainability.
+- Refactored measurement state into a type-safe model with dedicated I/O queues (#177).
+- Added optional DMM/TCU output fields (#177).
+
+## [0.28.0] - 2026-07-29
+
+### Added
+
+- Option `AUTO` for Keithley 2470 breakdown protection (#124, #171).
+- More descriptive instrument model names e.g. `Keithley 4215 CVU` (#172).
+- Current sense range options for Keithley 2470 SMU (#174).
+
+### Changed
+
+- Moved test resource connection and resource detection to background jobs (#168).
+- Modernized the codebase and dropped support for Python 3.9 and 3.10 (#170).
+- Move shared pytest fixture to `conftest.py` (#173).
+
+## [0.27.2] - 2026-05-07
+
+### Fixed
+
+- Unlock change voltage button in continuous measurement mode (#169).
+
+## [0.27.1] - 2026-05-05
+
+### Fixed
+
+- Hide resource baud rate input for non-serial resource names (#166).
+- Lock browse resources dialog button on measurements (#167).
+
+## [0.27.0] - 2026-04-30
+
+### Added
+
+- Added optional baud rate input for serial resources (#163).
+- Added browse VISA resources tool button and dialog (#164).
+
+### Changed
+
+- Translates `COM1`-style resource names to valid VISA names like `ASRL1::INSTR` (#163).
+
+## [0.26.1] - 2026-04-30
+
+### Fixed
+
+- It plot displayed IV plot data caused by a wrong data source (#165).
+
+## [0.26.0] - 2026-04-29
+
+### Added
+
+- Added `pyright` to the `tox` workflow for consistent static type checking in local development and CI (#160).
+- Added configurable voltage discharge timeout and threshold settings to the Preferences dialog (#161).
+- Added `sample` parameter to JSON-RPC `start` method (#162).
+
+### Changed
+
+- Added missing type hints across the codebase.
+- Replaced `time.time()` with `time.monotonic()` for reliable elapsed-time measurement.
+- Refactored plot widgets for improved maintainability.
+
+### Fixed
+
+- Resolved all reported Pyright type errors across the codebase to ensure clean type-checking (#160).
+
+## [0.25.3] - 2026-04-27
+
+### Fixed
+
+- Replace `INIT` by `READ?` to avoid trigger model errors on Keithley 2470 (#158, #159).
+
+## [0.25.2] - 2026-04-24
+
+### Fixed
+
+- Add missing `INIT` command when reading from Keithley 2470, preventing frozen readings (#157).
+
+## [0.25.1] - 2026-04-21
+
+### Fixed
+
+- Error on importing recorded measurement files due to introduced changes.
+
+## [0.25.0] - 2026-04-17
+
+### Added
+
+- TCU (Temperature Control Unit) role and support for AC3 Chiller (#136).
+- Per-Instrument reset options (#137).
+- Configure instrument options using RPC server (#135, #156).
 
 ### Changed
 
 - Switch build backend from setuptools to Hatchling (#119).
 - Adopt `src` layout for package sources (#119).
 
-### Fixed
-
-- JSON-RPC `start` requests only advanced the state machine without running a
-  measurement.
-- JSON-RPC state snapshot always reported `idle`, the measurement emitted the
-  state under a key the controller did not read.
-- JSON-RPC `running` reported `false` in the short window between a
-  measurement finishing and the state machine returning to its idle state, so
-  a start request issued right after a measurement could be refused.
-
 ### Removed
 
 - Global reset instruments option (#137).
+
+## [0.24.3] - 2026-04-16
+
+### Fixed
+
+- RPC `status` method always returned state `idle` regardless of actual operation (#155).
+
+## [0.24.2] - 2026-04-15
+
+### Fixed
+
+- RPC `start` method failed to start a measurement and caused the GUI to freeze (#154).
 
 ## [0.24.1] - 2026-03-24
 
@@ -112,19 +272,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.22.3] - 2026-02-12
 
-### Fixes
+### Fixed
 
 - Disable K4215-CVU C-V bias voltage/offset after measurement (#123).
 
 ## [0.22.2] - 2025-09-26
 
-### Fixes
+### Fixed
 
 - Display DCAMPS measurements on K2657A (#125).
 
 ## [0.22.1] - 2025-09-22
 
-### Fixes
+### Fixed
 
 - Broken `measure_iv` method for K6517b (#120).
 - Broken disable TCP server on error (#121).
@@ -204,6 +364,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable precision for file writer (#102).
 
 ### Changed
+
 - Added support for Python 3.12.
 
 ## [0.20.1] - 2024-02-05
@@ -396,7 +557,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for Agilent 4284A LCR Meter (#35).
 - Aperture and correction settings for LCR Meters.
 
-## Changed
+### Changed
 
 - Show only plots of selected measurement (#37).
 - Refactored measurement thread handling.
@@ -542,8 +703,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - IV measurement.
 
-[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.24.1...HEAD
-[0.24.0]: https://github.com/hephy-dd/diode-measurement/compare/0.24.0...0.24.1
+[Unreleased]: https://github.com/hephy-dd/diode-measurement/compare/0.31.4...HEAD
+[0.31.4]: https://github.com/hephy-dd/diode-measurement/compare/0.31.3...0.31.4
+[0.31.3]: https://github.com/hephy-dd/diode-measurement/compare/0.31.2...0.31.3
+[0.31.2]: https://github.com/hephy-dd/diode-measurement/compare/0.31.1...0.31.2
+[0.31.1]: https://github.com/hephy-dd/diode-measurement/compare/0.31.0...0.31.1
+[0.31.0]: https://github.com/hephy-dd/diode-measurement/compare/0.30.1...0.31.0
+[0.30.1]: https://github.com/hephy-dd/diode-measurement/compare/0.30.0...0.30.1
+[0.30.0]: https://github.com/hephy-dd/diode-measurement/compare/0.29.0...0.30.0
+[0.29.0]: https://github.com/hephy-dd/diode-measurement/compare/0.28.0...0.29.0
+[0.28.0]: https://github.com/hephy-dd/diode-measurement/compare/0.27.2...0.28.0
+[0.27.2]: https://github.com/hephy-dd/diode-measurement/compare/0.27.1...0.27.2
+[0.27.1]: https://github.com/hephy-dd/diode-measurement/compare/0.27.0...0.27.1
+[0.27.0]: https://github.com/hephy-dd/diode-measurement/compare/0.26.1...0.27.0
+[0.26.1]: https://github.com/hephy-dd/diode-measurement/compare/0.26.0...0.26.1
+[0.26.0]: https://github.com/hephy-dd/diode-measurement/compare/0.25.3...0.26.0
+[0.25.3]: https://github.com/hephy-dd/diode-measurement/compare/0.25.2...0.25.3
+[0.25.2]: https://github.com/hephy-dd/diode-measurement/compare/0.25.1...0.25.2
+[0.25.1]: https://github.com/hephy-dd/diode-measurement/compare/0.25.0...0.25.1
+[0.25.0]: https://github.com/hephy-dd/diode-measurement/compare/0.24.3...0.25.0
+[0.24.3]: https://github.com/hephy-dd/diode-measurement/compare/0.24.2...0.24.3
+[0.24.2]: https://github.com/hephy-dd/diode-measurement/compare/0.24.1...0.24.2
+[0.24.1]: https://github.com/hephy-dd/diode-measurement/compare/0.24.0...0.24.1
 [0.24.0]: https://github.com/hephy-dd/diode-measurement/compare/0.23.2...0.24.0
 [0.23.2]: https://github.com/hephy-dd/diode-measurement/compare/0.23.1...0.23.2
 [0.23.1]: https://github.com/hephy-dd/diode-measurement/compare/0.23.0...0.23.1
@@ -593,13 +774,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.8.2]: https://github.com/hephy-dd/diode-measurement/compare/0.8.1...0.8.2
 [0.8.1]: https://github.com/hephy-dd/diode-measurement/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/hephy-dd/diode-measurement/compare/0.7.0...0.8.0
-[0.7.0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.7.0
+[0.7.0]: https://github.com/hephy-dd/diode-measurement/compare/0.6.2...0.7.0
+[0.6.2]: https://github.com/hephy-dd/diode-measurement/compare/0.6.1...0.6.2
 [0.6.1]: https://github.com/hephy-dd/diode-measurement/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/hephy-dd/diode-measurement/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/hephy-dd/diode-measurement/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/hephy-dd/diode-measurement/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/hephy-dd/diode-measurement/compare/0.2.1...0.3.0
-[0.2.1]: https://github.com/hephy-dd/diode-measurement/compare/0.1.1...0.2.0
+[0.2.1]: https://github.com/hephy-dd/diode-measurement/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/hephy-dd/diode-measurement/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/hephy-dd/diode-measurement/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/hephy-dd/diode-measurement/releases/tag/0.1.0

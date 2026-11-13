@@ -1,9 +1,15 @@
+import logging
 from collections.abc import Callable, Mapping
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 from PySide6 import QtWidgets
 
+from ..core.measurement import FSMState
 from .metric import MetricWidget
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["WidgetParameter", "MethodParameter", "InstrumentPanel"]
 
 
 class Parameter(Protocol):
@@ -21,9 +27,7 @@ class WidgetParameter:
             return widget.isChecked()
         elif isinstance(widget, QtWidgets.QLineEdit):
             return widget.text()
-        elif isinstance(widget, QtWidgets.QSpinBox):
-            return widget.value()
-        elif isinstance(widget, QtWidgets.QDoubleSpinBox):
+        elif isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
             return widget.value()
         elif isinstance(widget, QtWidgets.QComboBox):
             return widget.currentData()
@@ -37,15 +41,13 @@ class WidgetParameter:
             widget.setChecked(value)
         elif isinstance(widget, QtWidgets.QLineEdit):
             widget.setText(value)
-        elif isinstance(widget, QtWidgets.QSpinBox):
-            widget.setValue(value)
-        elif isinstance(widget, QtWidgets.QDoubleSpinBox):
+        elif isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
             widget.setValue(value)
         elif isinstance(widget, QtWidgets.QComboBox):
             index = widget.findData(value)
             widget.setCurrentIndex(index)
         elif isinstance(widget, MetricWidget):
-            widget.setValue(value)
+            widget.set_value(value)
         else:
             raise TypeError(f"Invalid widget type: {widget!r}")
 
@@ -65,22 +67,31 @@ class MethodParameter:
 
 
 class InstrumentPanel(QtWidgets.QWidget):
-    def __init__(self, model: str, parent: Optional[QtWidgets.QWidget] = None) -> None:
+    def __init__(
+        self, model: str, title: str, parent: QtWidgets.QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self._parameters: dict[str, Parameter] = {}
         self._model = model
+        self._title = title
 
     def model(self) -> str:
         return self._model
 
+    def title(self) -> str:
+        return self._title
+
     def restore_defaults(self) -> None: ...
 
-    def set_locked(self, state: bool) -> None: ...
+    def set_fsm_state(self, state: FSMState) -> None: ...
 
     def bind_parameter(self, key: str, parameter: Parameter) -> None:
         if key in self._parameters:
             raise KeyError(f"Parameter already exists: {key!r}")
         self._parameters[key] = parameter
+
+    def migrate_config_value(self, key: str, value: Any) -> Any:
+        return value
 
     def config(self) -> dict[str, Any]:
         config: dict[str, Any] = {}
@@ -92,5 +103,10 @@ class InstrumentPanel(QtWidgets.QWidget):
         for key, value in config.items():
             parameter = self._parameters.get(key)
             if parameter is None:
-                raise KeyError(f"No such parameter: {key!r}")
-            parameter.setValue(value)
+                logger.warning("No such parameter: %r", key)
+                continue
+            try:
+                value_ = self.migrate_config_value(key, value)
+                parameter.setValue(value_)
+            except ValueError as exc:
+                raise ValueError(f"Failed to set parameter: {key!r}: {exc}") from exc

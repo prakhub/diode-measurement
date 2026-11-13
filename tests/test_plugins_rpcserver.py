@@ -1,19 +1,25 @@
 import json
+from concurrent.futures import Future
+from typing import Any, cast
 
+import pytest
+
+from diode_measurement.controller import GeneralConfig, Snapshot
+from diode_measurement.core.measurement import FSMState
+from diode_measurement.core.role import Role
 from diode_measurement.plugins.rpcserver import (
     ConfigureEvent,
     RPCHandler,
     StartEvent,
-    collect_parameters,
+    create_general_config,
     is_finite,
     json_dict,
 )
-from diode_measurement.state import FSMState
 
 
 def test_is_finite():
     assert is_finite(0)
-    assert is_finite(-42.)
+    assert is_finite(-42.0)
     assert is_finite("foo")
     assert not is_finite(float("nan"))
     assert not is_finite(float("+inf"))
@@ -21,22 +27,28 @@ def test_is_finite():
 
 
 def test_json_dict():
-    data_in = {"a": float("nan"), "b": 42., "c": "42"}
-    data_out = {"a": None, "b": 42., "c": "42"}
+    data_in = {"a": float("nan"), "b": 42.0, "c": "42"}
+    data_out = {"a": None, "b": 42.0, "c": "42"}
     assert json_dict(data_in) == data_out
 
 
-def test_collect_parameters_omits_unspecified():
-    assert collect_parameters() == {}
+def test_create_general_config_leaves_unspecified():
+    assert create_general_config() == GeneralConfig()
 
 
-def test_collect_parameters_renames_measurement_instruments():
-    parameters = collect_parameters(measurement_instruments=["smu", "lcr"])
-    assert parameters == {"measurement_roles": ["smu", "lcr"]}
+def test_create_general_config_converts_instruments_to_roles():
+    config = create_general_config(
+        measurement_instruments=["smu", "lcr"],
+        source_instrument="smu2",
+        bias_source_instrument="smu",
+    )
+    assert config.measurement_roles == [Role.SMU, Role.LCR]
+    assert config.source_role == Role.SMU2
+    assert config.bias_source_role == Role.SMU
 
 
-def test_collect_parameters_output_and_lcr():
-    parameters = collect_parameters(
+def test_create_general_config_output_and_lcr():
+    config = create_general_config(
         measurement_type="cv_diode",
         end_voltage=-200.0,
         step_voltage=1.0,
@@ -49,43 +61,42 @@ def test_collect_parameters_output_and_lcr():
         lcr_amplitude=0.5,
         lcr_frequency=10e3,
     )
-    assert parameters == {
-        "measurement_type": "cv_diode",
-        "end_voltage": -200.0,
-        "step_voltage": 1.0,
-        "compliance": 25e-6,
-        "sample": "A1",
-        "output_enabled": True,
-        "output_dir": "/data/A1",
-        "filename": "A1_irrad_cv",
-        "filename_suffix": "10kHz",
-        "lcr_amplitude": 0.5,
-        "lcr_frequency": 10e3,
-    }
+    assert config == GeneralConfig(
+        measurement_type="cv_diode",
+        end_voltage=-200.0,
+        step_voltage=1.0,
+        compliance=25e-6,
+        sample="A1",
+        output_enabled=True,
+        output_dir="/data/A1",
+        filename="A1_irrad_cv",
+        filename_suffix="10kHz",
+        lcr_amplitude=0.5,
+        lcr_frequency=10e3,
+    )
 
 
-def test_collect_parameters_keeps_falsy_values():
+def test_create_general_config_keeps_falsy_values():
     """Zero volt and disabled output must not be dropped as unspecified."""
-    parameters = collect_parameters(
+    config = create_general_config(
         begin_voltage=0.0, output_enabled=False, filename_suffix=""
     )
-    assert parameters == {
-        "begin_voltage": 0.0,
-        "output_enabled": False,
-        "filename_suffix": "",
-    }
+    assert config.begin_voltage == 0.0
+    assert config.output_enabled is False
+    assert config.filename_suffix == ""
+
+
+def test_create_general_config_rejects_unknown_parameter():
+    with pytest.raises(TypeError):
+        create_general_config(no_such=1)  # type: ignore[call-arg]
 
 
 class FakeAction:
     def __init__(self, enabled: bool = True) -> None:
         self._enabled = enabled
-        self.triggered = False
 
     def isEnabled(self) -> bool:
         return self._enabled
-
-    def trigger(self) -> None:
-        self.triggered = True
 
 
 class FakeMainWindow:
@@ -94,20 +105,39 @@ class FakeMainWindow:
 
 
 class FakeController:
+    """Stands in for the parts of the controller used by RPC events."""
+
     def __init__(self, enabled: bool = True) -> None:
         self.main_window = FakeMainWindow(enabled)
-        self.configured: dict = {}
+        self.configs: list[GeneralConfig] = []
+        self.started = False
 
-    def configure(self, parameters) -> None:
-        self.configured.update(parameters)
+    def configure(self, config: GeneralConfig) -> None:
+        self.configs.append(config)
 
-    def snapshot(self) -> dict:
-        return {
-            "state": FSMState.RAMPING,
-            "running": True,
-            "last_error": None,
-            "smu_current": float("nan"),
-        }
+    def request_start(self) -> None:
+        self.started = True
+
+    def snapshot(self) -> Snapshot:
+        return Snapshot(
+            state=FSMState.RAMPING,
+            measurement_type="iv",
+            sample="A1",
+            running=True,
+            filename=None,
+            last_error=None,
+            source_voltage=None,
+            smu_voltage=None,
+            smu_current=float("nan"),
+            smu2_voltage=None,
+            smu2_current=None,
+            elm_current=None,
+            elm2_current=None,
+            lcr_capacity=None,
+            dmm_temperature=None,
+            tcu_temperature=None,
+            tcu_humidity=None,
+        )
 
 
 class FakeEventHandler:
@@ -117,8 +147,6 @@ class FakeEventHandler:
         self.controller = controller
 
     def notify(self, event):
-        from concurrent.futures import Future
-
         future: Future = Future()
         try:
             future.set_result(event(self.controller))
@@ -129,36 +157,34 @@ class FakeEventHandler:
 
 def test_configure_event_does_not_start_measurement():
     controller = FakeController()
-    ConfigureEvent({"filename": "A1_irrad_iv"})(controller)
+    ConfigureEvent(GeneralConfig(filename="A1_irrad_iv"))(cast(Any, controller))
 
-    assert controller.configured == {"filename": "A1_irrad_iv"}
-    assert not controller.main_window.start_action.triggered
+    assert controller.configs == [GeneralConfig(filename="A1_irrad_iv")]
+    assert not controller.started
 
 
-def test_start_event_triggers_start_action():
+def test_start_event_starts_measurement():
     controller = FakeController()
-    StartEvent({"end_voltage": -200.0})(controller)
+    StartEvent(GeneralConfig(end_voltage=-200.0))(cast(Any, controller))
 
-    assert controller.configured == {"end_voltage": -200.0}
-    assert controller.main_window.start_action.triggered
+    assert controller.configs == [GeneralConfig(end_voltage=-200.0)]
+    assert controller.started
 
 
 def test_start_event_refuses_while_measurement_active():
     controller = FakeController(enabled=False)
 
-    try:
-        StartEvent({})(controller)
-    except RuntimeError as exc:
-        assert "still active" in str(exc)
-    else:
-        raise AssertionError("expected RuntimeError")
+    with pytest.raises(RuntimeError, match="still active"):
+        StartEvent(GeneralConfig())(cast(Any, controller))
 
-    assert not controller.configured
+    assert not controller.configs
+    assert not controller.started
 
 
-def handle(controller, request) -> dict:
-    rpc_handler = RPCHandler(FakeEventHandler(controller))
-    response = rpc_handler.handle(json.dumps(request))
+def handle(controller: FakeController, request: dict[str, Any]) -> dict[str, Any]:
+    rpc_handler = RPCHandler(cast(Any, FakeEventHandler(controller)))
+    # handle() returns the JSON-RPC response object, despite its annotation
+    response: Any = rpc_handler.handle(json.dumps(request))
     return json.loads(response.json)
 
 
@@ -174,6 +200,7 @@ def test_rpc_start_applies_parameters():
                 "end_voltage": 3.0,
                 "step_voltage": 0.01,
                 "compliance": 1e-3,
+                "source_instrument": "smu",
                 "output_dir": "/data/A1",
                 "filename": "A1_irrad_iv",
                 "filename_suffix": "iv_forward",
@@ -182,9 +209,11 @@ def test_rpc_start_applies_parameters():
         },
     )
     assert "error" not in response
-    assert controller.configured["filename"] == "A1_irrad_iv"
-    assert controller.configured["filename_suffix"] == "iv_forward"
-    assert controller.main_window.start_action.triggered
+    (config,) = controller.configs
+    assert config.source_role == Role.SMU
+    assert config.filename == "A1_irrad_iv"
+    assert config.filename_suffix == "iv_forward"
+    assert controller.started
 
 
 def test_rpc_configure_applies_parameters_without_starting():
@@ -199,8 +228,8 @@ def test_rpc_configure_applies_parameters_without_starting():
         },
     )
     assert "error" not in response
-    assert controller.configured == {"lcr_frequency": 100e3}
-    assert not controller.main_window.start_action.triggered
+    assert controller.configs == [GeneralConfig(lcr_frequency=100e3)]
+    assert not controller.started
 
 
 def test_rpc_start_while_active_returns_error():
@@ -217,7 +246,7 @@ def test_rpc_rejects_unknown_parameter():
         {"jsonrpc": "2.0", "method": "start", "params": {"no_such": 1}, "id": 1},
     )
     assert "error" in response
-    assert not controller.main_window.start_action.triggered
+    assert not controller.started
 
 
 def test_rpc_state_serializes_enum_and_nan():
