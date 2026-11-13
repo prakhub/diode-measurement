@@ -232,6 +232,7 @@ def test_driver_a4155c_configure(res):
         ":PAGE:CHAN:SMU2:INAME 'I2'",
         ":PAGE:CHAN:SMU2:MODE V",
         ":PAGE:CHAN:SMU2:FUNC CONS",
+        ":PAGE:DISP:LIST 'I2'",
         ":PAGE:CHAN:SMU2:STAN OFF",
         ":PAGE:MEAS:MSET:SMU2:RANG:MODE LIM",
         ":PAGE:MEAS:MSET:SMU2:RANG 1.00000E-09",
@@ -299,6 +300,7 @@ def test_driver_a4155c_defines_channel_before_first_use(res):
         ":PAGE:CHAN:SMU1:INAME 'I1'",
         ":PAGE:CHAN:SMU1:MODE V",
         ":PAGE:CHAN:SMU1:FUNC CONS",
+        ":PAGE:DISP:LIST 'I1'",
         ":PAGE:MEAS:SAMP:CONS:SMU1 0.00000E+00",
     ]
 
@@ -323,9 +325,26 @@ def test_driver_a4155c_reset_invalidates_channel_definition(res):
 def test_driver_a4155c_measure_defines_channel(res):
     d = A4155CAdapter(res)
 
-    res.buffer = ["1"] * 5 + ["1", "+1.00000E-12"]
+    res.buffer = ["1"] * 6 + ["1", "+1.00000E-12"]
     assert d.measure_i() == pytest.approx(-1e-12)  # inverted by default
     assert ":PAGE:CHAN:MODE SAMP" in sent_commands(res)
+
+
+def test_driver_a4155c_display_list(res):
+    d = A4155CAdapter(res)
+    d.set_channel("SMU2")
+
+    res.buffer = ["@TIME,I1"]
+    assert d.get_display_list() == ["@TIME", "I1"]
+    assert res.buffer == [":PAGE:DISP:LIST?"]
+
+    res.buffer = [""]
+    assert d.get_display_list() == []
+
+    # The analyzer adds the name to the list, keeping all other entries
+    res.buffer = ["1"]
+    assert d.ensure_current_displayed() is None
+    assert res.buffer == [":PAGE:DISP:LIST 'I2'", "*OPC?"]
 
 
 def test_driver_a4155c_zero_check(res):

@@ -37,6 +37,11 @@ Command notes, verified against a 4155C with firmware 03.10:
 * ASCII data returned by ``:DATA?`` carries no status character on this
   firmware, so compliance is detected by comparing the reading against the
   compliance setting, see :meth:`compliance_tripped`.
+* Only variables on the display setup (graph axes or list) are measured,
+  ``:DATA?`` returns ``+9.91E+307`` for any other. The default display only
+  shows ``I1``, so the current of the selected SMU is added to the display
+  list, see :meth:`ensure_current_displayed`. ``:PAGE:DISP:LIST`` adds names
+  to the list and ignores duplicates, ``:PAGE:DISP:LIST:DEL`` removes them.
 
 An SMU reports current flowing *out of* its force terminal as positive, while
 an electrometer such as the K6514 reports current flowing *into* its input as
@@ -151,7 +156,20 @@ class A4155CAdapter:
         self.set_channel_current_name(self.current_name)
         self.set_channel_mode("V")
         self.set_channel_function("CONS")
+        self.ensure_current_displayed()
         self._channel_defined = True
+
+    def get_display_list(self) -> list[str]:
+        result = self._query(":PAGE:DISP:LIST?")
+        return [name.strip().strip("'\"") for name in result.split(",") if name.strip()]
+
+    def ensure_current_displayed(self) -> None:
+        """Add the current of the selected SMU to the display list.
+
+        The analyzer only measures displayed variables. Adding a name keeps the
+        entries of other roles sharing the analyzer and ignores duplicates.
+        """
+        self._write(f":PAGE:DISP:LIST '{self.current_name}'")
 
     def ensure_channel_defined(self) -> None:
         """Define the channel unless this was already done.
