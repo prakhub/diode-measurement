@@ -7,6 +7,7 @@ from .k2700 import K2700Panel
 from .k4215 import K4215Panel
 from .k6514 import K6514Panel
 from .k6517b import K6517BPanel
+from .a4155c import A4155CPanel
 from .a4284a import A4284APanel
 from .e4980a import E4980APanel
 from .ac3 import AC3Panel
@@ -24,6 +25,7 @@ __all__ = [
     "K4215Panel",
     "K6514Panel",
     "K6517BPanel",
+    "A4155CPanel",
     "A4284APanel",
     "E4980APanel",
     "AC3Panel",

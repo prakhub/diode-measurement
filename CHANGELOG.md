@@ -9,13 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Output file name and file name suffix inputs, falling back to the previous
+  sample name and timestamp scheme when the file name is left empty.
+- JSON-RPC method `configure`, applying parameters without starting a
+  measurement.
+- JSON-RPC parameters `sample`, `output_enabled`, `output_dir`, `filename`,
+  `filename_suffix`, `continue_in_compliance`, `lcr_amplitude` and
+  `lcr_frequency`, accepted by both `start` and `configure`.
+- JSON-RPC state snapshot fields `running`, `filename` and `last_error`,
+  allowing remote clients to await completion and detect failed measurements.
 - TCU (Temperature Control Unit) role and support for AC3 Chiller (#136).
 - Per-Instrument reset options (#137).
+- Agilent 4155C semiconductor parameter analyzer as electrometer, using a
+  selectable SMU (SMU1 to SMU4) as constant voltage source and current meter,
+  with ranging, integration time and sample averaging options. Currents are
+  reported with electrometer polarity by default, matching a K6514 at the same
+  place in the circuit.
+- Agilent 4155C as voltage source in the SMU and SMU2 roles, allowing one
+  analyzer to source on one SMU and act as electrometer on another. Roles
+  sharing an instrument are checked for conflicting settings (reset, disable
+  other channels, same SMU) before a measurement starts.
 
 ### Changed
 
 - Switch build backend from setuptools to Hatchling (#119).
 - Adopt `src` layout for package sources (#119).
+
+### Fixed
+
+- JSON-RPC `start` requests only advanced the state machine without running a
+  measurement.
+- JSON-RPC state snapshot always reported `idle`, the measurement emitted the
+  state under a key the controller did not read.
+- JSON-RPC `running` reported `false` in the short window between a
+  measurement finishing and the state machine returning to its idle state, so
+  a start request issued right after a measurement could be refused.
 
 ### Removed
 

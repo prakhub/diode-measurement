@@ -39,12 +39,26 @@ def json_dict(d: dict) -> dict:
 
 
 @dataclass
-class StartEvent:
+class ConfigureEvent:
     parameters: dict
 
     def __call__(self, controller: Controller) -> None:
         controller.configure(self.parameters)
-        controller.started.emit()
+
+
+@dataclass
+class StartEvent:
+    parameters: dict
+
+    def __call__(self, controller: Controller) -> None:
+        # The start action is disabled while a measurement is active, refuse
+        # rather than silently dropping the request.
+        if not controller.main_window.start_action.isEnabled():
+            raise RuntimeError(
+                "Cannot start measurement, another measurement is still active."
+            )
+        controller.configure(self.parameters)
+        controller.main_window.start_action.trigger()
 
 
 @dataclass
@@ -118,11 +132,73 @@ class EventHandler:
                 logger.exception(exc)
 
 
+def collect_parameters(
+    continuous: Optional[bool] = None,
+    auto_reconnect: Optional[bool] = None,
+    measurement_type: Optional[str] = None,
+    measurement_instruments: Optional[list[str]] = None,
+    begin_voltage: Optional[float] = None,
+    end_voltage: Optional[float] = None,
+    step_voltage: Optional[float] = None,
+    waiting_time: Optional[float] = None,
+    compliance: Optional[float] = None,
+    continue_in_compliance: Optional[bool] = None,
+    waiting_time_continuous: Optional[float] = None,
+    sample: Optional[str] = None,
+    output_enabled: Optional[bool] = None,
+    output_dir: Optional[str] = None,
+    filename: Optional[str] = None,
+    filename_suffix: Optional[str] = None,
+    lcr_amplitude: Optional[float] = None,
+    lcr_frequency: Optional[float] = None,
+) -> dict[str, Any]:
+    """Return a configuration mapping omitting all unspecified parameters."""
+    parameters: dict[str, Any] = {}
+    if continuous is not None:
+        parameters["continuous"] = continuous
+    if auto_reconnect is not None:
+        parameters["auto_reconnect"] = auto_reconnect
+    if measurement_type is not None:
+        parameters["measurement_type"] = measurement_type
+    if measurement_instruments is not None:
+        parameters["measurement_roles"] = measurement_instruments
+    if begin_voltage is not None:
+        parameters["begin_voltage"] = begin_voltage
+    if end_voltage is not None:
+        parameters["end_voltage"] = end_voltage
+    if step_voltage is not None:
+        parameters["step_voltage"] = step_voltage
+    if waiting_time is not None:
+        parameters["waiting_time"] = waiting_time
+    if compliance is not None:
+        parameters["compliance"] = compliance
+    if continue_in_compliance is not None:
+        parameters["continue_in_compliance"] = continue_in_compliance
+    if waiting_time_continuous is not None:
+        parameters["waiting_time_continuous"] = waiting_time_continuous
+    if sample is not None:
+        parameters["sample"] = sample
+    if output_enabled is not None:
+        parameters["output_enabled"] = output_enabled
+    if output_dir is not None:
+        parameters["output_dir"] = output_dir
+    if filename is not None:
+        parameters["filename"] = filename
+    if filename_suffix is not None:
+        parameters["filename_suffix"] = filename_suffix
+    if lcr_amplitude is not None:
+        parameters["lcr_amplitude"] = lcr_amplitude
+    if lcr_frequency is not None:
+        parameters["lcr_frequency"] = lcr_frequency
+    return parameters
+
+
 class RPCHandler:
     def __init__(self, event_handler: EventHandler) -> None:
         self.timeout: float = 5.0
         self.event_handler = event_handler
         self.dispatcher = jsonrpc.Dispatcher()
+        self.dispatcher["configure"] = self.on_configure
         self.dispatcher["start"] = self.on_start
         self.dispatcher["stop"] = self.on_stop
         self.dispatcher["change_voltage"] = self.on_change_voltage
@@ -132,40 +208,12 @@ class RPCHandler:
     def handle(self, request) -> dict[str, Any]:
         return self.manager.handle(request, self.dispatcher)
 
-    def on_start(
-        self,
-        continuous: Optional[bool] = None,
-        auto_reconnect: Optional[bool] = None,
-        measurement_type: Optional[str] = None,
-        measurement_instruments: Optional[list[str]] = None,
-        begin_voltage: Optional[float] = None,
-        end_voltage: Optional[float] = None,
-        step_voltage: Optional[float] = None,
-        waiting_time: Optional[float] = None,
-        compliance: Optional[float] = None,
-        waiting_time_continuous: Optional[float] = None,
-    ) -> None:
-        parameters: dict[str, Any] = {}
-        if continuous is not None:
-            parameters["continuous"] = continuous
-        if auto_reconnect is not None:
-            parameters["auto_reconnect"] = auto_reconnect
-        if measurement_type is not None:
-            parameters["measurement_type"] = measurement_type
-        if measurement_instruments is not None:
-            parameters["measurement_roles"] = measurement_instruments
-        if begin_voltage is not None:
-            parameters["begin_voltage"] = begin_voltage
-        if end_voltage is not None:
-            parameters["end_voltage"] = end_voltage
-        if step_voltage is not None:
-            parameters["step_voltage"] = step_voltage
-        if waiting_time is not None:
-            parameters["waiting_time"] = waiting_time
-        if compliance is not None:
-            parameters["compliance"] = compliance
-        if waiting_time_continuous is not None:
-            parameters["waiting_time_continuous"] = waiting_time_continuous
+    def on_configure(self, **kwargs: Any) -> None:
+        parameters = collect_parameters(**kwargs)
+        self.event_handler.notify(ConfigureEvent(parameters)).result(self.timeout)
+
+    def on_start(self, **kwargs: Any) -> None:
+        parameters = collect_parameters(**kwargs)
         self.event_handler.notify(StartEvent(parameters)).result(self.timeout)
 
     def on_stop(self) -> None:

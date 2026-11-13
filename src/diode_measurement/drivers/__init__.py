@@ -11,6 +11,7 @@ from .k4215 import K4215
 from .k6514 import K6514
 from .k6517b import K6517B
 from .e4980a import E4980A
+from .a4155c import A4155C
 from .a4284a import A4284A
 from .ac3 import AC3
 from .brandbox import BrandBox
@@ -30,6 +31,7 @@ driver_registry: dict[str, type[Driver]] = {
     "K6514": K6514,
     "K6517B": K6517B,
     "E4980A": E4980A,
+    "A4155C": A4155C,
     "A4284A": A4284A,
     "AC3": AC3,
     "BrandBox": BrandBox,

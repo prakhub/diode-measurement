@@ -104,13 +104,48 @@ class Measurement:
         )
         self._instruments[name] = cls, resource
 
+    def check_shared_resources(self) -> None:
+        """Raise exception if roles sharing an instrument would interfere.
+
+        Roles sharing an instrument (eg. SMUs of a parameter analyzer) must use
+        different channels and must neither reset the instrument nor disable
+        the channels of the other roles while configuring.
+        """
+        shared: dict[str, list[str]] = {}
+        for key in self._instruments:
+            resource_name = self.state.find_role(key).get("resource_name", "")
+            resource_name = resource_name.strip().upper().removesuffix("::INSTR")
+            shared.setdefault(resource_name, []).append(key)
+        for resource_name, keys in shared.items():
+            if len(keys) < 2:
+                continue
+            names = ", ".join(key.upper() for key in keys)
+            channels: list = []
+            for key in keys:
+                role = self.state.find_role(key)
+                options = role.get("options", {})
+                if role.get("reset_instrument"):
+                    raise RuntimeError(
+                        f"{names} share {resource_name}: disable reset instrument for {key.upper()}."
+                    )
+                if options.get("channel.disable_others"):
+                    raise RuntimeError(
+                        f"{names} share {resource_name}: disable other channels must be off for {key.upper()}."
+                    )
+                channel = options.get("smu.channel")
+                if channel is not None and channel in channels:
+                    raise RuntimeError(
+                        f"{names} share {resource_name}: {channel} selected more than once."
+                    )
+                channels.append(channel)
+
     def check_error_state(self, context) -> None:
         error = context.next_error()
         if error is not None:
             raise RuntimeError(f"Instrument Error: {error.code}: {error.message}")
 
     def set_fsm_state(self, state: FSMState) -> None:
-        self.update_event({"rpc_state": state})
+        self.update_event({"fsm_state": state})
 
     def initialize(self) -> None: ...
 
@@ -126,6 +161,7 @@ class Measurement:
             self.started_event()
             logger.debug("handle started callbacks... done.")
             self.instruments.clear()
+            self.check_shared_resources()
             with contextlib.ExitStack() as stack:
                 logger.debug("creating instrument contexts...")
                 for key, (cls, resource) in self._instruments.items():

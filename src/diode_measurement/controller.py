@@ -23,6 +23,7 @@ from .gui.panels import K2657APanel
 # Electrometers
 from .gui.panels import K6514Panel
 from .gui.panels import K6517BPanel
+from .gui.panels import A4155CPanel
 
 # LCR meters
 from .gui.panels import K595Panel
@@ -89,12 +90,16 @@ class Controller(QtCore.QObject):
         super().__init__(parent)
 
         self._shutdown_event = threading.Event()
+        self._job_active_event = threading.Event()
         self._background_inbox: queue.Queue[Job] = queue.Queue()
         self._background_thread = threading.Thread(target=self._handle_background_jobs)
 
         self.main_window = main_window
 
         self.is_exception_dialog_active: bool = False
+
+        self._last_error: Optional[str] = None
+        self._last_error_lock = threading.RLock()
 
         self.state: State = State()
         self.cache: Cache = Cache()
@@ -109,6 +114,7 @@ class Controller(QtCore.QObject):
         self.change_voltage_ready.connect(
             self.change_voltage_controller.on_change_voltage_ready
         )
+        self.failed.connect(self.record_error)
         self.failed.connect(self.handle_exception)
 
         # Source meter unit
@@ -117,6 +123,7 @@ class Controller(QtCore.QObject):
         role.add_instrument_panel(K2410Panel())
         role.add_instrument_panel(K2470Panel())
         role.add_instrument_panel(K2657APanel())
+        role.add_instrument_panel(A4155CPanel(is_source=True))
 
         # Bias source meter unit
         role = main_window.add_role("SMU2")
@@ -124,17 +131,20 @@ class Controller(QtCore.QObject):
         role.add_instrument_panel(K2410Panel())
         role.add_instrument_panel(K2470Panel())
         role.add_instrument_panel(K2657APanel())
+        role.add_instrument_panel(A4155CPanel(is_source=True))
 
         # Electrometer
         role = main_window.add_role("ELM")
         role.add_instrument_panel(K6514Panel())
         role.add_instrument_panel(K6517BPanel())
+        role.add_instrument_panel(A4155CPanel())
         role.resource_widget.model_changed.connect(self.on_instruments_changed)  # HACK
 
         # Electrometer 2
         role = main_window.add_role("ELM2")
         role.add_instrument_panel(K6514Panel())
         role.add_instrument_panel(K6517BPanel())
+        role.add_instrument_panel(A4155CPanel())
         role.resource_widget.model_changed.connect(self.on_instruments_changed)  # HACK
 
         # LCR meter
@@ -255,8 +265,27 @@ class Controller(QtCore.QObject):
         self.state_machine.start()
 
     def submit_background_job(self, job: Job) -> None:
+        # Flag the job as active before queuing it, so that remote clients
+        # polling the state right after a start request never observe an idle
+        # application.
+        self._job_active_event.set()
         self._background_inbox.put_nowait(job)
         self.started.emit()
+
+    def is_job_active(self) -> bool:
+        """Return `True` while a new measurement cannot be started yet.
+
+        The job flag is cleared by the worker thread as soon as the job
+        returns, but the state machine only returns to its idle state, and
+        re-enables the start action, once the main thread processed the
+        finished signal. Reporting both keeps remote clients from submitting
+        a measurement into that gap.
+
+        Called from the main thread, where reading the action is safe.
+        """
+        if self._job_active_event.is_set():
+            return True
+        return not self.main_window.start_action.isEnabled()
 
     def _handle_background_jobs(self) -> None:
         while not self._shutdown_event.is_set():
@@ -271,6 +300,7 @@ class Controller(QtCore.QObject):
                     except Exception as exc:
                         self.failed.emit(exc)
                     finally:
+                        self._job_active_event.clear()
                         self.finished.emit()
             except Exception as exc:
                 logger.exception(exc)
@@ -280,8 +310,11 @@ class Controller(QtCore.QObject):
         with self.cache:
             snapshot = {}
             snapshot["state"] = self.cache.get("fsm_state", FSMState.IDLE)  # TODO
+            snapshot["running"] = self.is_job_active()
             snapshot["measurement_type"] = self.cache.get("measurement_type")
             snapshot["sample"] = self.cache.get("sample")
+            snapshot["filename"] = self.state.get("filename")
+            snapshot["last_error"] = self.last_error()
             snapshot["source_voltage"] = self.cache.get("source_voltage")
             snapshot["smu_voltage"] = self.cache.get("smu_voltage")
             snapshot["smu_current"] = self.cache.get("smu_current")
@@ -432,6 +465,12 @@ class Controller(QtCore.QObject):
         sample_name = get_str(settings.value("sampleName"), "Unnamed")
         general_widget.set_sample_name(sample_name)
 
+        filename = get_str(settings.value("filename"), "")
+        general_widget.set_filename(filename)
+
+        filename_suffix = get_str(settings.value("filenameSuffix"), "")
+        general_widget.set_filename_suffix(filename_suffix)
+
         output_dir = get_str(settings.value("outputDir"), os.path.expanduser("~"))
         general_widget.set_output_dir(output_dir)
 
@@ -527,6 +566,12 @@ class Controller(QtCore.QObject):
 
         sample_name = general_widget.sample_name()
         settings.setValue("sampleName", sample_name)
+
+        filename = general_widget.filename()
+        settings.setValue("filename", filename)
+
+        filename_suffix = general_widget.filename_suffix()
+        settings.setValue("filenameSuffix", filename_suffix)
 
         output_dir = general_widget.output_dir()
         settings.setValue("outputDir", output_dir)
@@ -655,6 +700,22 @@ class Controller(QtCore.QObject):
         self.state.abort_event.set()
 
     # Slots
+
+    def record_error(self, exc: Exception) -> None:
+        """Remember the most recent error so it can be exposed to remote clients."""
+        with self._last_error_lock:
+            self._last_error = f"{type(exc).__name__}: {exc}"
+
+    def last_error(self) -> Optional[str]:
+        """Return the most recent error message, `None` if no error occurred
+        since the last measurement was started.
+        """
+        with self._last_error_lock:
+            return self._last_error
+
+    def clear_last_error(self) -> None:
+        with self._last_error_lock:
+            self._last_error = None
 
     def handle_exception(self, exc: Exception) -> None:
         """Shows up to one error message at a time."""
@@ -939,12 +1000,19 @@ class Controller(QtCore.QObject):
         self.main_window.continuous_check_box.setEnabled(enabled)
 
     def create_filename(self) -> str:
-        path = self.main_window.general_widget.output_dir()
-        sample = self.state.sample
-        timestamp = datetime.fromtimestamp(self.state.timestamp).strftime(
-            "%Y-%m-%dT%H-%M-%S"
-        )
-        filename = safe_filename(f"{sample}-{timestamp}.txt")
+        general_widget = self.main_window.general_widget
+        path = general_widget.output_dir()
+        basename = general_widget.filename()
+        if not basename:
+            sample = self.state.sample
+            timestamp = datetime.fromtimestamp(self.state.timestamp).strftime(
+                "%Y-%m-%dT%H-%M-%S"
+            )
+            basename = f"{sample}-{timestamp}"
+        suffix = general_widget.filename_suffix()
+        if suffix:
+            basename = f"{basename}_{suffix}"
+        filename = safe_filename(f"{basename}.txt")
         return os.path.join(path, filename)
 
     def connect_iv_plots(self, measurement) -> None:
@@ -960,9 +1028,23 @@ class Controller(QtCore.QObject):
         measurement.cv_reading_queue = self.cv_plots_controller.cv_reading_queue
         measurement.cv_reading_lock = self.cv_plots_controller.cv_reading_lock
 
+    def apply_lcr_config(self, config: Mapping[str, Any]) -> None:
+        """Apply parameters to the instrument panel of the currently selected
+        LCR model.
+        """
+        role = self.main_window.find_role("LCR")
+        if role is None:
+            raise RuntimeError("No LCR role available.")
+        role.apply_current_config(config)
+
     def configure(self, params: Mapping[str, Any]) -> None:
         general_widget = self.main_window.general_widget
-        for key, value in params.items():
+        # Selecting a measurement type resets dependent inputs to its defaults,
+        # apply it before anything else.
+        ordered_params = sorted(
+            params.items(), key=lambda item: item[0] != "measurement_type"
+        )
+        for key, value in ordered_params:
             if key == "continuous":
                 self.main_window.set_continuous(value)
             elif key == "auto_reconnect":
@@ -983,8 +1065,24 @@ class Controller(QtCore.QObject):
                 general_widget.set_bias_voltage(value)
             elif key == "compliance":
                 general_widget.set_current_compliance(value)
+            elif key == "continue_in_compliance":
+                general_widget.set_continue_in_compliance(value)
             elif key == "waiting_time_continuous":
                 general_widget.set_waiting_time_continuous(value)
+            elif key == "sample":
+                general_widget.set_sample_name(value)
+            elif key == "output_enabled":
+                general_widget.set_output_enabled(value)
+            elif key == "output_dir":
+                general_widget.set_output_dir(value)
+            elif key == "filename":
+                general_widget.set_filename(value)
+            elif key == "filename_suffix":
+                general_widget.set_filename_suffix(value)
+            elif key == "lcr_amplitude":
+                self.apply_lcr_config({"voltage": value})
+            elif key == "lcr_frequency":
+                self.apply_lcr_config({"frequency": value})
             else:
                 raise KeyError(f"Invalid configuration key: {key}")
 
@@ -1015,6 +1113,7 @@ class Controller(QtCore.QObject):
     @QtCore.Slot()
     def on_start_measurement(self) -> None:
         try:
+            self.clear_last_error()
             logger.debug("preparing state...")
             state = self.prepare_state()
             logger.debug("preparing state... done.")

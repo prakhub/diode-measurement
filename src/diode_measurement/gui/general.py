@@ -93,6 +93,17 @@ class GeneralWidget(QtWidgets.QWidget):
 
         self.sample_line_edit = QtWidgets.QLineEdit(self)
 
+        self.filename_line_edit = QtWidgets.QLineEdit(self)
+        self.filename_line_edit.setPlaceholderText("<sample>-<timestamp>")
+        self.filename_line_edit.setStatusTip(
+            "Base file name without extension, defaults to sample name and timestamp"
+        )
+
+        self.filename_suffix_line_edit = QtWidgets.QLineEdit(self)
+        self.filename_suffix_line_edit.setStatusTip(
+            "Optional suffix appended to the base file name, separated by an underscore"
+        )
+
         completer = QtWidgets.QCompleter()
         completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
 
@@ -176,6 +187,10 @@ class GeneralWidget(QtWidgets.QWidget):
         vbox_layout = QtWidgets.QVBoxLayout(self.output_group_box)
         vbox_layout.addWidget(QtWidgets.QLabel("Sample Name"))
         vbox_layout.addWidget(self.sample_line_edit)
+        vbox_layout.addWidget(QtWidgets.QLabel("File Name"))
+        vbox_layout.addWidget(self.filename_line_edit)
+        vbox_layout.addWidget(QtWidgets.QLabel("File Name Suffix"))
+        vbox_layout.addWidget(self.filename_suffix_line_edit)
         vbox_layout.addWidget(QtWidgets.QLabel("Output Path"))
         output_layout = QtWidgets.QHBoxLayout()
         output_layout.addWidget(self.output_line_edit)
@@ -344,6 +359,20 @@ class GeneralWidget(QtWidgets.QWidget):
 
     def set_sample_name(self, text: str) -> None:
         self.sample_line_edit.setText(text)
+
+    def filename(self) -> str:
+        """Return base file name without extension, empty if unset."""
+        return self.filename_line_edit.text().strip()
+
+    def set_filename(self, text: str) -> None:
+        self.filename_line_edit.setText(text)
+
+    def filename_suffix(self) -> str:
+        """Return file name suffix, empty if unset."""
+        return self.filename_suffix_line_edit.text().strip()
+
+    def set_filename_suffix(self, text: str) -> None:
+        self.filename_suffix_line_edit.setText(text)
 
     def output_dir(self) -> str:
         return self.output_line_edit.text().strip()

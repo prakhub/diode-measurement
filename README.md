@@ -45,6 +45,7 @@ Source Meter Units
 
 Electro Meter
 
+- Agilent 4155C (single SMU used as electrometer)
 - Keithley 6514
 - Keithley 6517B
 
@@ -197,10 +198,21 @@ Start notification starts a new measurement.
 ```
 
 Optional parameters are `continuous` (Boolean), `auto_reconnect` (Boolean),
+`measurement_type` (String), `measurement_instruments` (List of String),
 `begin_voltage` (Volt), `end_voltage` (Volt), `step_voltage` (Volt),
-`waiting_time` (seconds), `compliance` (Ampere) and `waiting_time_continuous`
-(seconds). Specified values will be applied to the user interface before
+`waiting_time` (seconds), `compliance` (Ampere), `continue_in_compliance`
+(Boolean), `waiting_time_continuous` (seconds), `sample` (String),
+`output_enabled` (Boolean), `output_dir` (String), `filename` (String),
+`filename_suffix` (String), `lcr_amplitude` (Volt) and `lcr_frequency`
+(Hertz). Specified values will be applied to the user interface before
 starting the measurement.
+
+`continue_in_compliance` corresponds to the *Continue in Compliance* option:
+when true the measurement keeps sweeping after the source reached its current
+compliance instead of aborting, which is the normal case for a forward biased
+diode.
+
+Starting a measurement while another one is still active returns an error.
 
 ```json
 {
@@ -213,6 +225,32 @@ starting the measurement.
   }
 }
 ```
+
+#### Configure
+
+Configure notification applies parameters to the user interface without
+starting a measurement. It accepts the same parameters as `start`.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "configure",
+  "params": {
+    "output_dir": "/data/samples/A1",
+    "filename": "A1_irrad_iv",
+    "filename_suffix": "iv_reverse",
+    "lcr_frequency": 10000.0
+  }
+}
+```
+
+The written output file is `<output_dir>/<filename>_<filename_suffix>.txt`.
+An empty `filename` falls back to `<sample>-<timestamp>`, an empty
+`filename_suffix` is omitted. Writing output files requires `output_enabled`.
+
+`lcr_amplitude` and `lcr_frequency` are applied to the instrument panel of the
+currently selected LCR model and return an error if that model does not
+support them.
 
 #### Stop
 
@@ -258,8 +296,11 @@ This will return application state parameters.
   "jsonrpc": "2.0",
   "result": {
     "state": "ramping",
+    "running": true,
     "measurement_type": "iv",
     "sample": "VPX1",
+    "filename": "/data/samples/A1/A1_irrad_iv_iv_reverse.txt",
+    "last_error": null,
     "source_voltage": 24.0,
     "smu_voltage": 24.026,
     "smu_current": 0.0025,
@@ -278,6 +319,15 @@ This will return application state parameters.
 
 Following states are exposed by the state snapshot: `idle`, `configure`,
 `ramping`, `continuous`, `stopping`.
+
+Field `running` is `true` from the moment a `start` request is accepted until
+the measurement finished, also while ramping down. Use it rather than `state`
+to wait for a measurement to complete, as it is free of races against short
+measurements.
+
+Field `last_error` contains the message of the most recent error, or `null` if
+no error occurred since the current measurement was started. A measurement that
+failed returns to `running` `false` with `last_error` set.
 
 ![State diagram](docs/images/rpc_states.png)
 

@@ -91,6 +91,15 @@ class RoleWidget(QtWidgets.QWidget):
             return widget.config()
         return {}
 
+    def apply_current_config(self, config: Mapping[str, Any]) -> None:
+        """Apply parameters to the panel of the currently selected instrument,
+        the one `current_config` reads back.
+        """
+        widget = self.stacked_widget.currentWidget()
+        if not isinstance(widget, InstrumentPanel):
+            raise RuntimeError(f"No instrument selected for role {self.name()}.")
+        widget.apply_config(config)
+
     def configs(self) -> dict[str, Any]:
         configs = {}
         for widget in self.instrument_panels():
